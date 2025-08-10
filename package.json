@@ -5,10 +5,10 @@
     "type": "module",
     "scripts": {
       "start": "node server.js",
-      "dev": "NODE_ENV=development node server.js",
-      "postinstall": "npm rebuild sqlite3 --build-from-source"
+      "dev": "NODE_ENV=development node server.js"
     },
     "dependencies": {
+      "better-sqlite3": "^9.4.0",
       "busboy": "^1.6.0",
       "compression": "^1.7.4",
       "cookie-parser": "^1.4.6",
@@ -18,12 +18,10 @@
       "helmet": "^7.1.0",
       "mammoth": "^1.6.0",
       "morgan": "^1.10.0",
-      "openai": "^4.55.3",
-      "sqlite3": "5.1.7"
+      "openai": "^4.55.3"
     },
     "engines": {
-      "node": "20.x",
-      "npm": "9.x"
+      "node": "20.x"
     }
   }
   
