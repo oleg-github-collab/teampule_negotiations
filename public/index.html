@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
+  <title>TeamPulse Turbo — Negotiation (Kaminskyi AI)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="particles" aria-hidden="true">
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Top Nav -->
+    <nav class="top-nav" role="navigation" aria-label="Головна навігація">
+      <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+      <div class="nav-brand">
+        <span class="brand-icon">⚡</span>
+        <span class="brand-text">TeamPulse Turbo</span>
+        <span class="badge">Kaminskyi AI</span>
+      </div>
+      <div class="nav-tabs" role="tablist">
+        <button class="nav-tab active" data-tab="neg" role="tab" aria-selected="true"><i class="fas fa-handshake"></i><span>Negotiation</span></button>
+      </div>
+      <div class="nav-actions">
+        <button class="nav-action" id="right-sidebar-toggle" title="Інструменти"><i class="fas fa-sliders-h"></i></button>
+      </div>
+    </nav>
+
+    <!-- Left Sidebar -->
+    <aside class="sidebar sidebar-left" id="sidebar-left" aria-label="Профіль клієнта">
+      <div class="sidebar-header">
+        <h3>👤 Профіль клієнта</h3>
+        <button class="sidebar-close" onclick="closeSidebar('left')" aria-label="Закрити"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="sidebar-content">
+        <div class="profile-section">
+          <div class="profile-field"><label for="company">Компанія</label><input id="company" placeholder="ТОВ Приклад"/></div>
+          <div class="profile-field"><label for="negotiator">Переговорник</label><input id="negotiator" placeholder="Ім'я, посада"/></div>
+          <div class="profile-field"><label for="sector">Сфера</label><input id="sector" placeholder="SaaS, виробництво..."/></div>
+          <div class="profile-field"><label for="goal">Ціль переговорів</label><input id="goal" placeholder="Підписати контракт..."/></div>
+          <div class="profile-field"><label for="criteria">Критерії рішення</label><input id="criteria" placeholder="Ціна, терміни..."/></div>
+          <div class="profile-field"><label for="constraints">Обмеження</label><input id="constraints" placeholder="Бюджет, ресурси..."/></div>
+
+          <div class="profile-field"><label for="user_goals">Цілі юзера</label><textarea id="user_goals" rows="2"></textarea></div>
+          <div class="profile-field"><label for="client_goals">Цілі клієнта (як ви бачите)</label><textarea id="client_goals" rows="2"></textarea></div>
+          <div class="profile-field"><label for="weekly_hours">Годин/тиждень</label><input id="weekly_hours" type="number" min="0" placeholder="10"/></div>
+          <div class="profile-field"><label for="offered_services">Послуги</label><textarea id="offered_services" rows="2"></textarea></div>
+          <div class="profile-field"><label for="deadlines">Дедлайни</label><input id="deadlines" placeholder="дати/місяці"/></div>
+          <div class="profile-field"><label for="notes">Нотатки</label><textarea id="notes" rows="3" placeholder="Деталі, конкуренти..."></textarea></div>
+
+          <div style="display:flex; gap:.5rem; margin:.5rem 0 1rem">
+            <button class="btn-secondary full-width" onclick="saveClientDeep()"><i class="fas fa-database"></i> Зберегти у БД</button>
+            <button class="btn-ghost full-width" onclick="clearProfileForm()"><i class="fas fa-file"></i> Новий</button>
+          </div>
+        </div>
+
+        <div class="client-list">
+          <h4>Клієнти</h4>
+          <div id="saved-clients" class="chat-like-list"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Sidebar -->
+    <aside class="sidebar sidebar-right" id="sidebar-right" aria-label="Інструменти">
+      <div class="sidebar-header">
+        <h3>🛠 Інструменти</h3>
+        <button class="sidebar-close" onclick="closeSidebar('right')" aria-label="Закрити"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="sidebar-content">
+        <div class="tool-section">
+          <h4>Відібрані фрагменти</h4>
+          <div id="bucket" class="bucket-list" aria-live="polite"></div>
+          <button class="btn-primary full-width" id="adviceBtn"><i class="fas fa-lightbulb"></i> Отримати рекомендації</button>
+          <div id="adviceOut" class="output-area" style="margin-top:.75rem; display:none;"></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Main -->
+    <main class="main-content">
+      <section id="neg" class="tab-pane active">
+        <div class="content-header">
+          <h1><i class="fas fa-handshake"></i> Аналіз переговорів</h1>
+          <div class="header-actions">
+            <span class="status-badge"><i class="fas fa-circle"></i> 512K токенів/добу</span>
+          </div>
+        </div>
+
+        <p class="muted">AI виявляє маніпуляції, когнітивні викривлення та софізми у реальному часі.</p>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3>Вхід</h3>
+            <div id="dropzone" class="dropzone" role="button" tabindex="0">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <p>Перетягніть DOCX/TXT</p><span>або натисніть для вибору</span>
+            </div>
+            <label class="btn-secondary" style="cursor:pointer; margin:.5rem 0 1rem; display:inline-flex;gap:.5rem;align-items:center;">
+              <input type="file" id="file" accept=".txt,.docx" hidden/>
+              <i class="fas fa-file-upload"></i> Обрати файл
+            </label>
+
+            <textarea id="inputText" placeholder="Або вставте текст переговорів тут..." rows="10"></textarea>
+            <div class="input-actions">
+              <button id="analyzeBtn" class="btn-primary"><i class="fas fa-play"></i> Аналізувати</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="results-header">
+              <h3>Стрім результатів</h3>
+              <div class="results-actions">
+                <button id="exportBtn" class="btn-icon" title="Експорт"><i class="fas fa-download"></i></button>
+              </div>
+            </div>
+            <div id="stream" class="output-area" aria-live="polite"></div>
+            <div id="badJson" class="alert alert-warning" style="display:none;">
+              <i class="fas fa-exclamation-triangle"></i> Вихід містив невалідні рядки — пропущено
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3>Підсвічений текст</h3>
+            <div class="legend">
+              <span class="legend-item manip">Маніпуляції</span>
+              <span class="legend-item cog">Когнітивні</span>
+              <span class="legend-item fallacy">Софізми</span>
+            </div>
+            <div id="annotated" class="annotated-section" style="display:none;">
+              <div id="highlighted" class="highlighted-text"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Barometer</h3>
+            <div id="barometer" class="barometer">
+              <div class="barometer-gauge">
+                <div class="barometer-donut"><div class="barometer-needle"></div></div>
+                <div class="barometer-score">—</div>
+                <div class="barometer-label">Очікуємо...</div>
+              </div>
+              <div class="barometer-factors">
+                <div class="factor"><span>🎯 Goal alignment</span><div class="bar"><div></div></div></div>
+                <div class="factor"><span🔥>🧪 Manipulation density</span><div class="bar"><div></div></div></div>
+                <div class="factor"><span>📐 Scope clarity</span><div class="bar"><div></div></div></div>
+                <div class="factor"><span>⏱ Time pressure</span><div class="bar"><div></div></div></div>
+                <div class="factor"><span>⚙️ Resources</span><div class="bar"><div></div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
