@@ -1,9 +1,0 @@
-# .nixpacks.toml
-[phases.setup]
-nixPkgs = [
-  "gcc",        # замість build-essential
-  "gnumake",    # make
-  "python3",    # для node-gyp
-  "pkg-config", # щоб знайти sqlite
-  "sqlite"      # бібліотека + dev headers
-]

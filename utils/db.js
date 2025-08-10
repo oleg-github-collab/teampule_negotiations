@@ -9,11 +9,11 @@ const __dirname = dirname(__filename);
 
 const DB_PATH = process.env.DB_PATH || join(__dirname, '../data/teampulse.db');
 
-// створюємо папку під БД, якщо треба
+// Створюємо папку для БД, якщо потрібно
 const dir = dirname(DB_PATH);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-// Відкриваємо синхронно (better-sqlite3 — sync API; це ок для невеликого навантаження)
+// Відкриваємо БД (sync API — ок для нашого навантаження)
 const db = new Database(DB_PATH, { fileMustExist: false });
 
 // PRAGMA
@@ -64,10 +64,12 @@ export function run(sql, params = []) {
   const info = Array.isArray(params) ? stmt.run(...params) : stmt.run(params);
   return { lastID: info.lastInsertRowid, changes: info.changes };
 }
+
 export function get(sql, params = []) {
   const stmt = db.prepare(sql);
   return Array.isArray(params) ? stmt.get(...params) : stmt.get(params);
 }
+
 export function all(sql, params = []) {
   const stmt = db.prepare(sql);
   return Array.isArray(params) ? stmt.all(...params) : stmt.all(params);
@@ -75,3 +77,12 @@ export function all(sql, params = []) {
 
 // Транзакції коли потрібно
 export const transaction = (fn) => db.transaction(fn);
+
+// Сумісність зі старим кодом: шім для getDB()
+export async function getDB() {
+  // Повертаємо об'єкт із тим самим інтерфейсом, який очікувався раніше
+  return { run, get, all, transaction };
+}
+
+// (опційно) експорт шляху до БД, якщо десь потрібен
+export { DB_PATH };
