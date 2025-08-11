@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/styles.css"/>
 </head>
 <body>
+  <!-- Background particles -->
   <div class="particles" aria-hidden="true">
     <div class="particle"></div><div class="particle"></div><div class="particle"></div>
     <div class="particle"></div><div class="particle"></div><div class="particle"></div>
@@ -29,7 +30,7 @@
         <button class="nav-tab active" data-tab="neg" role="tab" aria-selected="true"><i class="fas fa-handshake"></i><span>Negotiation</span></button>
       </div>
       <div class="nav-actions">
-        <button class="nav-action" id="right-sidebar-toggle" title="Інструменти"><i class="fas fa-sliders-h"></i></button>
+        <button class="nav-action" id="right-sidebar-toggle" title="Інструменти" aria-label="Відкрити інструменти"><i class="fas fa-sliders-h"></i></button>
       </div>
     </nav>
 
@@ -88,7 +89,7 @@
 
     <!-- Main -->
     <main class="main-content">
-      <section id="neg" class="tab-pane active">
+      <section id="neg" class="tab-pane active" aria-labelledby="neg-tab">
         <div class="content-header">
           <h1><i class="fas fa-handshake"></i> Аналіз переговорів</h1>
           <div class="header-actions">
@@ -99,7 +100,8 @@
         <p class="muted">AI виявляє маніпуляції, когнітивні викривлення та софізми у реальному часі.</p>
 
         <div class="grid-2">
-          <div class="card">
+          <!-- Input -->
+          <div class="card input-section">
             <h3>Вхід</h3>
             <div id="dropzone" class="dropzone" role="button" tabindex="0">
               <i class="fas fa-cloud-upload-alt"></i>
@@ -116,7 +118,8 @@
             </div>
           </div>
 
-          <div class="card">
+          <!-- Stream -->
+          <div class="card results-section">
             <div class="results-header">
               <h3>Стрім результатів</h3>
               <div class="results-actions">
@@ -131,6 +134,7 @@
         </div>
 
         <div class="grid-2">
+          <!-- Highlighted text -->
           <div class="card">
             <h3>Підсвічений текст</h3>
             <div class="legend">
@@ -143,17 +147,50 @@
             </div>
           </div>
 
+          <!-- Barometer V2 -->
           <div class="card">
             <h3>Barometer</h3>
             <div id="barometer" class="barometer">
-              <div class="barometer-gauge">
-                <div class="barometer-donut"><div class="barometer-needle"></div></div>
+              <div class="barometer-gauge" role="img" aria-label="Рівень складності переговорів">
+                <!-- decorative layers -->
+                <div class="glass barometer-glass" aria-hidden="true"></div>
+                <div class="barometer-ring" aria-hidden="true"></div>
+                <div class="barometer-glow" aria-hidden="true"></div>
+
+                <!-- needle + score + label -->
+                <div class="barometer-needle" aria-hidden="true"></div>
                 <div class="barometer-score">—</div>
                 <div class="barometer-label">Очікуємо...</div>
+
+                <!-- ticks -->
+                <div class="barometer-ticks" aria-hidden="true">
+                  <div class="tick major t0"></div>
+                  <div class="tick major t1"></div>
+                  <div class="tick major t2"></div>
+                  <div class="tick major t3"></div>
+                  <div class="tick major t4"></div>
+                  <div class="tick major t5"></div>
+                  <div class="tick major t6"></div>
+                  <div class="tick major t7"></div>
+                  <div class="tick major t8"></div>
+                  <div class="tick major t9"></div>
+                </div>
+
+                <!-- zones -->
+                <div class="barometer-zones" aria-hidden="true">
+                  <span class="zone-tag zone-easy">Easy mode</span>
+                  <span class="zone-tag zone-clear">Clear client</span>
+                  <span class="zone-tag zone-medium">Medium</span>
+                  <span class="zone-tag zone-high">High</span>
+                  <span class="zone-tag zone-bloody">Bloody hell</span>
+                  <span class="zone-tag zone-impossible">Mission impossible</span>
+                </div>
               </div>
+
+              <!-- factors (JS fills widths) -->
               <div class="barometer-factors">
                 <div class="factor"><span>🎯 Goal alignment</span><div class="bar"><div></div></div></div>
-                <div class="factor"><span🔥>🧪 Manipulation density</span><div class="bar"><div></div></div></div>
+                <div class="factor"><span>🧪 Manipulation density</span><div class="bar"><div></div></div></div>
                 <div class="factor"><span>📐 Scope clarity</span><div class="bar"><div></div></div></div>
                 <div class="factor"><span>⏱ Time pressure</span><div class="bar"><div></div></div></div>
                 <div class="factor"><span>⚙️ Resources</span><div class="bar"><div></div></div></div>

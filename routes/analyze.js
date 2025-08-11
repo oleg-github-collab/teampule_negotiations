@@ -38,7 +38,7 @@ function mergeOverlaps(highlights) {
     byPara.get(h.paragraph_index).push(h);
   }
   const merged = [];
-  for (const [p, arr] of byPara.entries()) {
+  for (const [, arr] of byPara.entries()) {
     arr.sort((a, b) => (a.char_start ?? 0) - (b.char_start ?? 0));
     let cur = null;
     for (const h of arr) {
@@ -155,6 +155,10 @@ function buildUserPayload(paragraphs, clientCtx, limiter) {
     output_mode: 'ndjson'
   };
 }
+function supportsTemperature(model) {
+  // просте правило: для "gpt-5" не передаємо temperature
+  return !/^gpt-5($|[-:])/i.test(model);
+}
 
 // ===== Route =====
 r.post('/analyze', async (req, res) => {
@@ -231,15 +235,19 @@ r.post('/analyze', async (req, res) => {
       const system = buildSystemPrompt();
       const user = JSON.stringify(buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS));
 
-      const stream = await openaiClient.chat.completions.create({
+      const reqPayload = {
         model: MODEL,
         stream: true,
-        temperature: 0.2,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user }
         ]
-      });
+      };
+      if (supportsTemperature(MODEL)) {
+        reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.2);
+      }
+
+      const stream = await openaiClient.chat.completions.create(reqPayload);
 
       // Лінійний NDJSON парсер з recovery
       let buffer = '';
@@ -311,12 +319,15 @@ r.post('/analyze', async (req, res) => {
     res.end();
   } catch (err) {
     console.error('Analyze error:', err.message);
-    // важливо: SSE може вже бути відкрито — у такому разі просто закриваємо стрім
     try {
-      res.write(`event: error\ndata: ${JSON.stringify(err.message)}\n\n`);
-      res.end();
+      if (!res.headersSent) {
+        res.status(400).json({ error: err.message });
+      } else {
+        res.write(`event: error\ndata: ${JSON.stringify(err.message)}\n\n`);
+        res.end();
+      }
     } catch {
-      if (!res.headersSent) res.status(429).json({ error: err.message });
+      // no-op
     }
   }
 });
