@@ -1,7 +1,10 @@
-// routes/advice.js - Виправлений маршрут порад
+// routes/advice.js - Production AI advice engine
 import { Router } from 'express';
 import { client as openaiClient, estimateTokens } from '../utils/openAIClient.js';
+import { validateAdviceRequest } from '../middleware/validators.js';
+import { logError, logAIUsage, logPerformance } from '../utils/logger.js';
 import { run, get } from '../utils/db.js';
+import { performance } from 'perf_hooks';
 
 const r = Router();
 const MODEL = process.env.OPENAI_MODEL || 'gpt-5';
@@ -41,33 +44,44 @@ async function addTokensAndCheck(tokensToAdd) {
   }
 }
 
-r.post('/', async (req, res) => {
+r.post('/', validateAdviceRequest, async (req, res) => {
+  const adviceStartTime = performance.now();
+  let totalTokensUsed = 0;
+  
   try {
     const { items, profile } = req.body || {};
+    
+    // Enhanced input validation
     if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'Немає фрагментів для поради' });
+      return res.status(400).json({ 
+        error: 'Немає фрагментів для поради',
+        required: 'items array with at least 1 fragment'
+      });
     }
+    
+    if (items.length > 50) {
+      return res.status(400).json({
+        error: 'Занадто багато фрагментів. Максимум: 50',
+        maxItems: 50,
+        receivedItems: items.length
+      });
+    }
+    
     const approxIn = estimateTokens(JSON.stringify(items)) + 400;
+    totalTokensUsed += approxIn;
     await addTokensAndCheck(approxIn);
 
+    // Production mode requires OpenAI API
     if (!openaiClient) {
-      // Fallback demo
-      return res.json({
-        success: true,
-        advice: {
-          recommended_replies: [
-            'Попросіть уточнити конкретні критерії успіху та KPI.',
-            "Зафіксуйте взаємні зобов'язання письмово перед початком робіт.",
-            "Запропонуйте поетапну оплату з прив'язкою до результатів.",
-          ],
-          risks: [
-            'Нечіткі очікування можуть призвести до конфліктів',
-            'Односторонні ультиматуми свідчать про низьку готовність до компромісу',
-            'Штучний дефіцит часу використовується для тиску',
-          ],
-          notes:
-            'Рекомендується зафіксувати всі домовленості письмово та узгодити чіткі критерії успіху проекту. Зверніть увагу на баланс відповідальності.',
-        },
+      logError(new Error('OpenAI client not configured for advice'), {
+        context: 'Advice request without API key',
+        itemsCount: items.length,
+        ip: req.ip
+      });
+      
+      return res.status(503).json({
+        error: 'Сервіс порад тимчасово недоступний',
+        code: 'AI_SERVICE_UNAVAILABLE'
       });
     }
 
@@ -120,6 +134,8 @@ ${JSON.stringify(
         { role: 'system', content: sys },
         { role: 'user', content: usr },
       ],
+      max_tokens: 1500,
+      top_p: 0.9
     };
 
     // Only add temperature if supported
@@ -127,17 +143,80 @@ ${JSON.stringify(
       reqPayload.temperature = 0.2;
     }
 
-    const resp = await openaiClient.chat.completions.create(reqPayload);
+    let resp;
+    try {
+      resp = await openaiClient.chat.completions.create(reqPayload);
+    } catch (apiError) {
+      logError(apiError, {
+        context: 'OpenAI advice API call failed',
+        model: MODEL,
+        itemsCount: items.length,
+        ip: req.ip
+      });
+      
+      return res.status(503).json({
+        error: 'Помилка AI сервісу. Спробуйте пізніше.',
+        code: 'AI_API_ERROR'
+      });
+    }
+    
     const content = resp.choices?.[0]?.message?.content || '{}';
+    const outputTokens = 600;
+    totalTokensUsed += outputTokens;
+    await addTokensAndCheck(outputTokens);
+    
+    // Log AI usage
+    logAIUsage(totalTokensUsed, MODEL, 'advice_generation');
+    
+    const adviceDuration = performance.now() - adviceStartTime;
+    logPerformance('Advice Generation', adviceDuration, {
+      itemsCount: items.length,
+      tokensUsed: totalTokensUsed
+    });
+    
+    let parsedAdvice;
+    try {
+      parsedAdvice = JSON.parse(content);
+    } catch (parseError) {
+      logError(parseError, {
+        context: 'Failed to parse AI advice response',
+        content: content.substring(0, 500)
+      });
+      
+      return res.status(500).json({
+        error: 'Помилка обробки відповіді AI',
+        code: 'AI_RESPONSE_PARSE_ERROR'
+      });
+    }
 
-    await addTokensAndCheck(600); // output tokens
-
-    return res.json({ success: true, advice: JSON.parse(content) });
+    return res.json({ 
+      success: true, 
+      advice: parsedAdvice,
+      meta: {
+        itemsProcessed: items.length,
+        tokensUsed: totalTokensUsed,
+        responseTime: Math.round(adviceDuration)
+      }
+    });
   } catch (e) {
-    console.error('Advice error:', e.message);
-    res
-      .status(e.message.includes('Ліміт') ? 429 : 500)
-      .json({ error: e.message });
+    const adviceDuration = performance.now() - adviceStartTime;
+    
+    logError(e, {
+      context: 'Advice route error',
+      duration: adviceDuration,
+      tokensUsed: totalTokensUsed,
+      itemsCount: req.body?.items?.length || 0,
+      ip: req.ip
+    });
+    
+    const isRateLimit = e.message.includes('Ліміт');
+    const statusCode = isRateLimit ? 429 : 500;
+    
+    res.status(statusCode).json({ 
+      error: e.message || 'Помилка генерації порад',
+      code: isRateLimit ? 'RATE_LIMIT_EXCEEDED' : 'ADVICE_ERROR',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

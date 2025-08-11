@@ -1,0 +1,46 @@
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: '401 Incorrect API key provided: demo. You can find your API key at https://platform.openai.com/account/api-keys.',
+    stack: 'Error: 401 Incorrect API key provided: demo. You can find your API key at https://platform.openai.com/account/api-keys.\n' +
+      '    at APIError.generate (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/error.mjs:44:20)\n' +
+      '    at OpenAI.makeStatusError (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:295:25)\n' +
+      '    at OpenAI.makeRequest (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:339:30)\n' +
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+      '    at async file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/analyze.js:363:16',
+    name: 'Error'
+  },
+  context: {
+    context: 'OpenAI API call failed',
+    model: 'gpt-4o',
+    textLength: 223,
+    tokensEstimated: 1256,
+    clientId: 5,
+    ip: '127.0.0.1'
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-12 01:56:12'
+}
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: '401 Incorrect API key provided: demo. You can find your API key at https://platform.openai.com/account/api-keys.',
+    stack: 'Error: 401 Incorrect API key provided: demo. You can find your API key at https://platform.openai.com/account/api-keys.\n' +
+      '    at APIError.generate (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/error.mjs:44:20)\n' +
+      '    at OpenAI.makeStatusError (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:295:25)\n' +
+      '    at OpenAI.makeRequest (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:339:30)\n' +
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+      '    at async file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/advice.js:148:14',
+    name: 'Error'
+  },
+  context: {
+    context: 'OpenAI advice API call failed',
+    model: 'gpt-5',
+    itemsCount: 1,
+    ip: '127.0.0.1'
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-12 01:56:20'
+}

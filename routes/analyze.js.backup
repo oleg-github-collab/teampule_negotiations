@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { run as dbRun, get as dbGet } from '../utils/db.js';
 import { client as openaiClient, estimateTokens } from '../utils/openAIClient.js';
-import { validateFileUpload } from '../middleware/validators.js';
+import { validateAnalysisText, validateFileUpload } from '../middleware/validators.js';
 import { logError, logAIUsage, logPerformance } from '../utils/logger.js';
 import Busboy from 'busboy';
 import mammoth from 'mammoth';
@@ -72,10 +72,10 @@ function mergeOverlaps(highlights) {
 
 async function getUsageRow() {
   const day = new Date().toISOString().slice(0, 10);
-  let row = dbGet(`SELECT * FROM usage_daily WHERE day=?`, [day]);
+  let row = await dbGet(`SELECT * FROM usage_daily WHERE day=?`, [day]);
   if (!row) {
-    dbRun(`INSERT INTO usage_daily(day, tokens_used) VALUES(?,0)`, [day]);
-    row = dbGet(`SELECT * FROM usage_daily WHERE day=?`, [day]);
+    await dbRun(`INSERT INTO usage_daily(day, tokens_used) VALUES(?,0)`, [day]);
+    row = await dbGet(`SELECT * FROM usage_daily WHERE day=?`, [day]);
   }
   return { row, day };
 }
@@ -90,13 +90,13 @@ async function addTokensAndCheck(tokensToAdd) {
   const newTotal = (row.tokens_used || 0) + tokensToAdd;
   if (newTotal >= DAILY_TOKEN_LIMIT) {
     const lock = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    dbRun(
+    await dbRun(
       `UPDATE usage_daily SET tokens_used=?, locked_until=? WHERE day=?`,
       [newTotal, lock, day]
     );
     throw new Error(`Досягнуто денний ліміт токенів. Блокування до ${lock}`);
   } else {
-    dbRun(`UPDATE usage_daily SET tokens_used=? WHERE day=?`, [
+    await dbRun(`UPDATE usage_daily SET tokens_used=? WHERE day=?`, [
       newTotal,
       day,
     ]);
@@ -217,7 +217,7 @@ r.post('/', validateFileUpload, async (req, res) => {
     // Enhanced client validation and creation
     let finalClientId = clientId;
     if (!finalClientId && profile?.company) {
-      const existingClient = dbGet(
+      const existingClient = await dbGet(
         `SELECT id, company FROM clients WHERE company = ? LIMIT 1`,
         [profile.company]
       );
@@ -226,7 +226,7 @@ r.post('/', validateFileUpload, async (req, res) => {
       } else if (profile.company && profile.company.trim().length > 0) {
         // Auto-create client with validation
         try {
-          const info = dbRun(
+          const info = await dbRun(
             `
             INSERT INTO clients(
               company, negotiator, sector, goal, decision_criteria, constraints,
@@ -323,49 +323,47 @@ r.post('/', validateFileUpload, async (req, res) => {
         error: 'Сервіс тимчасово недоступний. Не налаштовано OpenAI API.',
         code: 'AI_SERVICE_UNAVAILABLE'
       });
-    }
+    } else {
+      const aiStartTime = performance.now();
+      const system = buildSystemPrompt();
+      const user = JSON.stringify(
+        buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
+      );
 
-    const aiStartTime = performance.now();
-    const system = buildSystemPrompt();
-    const user = JSON.stringify(
-      buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
-    );
+      const reqPayload = {
+        model: MODEL,
+        stream: true,
+        messages: [
+          { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
+          { role: 'user', content: user },
+        ],
+        stop: ['```','</artifacts>','</artifact>'],
+        max_tokens: 4000,
+        top_p: 0.9
+      };
 
-    const reqPayload = {
-      model: MODEL,
-      stream: true,
-      messages: [
-        { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
-        { role: 'user', content: user },
-      ],
-      stop: ['```','</artifacts>','</artifact>'],
-      max_tokens: 4000,
-      top_p: 0.9
-    };
+      if (supportsTemperature(MODEL)) {
+        reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.2);
+      }
 
-    if (supportsTemperature(MODEL)) {
-      reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.2);
-    }
-
-    // Enhanced request handling with timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort('Request timeout');
-    }, 120000); // 2 minute timeout
-    
-    req.on('close', () => {
-      clearTimeout(timeout);
-      controller.abort('Request closed by client');
-    });
-    
-    let stream;
-    try {
-      stream = await openaiClient.chat.completions.create({
-        ...reqPayload,
-        signal: controller.signal
+      // Enhanced request handling with timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        controller.abort('Request timeout');
+      }, 120000); // 2 minute timeout
+      
+      req.on('close', () => {
+        clearTimeout(timeout);
+        controller.abort('Request closed by client');
       });
       
-      clearTimeout(timeout);
+      try {
+        const stream = await openaiClient.chat.completions.create({
+          ...reqPayload,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeout);
 
       // Фільтрація та видобування JSON-об'єктів
       const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
@@ -419,67 +417,71 @@ r.post('/', validateFileUpload, async (req, res) => {
           .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 
       let buffer = '';
-      for await (const part of stream) {
-        const delta = part.choices?.[0]?.delta?.content || '';
-        if (!delta) continue;
+        try {
+          for await (const part of stream) {
+            const delta = part.choices?.[0]?.delta?.content || '';
+            if (!delta) continue;
 
-        buffer += sanitizeChunk(delta);
+            buffer += sanitizeChunk(delta);
 
-        // Витягуємо всі завершені JSON-об'єкти з буфера
-        const [rawObjs, rest] = extractJsonObjects(buffer);
-        buffer = rest;
+            // Витягуємо всі завершені JSON-об'єкти з буфера
+            const [rawObjs, rest] = extractJsonObjects(buffer);
+            buffer = rest;
 
-        for (const raw of rawObjs) {
-          try {
-            const obj = JSON.parse(raw);
+            for (const raw of rawObjs) {
+              try {
+                const obj = JSON.parse(raw);
 
-            // Пропускаємо тільки очікувані типи
-            if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
+                // Пропускаємо тільки очікувані типи
+                if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
 
-            if (obj.type === 'highlight') {
-              rawHighlights.push(obj);
-              sendLine(obj);
-            } else if (obj.type === 'summary') {
-              summaryObj = obj;
-            } else if (obj.type === 'barometer') {
-              barometerObj = obj;
+                if (obj.type === 'highlight') {
+                  rawHighlights.push(obj);
+                  sendLine(obj);
+                } else if (obj.type === 'summary') {
+                  summaryObj = obj;
+                } else if (obj.type === 'barometer') {
+                  barometerObj = obj;
+                }
+              } catch (e) {
+                // Тихо ігноруємо биті об'єкти
+                // console.warn('[NDJSON:bad_obj]', raw);
+              }
             }
-          } catch (e) {
-            // Тихо ігноруємо биті об'єкти
           }
+        } catch (error) {
+          clearTimeout(timeout);
+          
+          if (error.name === 'AbortError') {
+            logPerformance('AI Analysis Aborted', Date.now() - aiStartTime, {
+              reason: error.message,
+              clientId: finalClientId,
+              textLength: text.length
+            });
+            return; // Exit gracefully
+          }
+          
+          // Log AI API errors
+          logError(error, {
+            context: 'OpenAI API call failed',
+            model: MODEL,
+            textLength: text.length,
+            tokensEstimated: approxTokensIn,
+            clientId: finalClientId,
+            ip: req.ip
+          });
+          
+          if (!res.headersSent) {
+            return res.status(503).json({
+              error: 'Помилка AI сервісу. Спробуйте пізніше.',
+              code: 'AI_API_ERROR'
+            });
+          }
+          return;
         }
       }
-    } catch (error) {
-      clearTimeout(timeout);
-      
-      if (error.name === 'AbortError') {
-        logPerformance('AI Analysis Aborted', Date.now() - aiStartTime, {
-          reason: error.message,
-          clientId: finalClientId,
-          textLength: text.length
-        });
-        return; // Exit gracefully
-      }
-      
-      // Log AI API errors
-      logError(error, {
-        context: 'OpenAI API call failed',
-        model: MODEL,
-        textLength: text.length,
-        tokensEstimated: approxTokensIn,
-        clientId: finalClientId,
-        ip: req.ip
-      });
-      
-      if (!res.headersSent) {
-        return res.status(503).json({
-          error: 'Помилка AI сервісу. Спробуйте пізніше.',
-          code: 'AI_API_ERROR'
-        });
-      }
-      return;
     }
-
+    
     const words = text.split(/\s+/).filter(Boolean).length || 1;
     const maxAllowed = Math.max(
       1,
@@ -519,7 +521,7 @@ r.post('/', validateFileUpload, async (req, res) => {
       : `Аналіз від ${new Date().toLocaleDateString('uk-UA')}`;
 
     // Save to DB with client_id
-    const result = dbRun(
+    const result = await dbRun(
       `
       INSERT INTO analyses(
         client_id, title, source, original_filename, original_text, tokens_estimated, 
@@ -532,7 +534,7 @@ r.post('/', validateFileUpload, async (req, res) => {
         fileName ? 'file' : 'text',
         fileName || null,
         text.substring(0, 1000), // Save first 1000 chars for preview
-        totalTokensUsed,
+        approxTokensIn + 1600,
         JSON.stringify(merged),
         JSON.stringify(summaryObj || null),
         JSON.stringify(barometerObj || null),

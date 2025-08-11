@@ -1,53 +1,94 @@
-// routes/clients.js - Покращена робота з клієнтами
+// routes/clients.js - Production client management
 import { Router } from 'express';
 import { run, get, all } from '../utils/db.js';
+import { validateClient, validateClientId, validateAnalysisId } from '../middleware/validators.js';
+import { logError, logSecurity } from '../utils/logger.js';
+import { performance } from 'perf_hooks';
 
 const r = Router();
 
-// GET /api/clients - список клієнтів з кількістю аналізів
-r.get('/', (_req, res) => {
+// GET /api/clients - get all clients with analytics
+r.get('/', async (req, res) => {
+  const startTime = performance.now();
+  
   try {
     const rows = all(
       `
       SELECT
         c.*,
         COUNT(a.id) as analyses_count,
-        MAX(a.created_at) as last_analysis_at
+        MAX(a.created_at) as last_analysis_at,
+        AVG(json_extract(a.barometer_json, '$.score')) as avg_complexity_score
       FROM clients c
       LEFT JOIN analyses a ON c.id = a.client_id
       GROUP BY c.id
       ORDER BY datetime(c.updated_at) DESC, c.id DESC
+      LIMIT 1000
       `
     );
-    res.json({ success: true, clients: rows });
+    
+    const duration = performance.now() - startTime;
+    res.set('X-Response-Time', `${Math.round(duration)}ms`);
+    res.json({ 
+      success: true, 
+      clients: rows,
+      meta: {
+        count: rows.length,
+        responseTime: Math.round(duration)
+      }
+    });
   } catch (e) {
-    console.error('GET /clients error', e);
-    res.status(500).json({ success: false, error: 'DB error' });
+    logError(e, { endpoint: 'GET /api/clients', ip: req.ip });
+    res.status(500).json({ success: false, error: 'Database error occurred' });
   }
 });
 
-// GET /api/clients/:id - деталі клієнта з історією аналізів
-r.get('/:id', (req, res) => {
+// GET /api/clients/:id - get client details with analysis history
+r.get('/:id', validateClientId, async (req, res) => {
+  const startTime = performance.now();
+  
   try {
     const id = Number(req.params.id);
     const client = get(`SELECT * FROM clients WHERE id = ?`, [id]);
-    if (!client)
+    
+    if (!client) {
+      logSecurity('Attempt to access non-existent client', {
+        clientId: id,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
       return res.status(404).json({ success: false, error: 'Client not found' });
+    }
 
     const analyses = all(
       `
-      SELECT id, title, source, original_filename, barometer_json, created_at
+      SELECT 
+        id, title, source, original_filename, 
+        json_extract(barometer_json, '$.score') as complexity_score,
+        json_extract(barometer_json, '$.label') as complexity_label,
+        created_at
       FROM analyses 
       WHERE client_id = ?
       ORDER BY datetime(created_at) DESC
+      LIMIT 100
       `,
       [id]
     );
-
-    res.json({ success: true, client, analyses });
+    
+    const duration = performance.now() - startTime;
+    res.set('X-Response-Time', `${Math.round(duration)}ms`);
+    res.json({ 
+      success: true, 
+      client, 
+      analyses,
+      meta: {
+        analysisCount: analyses.length,
+        responseTime: Math.round(duration)
+      }
+    });
   } catch (e) {
-    console.error('GET /clients/:id error', e);
-    res.status(500).json({ success: false, error: 'DB error' });
+    logError(e, { endpoint: 'GET /api/clients/:id', clientId: req.params.id, ip: req.ip });
+    res.status(500).json({ success: false, error: 'Database error occurred' });
   }
 });
 
@@ -82,15 +123,12 @@ r.get('/:id/analysis/:analysisId', (req, res) => {
   }
 });
 
-// POST /api/clients - створити клієнта
-r.post('/', (req, res) => {
+// POST /api/clients - create new client
+r.post('/', validateClient, async (req, res) => {
+  const startTime = performance.now();
+  
   try {
     const c = req.body || {};
-    if (!c.company) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Company name required' });
-    }
     
     const now = new Date().toISOString();
     const info = run(
@@ -136,17 +174,13 @@ r.post('/', (req, res) => {
   }
 });
 
-// PUT /api/clients/:id - оновити клієнта
-r.put('/:id', (req, res) => {
+// PUT /api/clients/:id - update client
+r.put('/:id', validateClientId, validateClient, async (req, res) => {
+  const startTime = performance.now();
+  
   try {
     const id = Number(req.params.id);
     const c = req.body || {};
-    
-    if (!c.company) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Company name required' });
-    }
     
     const existing = get(`SELECT id FROM clients WHERE id = ?`, [id]);
     if (!existing) {
@@ -197,30 +231,84 @@ r.put('/:id', (req, res) => {
   }
 });
 
-// DELETE /api/clients/:id
-r.delete('/:id', (req, res) => {
+// DELETE /api/clients/:id - delete client
+r.delete('/:id', validateClientId, async (req, res) => {
+  const startTime = performance.now();
+  
   try {
     const id = Number(req.params.id);
-    if (!id) return res.status(400).json({ success: false, error: 'Bad id' });
+    
+    // Check if client exists
+    const existing = get(`SELECT id, company FROM clients WHERE id = ?`, [id]);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Client not found' });
+    }
+    
+    // Log security event for deletion
+    logSecurity('Client deletion', {
+      clientId: id,
+      company: existing.company,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+    
     // Cascade delete will remove analyses too
-    run(`DELETE FROM clients WHERE id=?`, [id]);
-    res.json({ success: true });
+    const result = run(`DELETE FROM clients WHERE id=?`, [id]);
+    
+    const duration = performance.now() - startTime;
+    res.json({ 
+      success: true,
+      meta: {
+        deletedRows: result.changes,
+        responseTime: Math.round(duration)
+      }
+    });
   } catch (e) {
-    console.error('DELETE /clients error', e);
-    res.status(500).json({ success: false, error: 'DB error' });
+    logError(e, { endpoint: 'DELETE /api/clients/:id', clientId: req.params.id, ip: req.ip });
+    res.status(500).json({ success: false, error: 'Database error occurred' });
   }
 });
 
-// DELETE /api/clients/:id/analysis/:analysisId
-r.delete('/:id/analysis/:analysisId', (req, res) => {
+// DELETE /api/clients/:id/analysis/:analysisId - delete analysis
+r.delete('/:id/analysis/:analysisId', validateClientId, validateAnalysisId, async (req, res) => {
+  const startTime = performance.now();
+  
   try {
     const clientId = Number(req.params.id);
     const analysisId = Number(req.params.analysisId);
-    run(`DELETE FROM analyses WHERE id=? AND client_id=?`, [analysisId, clientId]);
-    res.json({ success: true });
+    
+    // Verify analysis exists and belongs to client
+    const existing = get(`SELECT title FROM analyses WHERE id=? AND client_id=?`, [analysisId, clientId]);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Analysis not found' });
+    }
+    
+    logSecurity('Analysis deletion', {
+      analysisId,
+      clientId,
+      title: existing.title,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+    
+    const result = run(`DELETE FROM analyses WHERE id=? AND client_id=?`, [analysisId, clientId]);
+    
+    const duration = performance.now() - startTime;
+    res.json({ 
+      success: true,
+      meta: {
+        deletedRows: result.changes,
+        responseTime: Math.round(duration)
+      }
+    });
   } catch (e) {
-    console.error('DELETE analysis error', e);
-    res.status(500).json({ success: false, error: 'DB error' });
+    logError(e, { 
+      endpoint: 'DELETE /api/clients/:id/analysis/:analysisId', 
+      clientId: req.params.id,
+      analysisId: req.params.analysisId,
+      ip: req.ip 
+    });
+    res.status(500).json({ success: false, error: 'Database error occurred' });
   }
 });
 
