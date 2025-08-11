@@ -38,9 +38,6 @@
           <button class="btn-primary" type="submit">
             <i class="fas fa-right-to-bracket"></i> Увійти
           </button>
-          <button class="btn-ghost" type="button" id="fillDemo">
-            <i class="fas fa-magic"></i> Демо
-          </button>
         </div>
         <div id="loginError" class="login-error">
           <i class="fas fa-exclamation-circle"></i> Невірний логін або пароль
@@ -50,12 +47,6 @@
   </div>
 
   <script>
-    document.getElementById('fillDemo')?.addEventListener('click', () => {
-      document.getElementById('username').value = 'janeDVDops';
-      document.getElementById('password').value = 'jane2210';
-      document.getElementById('username').focus();
-    });
-
     document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const username = document.getElementById('username').value.trim();

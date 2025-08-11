@@ -40,25 +40,37 @@
     <!-- Left Sidebar - Client History -->
     <aside class="sidebar sidebar-left" id="sidebar-left">
       <div class="sidebar-header">
-        <h3><i class="fas fa-building"></i> Клієнти</h3>
+        <h3><i class="fas fa-users"></i> Клієнти</h3>
         <button class="sidebar-close" onclick="closeSidebar('left')">
           <i class="fas fa-times"></i>
         </button>
       </div>
 
       <div class="sidebar-search">
-        <input type="text" id="client-search" placeholder="Пошук клієнта..." />
+        <div class="search-wrapper">
+          <i class="fas fa-search"></i>
+          <input type="text" id="client-search" placeholder="Знайти клієнта..." />
+          <button class="search-clear" id="clear-search" style="display: none;">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
       </div>
 
       <div class="sidebar-actions">
-        <button class="btn-primary full-width" id="new-client-btn">
-          <i class="fas fa-plus"></i> Новий клієнт
+        <button class="btn-primary full-width btn-create-client" id="new-client-btn">
+          <i class="fas fa-plus"></i> Створити клієнта
         </button>
       </div>
 
       <div class="sidebar-content">
-        <div id="clients-list" class="clients-list">
-          <!-- Dynamic client list will be here -->
+        <div class="clients-section">
+          <div class="section-header">
+            <h4>Останні клієнти</h4>
+            <span class="client-count" id="client-count">0</span>
+          </div>
+          <div id="clients-list" class="clients-list">
+            <!-- Dynamic client list will be here -->
+          </div>
         </div>
       </div>
     </aside>
@@ -101,54 +113,184 @@
           <h1><i class="fas fa-user-tie"></i> Профіль клієнта</h1>
         </div>
 
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="company">Компанія*</label>
-            <input id="company" placeholder="Назва компанії" required />
+        <div class="client-form-sections">
+          <!-- Basic Information -->
+          <div class="form-section">
+            <div class="section-title">
+              <i class="fas fa-building"></i>
+              <h3>Основна інформація</h3>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="company">Назва компанії*</label>
+                <input id="company" placeholder="Apple Inc., Google LLC..." required />
+                <small>Повна або скорочена назва організації</small>
+              </div>
+              <div class="form-group">
+                <label for="negotiator">Ключовий переговорник</label>
+                <input id="negotiator" placeholder="Джон Сміт, CEO" />
+                <small>Ім'я та посада основного представника</small>
+              </div>
+              <div class="form-group">
+                <label for="sector">Сфера діяльності</label>
+                <select id="sector-select">
+                  <option value="">Оберіть сферу...</option>
+                  <option value="IT">Інформаційні технології</option>
+                  <option value="Finance">Фінанси та банківство</option>
+                  <option value="Healthcare">Охорона здоров'я</option>
+                  <option value="Education">Освіта</option>
+                  <option value="Manufacturing">Виробництво</option>
+                  <option value="Retail">Роздрібна торгівля</option>
+                  <option value="Real Estate">Нерухомість</option>
+                  <option value="Energy">Енергетика</option>
+                  <option value="Consulting">Консалтинг</option>
+                  <option value="Other">Інше</option>
+                </select>
+                <input id="sector" placeholder="Вкажіть свою сферу..." style="display: none; margin-top: 0.5rem;" />
+              </div>
+              <div class="form-group">
+                <label for="company-size">Розмір компанії</label>
+                <select id="company-size">
+                  <option value="">Оберіть розмір...</option>
+                  <option value="startup">Стартап (1-10 осіб)</option>
+                  <option value="small">Мала (11-50 осіб)</option>
+                  <option value="medium">Середня (51-250 осіб)</option>
+                  <option value="large">Велика (251+ осіб)</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="negotiator">Переговорник</label>
-            <input id="negotiator" placeholder="Ім'я та посада" />
+
+          <!-- Negotiation Context -->
+          <div class="form-section">
+            <div class="section-title">
+              <i class="fas fa-handshake"></i>
+              <h3>Контекст переговорів</h3>
+            </div>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label for="negotiation-type">Тип переговорів</label>
+                <select id="negotiation-type">
+                  <option value="">Оберіть тип...</option>
+                  <option value="sales">Продажі послуг/продуктів</option>
+                  <option value="partnership">Партнерська угода</option>
+                  <option value="contract">Підписання контракту</option>
+                  <option value="investment">Інвестиційна угода</option>
+                  <option value="acquisition">Поглинання/злиття</option>
+                  <option value="licensing">Ліцензування</option>
+                  <option value="other">Інше</option>
+                </select>
+              </div>
+              <div class="form-group full-width">
+                <label for="goal">Основна ціль переговорів</label>
+                <textarea id="goal" rows="2" placeholder="Чого ви хочете досягнути в результаті цих переговорів?"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="deal-value">Очікувана вартість угоди</label>
+                <input id="deal-value" placeholder="$10,000, €50K, 1M грн..." />
+                <small>Приблизна вартість або бюджет проекту</small>
+              </div>
+              <div class="form-group">
+                <label for="timeline">Часові рамки</label>
+                <select id="timeline">
+                  <option value="">Оберіть термін...</option>
+                  <option value="urgent">Терміново (до тижня)</option>
+                  <option value="short">Короткостроково (1-4 тижні)</option>
+                  <option value="medium">Середньостроково (1-3 місяці)</option>
+                  <option value="long">Довгостроково (3+ місяці)</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="sector">Сфера діяльності</label>
-            <input id="sector" placeholder="IT, виробництво, послуги..." />
+
+          <!-- Strategic Analysis -->
+          <div class="form-section">
+            <div class="section-title">
+              <i class="fas fa-chess"></i>
+              <h3>Стратегічний аналіз</h3>
+            </div>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label for="user_goals">Ваші ключові цілі та пріоритети</label>
+                <textarea id="user_goals" rows="3" placeholder="1. Максимізувати прибуток&#10;2. Встановити довгострокове партнерство&#10;3. Мінімізувати ризики..."></textarea>
+                <small>Перелічіть ваші головні цілі в порядку важливості</small>
+              </div>
+              <div class="form-group full-width">
+                <label for="client_goals">Передбачувані цілі клієнта</label>
+                <textarea id="client_goals" rows="3" placeholder="Що, на вашу думку, хоче отримати клієнт?"></textarea>
+                <small>Ваші припущення про мотивацію та потреби клієнта</small>
+              </div>
+              <div class="form-group full-width">
+                <label for="criteria">Критерії прийняття рішень</label>
+                <textarea id="criteria" rows="2" placeholder="Ціна, якість, терміни виконання, репутація, технічні можливості..."></textarea>
+                <small>На що клієнт звертає найбільшу увагу при виборі</small>
+              </div>
+              <div class="form-group full-width">
+                <label for="constraints">Обмеження та ризики</label>
+                <textarea id="constraints" rows="2" placeholder="Бюджетні обмеження, регулятивні вимоги, технічні обмеження..."></textarea>
+                <small>Які фактори можуть вплинути на переговори</small>
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="goal">Ціль переговорів</label>
-            <input id="goal" placeholder="Підписання контракту, партнерство..." />
+
+          <!-- Competition & Market -->
+          <div class="form-section">
+            <div class="section-title">
+              <i class="fas fa-chart-bar"></i>
+              <h3>Конкуренція та ринок</h3>
+            </div>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label for="competitors">Основні конкуренти</label>
+                <textarea id="competitors" rows="2" placeholder="Які компанії також претендують на цю угоду?"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="competitive-advantage">Ваша конкурентна перевага</label>
+                <textarea id="competitive-advantage" rows="2" placeholder="Чим ви кращі за конкурентів?"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="market-position">Позиція на ринку</label>
+                <select id="market-position">
+                  <option value="">Оберіть позицію...</option>
+                  <option value="leader">Лідер ринку</option>
+                  <option value="challenger">Претендент</option>
+                  <option value="follower">Послідовник</option>
+                  <option value="niche">Нішевий гравець</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div class="form-group full-width">
-            <label for="criteria">Критерії рішення</label>
-            <textarea id="criteria" rows="2" placeholder="Ціна, терміни, якість..."></textarea>
-          </div>
-          <div class="form-group full-width">
-            <label for="constraints">Обмеження</label>
-            <textarea id="constraints" rows="2" placeholder="Бюджет, ресурси, час..."></textarea>
-          </div>
-          <div class="form-group full-width">
-            <label for="user_goals">Ваші цілі</label>
-            <textarea id="user_goals" rows="3" placeholder="Що ви хочете досягнути?"></textarea>
-          </div>
-          <div class="form-group full-width">
-            <label for="client_goals">Цілі клієнта</label>
-            <textarea id="client_goals" rows="3" placeholder="Що хоче клієнт?"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="weekly_hours">Годин/тиждень</label>
-            <input id="weekly_hours" type="number" min="0" placeholder="10" />
-          </div>
-          <div class="form-group">
-            <label for="deadlines">Дедлайни</label>
-            <input id="deadlines" placeholder="Дати, терміни" />
-          </div>
-          <div class="form-group full-width">
-            <label for="offered_services">Послуги</label>
-            <textarea id="offered_services" rows="2" placeholder="Що пропонуєте?"></textarea>
-          </div>
-          <div class="form-group full-width">
-            <label for="notes">Нотатки</label>
-            <textarea id="notes" rows="3" placeholder="Додаткова інформація..."></textarea>
+
+          <!-- Additional Details -->
+          <div class="form-section">
+            <div class="section-title">
+              <i class="fas fa-cogs"></i>
+              <h3>Додаткові деталі</h3>
+            </div>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label for="offered_services">Пропоновані послуги/продукти</label>
+                <textarea id="offered_services" rows="2" placeholder="Детальний опис того, що ви пропонуєте клієнту"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="weekly_hours">Інтенсивність роботи</label>
+                <input id="weekly_hours" type="number" min="0" placeholder="40" />
+                <small>Годин на тиждень або обсяг залучення</small>
+              </div>
+              <div class="form-group">
+                <label for="deadlines">Ключові дедлайни</label>
+                <input id="deadlines" placeholder="15.03.2024 - демо, 30.03 - фінал" />
+                <small>Важливі дати та етапи проекту</small>
+              </div>
+              <div class="form-group full-width">
+                <label for="previous-interactions">Попередні взаємодії</label>
+                <textarea id="previous-interactions" rows="2" placeholder="Чи мали ви раніше справи з цим клієнтом? Який досвід?"></textarea>
+              </div>
+              <div class="form-group full-width">
+                <label for="notes">Додаткові нотатки</label>
+                <textarea id="notes" rows="3" placeholder="Будь-яка інша важлива інформація, особливості клієнта, культурні аспекти тощо"></textarea>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -293,13 +435,114 @@
             <button class="btn-primary" onclick="document.getElementById('new-client-btn').click()">
               <i class="fas fa-plus"></i> Створити клієнта
             </button>
-            <button class="btn-secondary" onclick="showDemo()">
-              <i class="fas fa-play"></i> Демо
-            </button>
           </div>
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Onboarding Modal -->
+  <div id="onboarding-modal" class="onboarding-modal">
+    <div class="onboarding-content">
+      <div class="onboarding-progress">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="progress-text" id="progress-text">Крок 1 з 4</span>
+      </div>
+      
+      <div class="onboarding-step" id="step-1">
+        <div class="step-icon">🚀</div>
+        <h2>Ласкаво просимо до TeamPulse Turbo!</h2>
+        <p>Потужний AI-інструмент для аналізу переговорів та виявлення маніпуляцій. Давайте швидко покажемо, як все працює.</p>
+        <div class="step-features">
+          <div class="feature-item">
+            <i class="fas fa-brain"></i>
+            <span>AI-аналіз маніпуляцій</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-chart-line"></i>
+            <span>Барометр складності</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-lightbulb"></i>
+            <span>Персоналізовані рекомендації</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="onboarding-step" id="step-2" style="display: none;">
+        <div class="step-icon">👥</div>
+        <h2>Керування клієнтами</h2>
+        <p>Створюйте профілі клієнтів з детальною інформацією для більш точного аналізу.</p>
+        <div class="demo-sidebar">
+          <div class="demo-client active">
+            <div class="client-avatar">A</div>
+            <div class="client-info">
+              <div class="client-name">Apple Inc.</div>
+              <div class="client-meta">Технології • 5 аналізів</div>
+            </div>
+          </div>
+          <div class="demo-client">
+            <div class="client-avatar">G</div>
+            <div class="client-info">
+              <div class="client-name">Google LLC</div>
+              <div class="client-meta">IT-послуги • 2 аналізи</div>
+            </div>
+          </div>
+        </div>
+        <p class="step-tip"><i class="fas fa-lightbulb"></i> Кожен клієнт має унікальний профіль з історією аналізів</p>
+      </div>
+      
+      <div class="onboarding-step" id="step-3" style="display: none;">
+        <div class="step-icon">🔍</div>
+        <h2>Аналіз переговорів</h2>
+        <p>Завантажуйте тексти переговорів або вставляйте їх прямо в систему для миттєвого аналізу.</p>
+        <div class="demo-analysis">
+          <div class="demo-upload">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Перетягніть файл або вставте текст</p>
+          </div>
+          <div class="demo-results">
+            <div class="demo-highlight manip">Маніпуляція: "Ця пропозиція доступна лише сьогодні"</div>
+            <div class="demo-highlight cog">Когнітивне викривлення: Створення штучного дефіциту</div>
+          </div>
+        </div>
+        <p class="step-tip"><i class="fas fa-magic"></i> ШІ автоматично виявляє маніпуляції та пояснює їх</p>
+      </div>
+      
+      <div class="onboarding-step" id="step-4" style="display: none;">
+        <div class="step-icon">🎯</div>
+        <h2>Готові до початку!</h2>
+        <p>Тепер ви знаєте основи. Створіть свого першого клієнта і почніть аналіз переговорів.</p>
+        <div class="quick-stats">
+          <div class="stat-item">
+            <div class="stat-number">95%</div>
+            <div class="stat-label">Точність виявлення</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">30+</div>
+            <div class="stat-label">Типів маніпуляцій</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number"><5s</div>
+            <div class="stat-label">Час аналізу</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="onboarding-actions">
+        <button class="btn-ghost" id="skip-onboarding">Пропустити</button>
+        <div class="nav-buttons">
+          <button class="btn-secondary" id="prev-step" style="display: none;">
+            <i class="fas fa-arrow-left"></i> Назад
+          </button>
+          <button class="btn-primary" id="next-step">
+            Далі <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Notifications container -->

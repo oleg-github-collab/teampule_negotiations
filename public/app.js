@@ -25,6 +25,8 @@
       // Client management
       clientsList: $('#clients-list'),
       clientSearch: $('#client-search'),
+      clearSearch: $('#clear-search'),
+      clientCount: $('#client-count'),
       newClientBtn: $('#new-client-btn'),
       saveClientBtn: $('#save-client-btn'),
       cancelClientBtn: $('#cancel-client-btn'),
@@ -105,68 +107,128 @@
     // ===== Client Management =====
     async function loadClients() {
       try {
+        logger.debug('Loading clients...');
         const res = await fetch('/api/clients');
         const data = await res.json();
-        state.clients = data.clients || [];
+        
+        if (data.clients) {
+          state.clients = data.clients;
+          logger.info(`Loaded ${data.clients.length} clients`);
+        } else {
+          state.clients = [];
+          logger.warn('No clients data received');
+        }
+        
         renderClientsList();
       } catch (err) {
+        logger.error('Failed to load clients', err);
         showNotification('Помилка завантаження клієнтів', 'error');
       }
     }
   
     function renderClientsList() {
-      const filtered = state.clients.filter(
-        (c) =>
-          !elements.clientSearch.value ||
-          c.company?.toLowerCase().includes(elements.clientSearch.value.toLowerCase())
-      );
+      const searchTerm = elements.clientSearch.value.toLowerCase().trim();
+      const filtered = state.clients.filter((c) => {
+        if (!searchTerm) return true;
+        return (
+          c.company?.toLowerCase().includes(searchTerm) ||
+          c.sector?.toLowerCase().includes(searchTerm) ||
+          c.negotiator?.toLowerCase().includes(searchTerm)
+        );
+      });
+  
+      // Update client count
+      elements.clientCount.textContent = filtered.length;
+      
+      // Show/hide clear search button
+      elements.clearSearch.style.display = searchTerm ? 'block' : 'none';
   
       if (filtered.length === 0) {
+        const emptyMessage = searchTerm ? 'Нічого не знайдено' : 'Немає клієнтів';
+        const emptyIcon = searchTerm ? 'fas fa-search' : 'fas fa-users';
         elements.clientsList.innerHTML = `
           <div class="empty-state">
-            <i class="fas fa-users"></i>
-            <p>Немає клієнтів</p>
+            <i class="${emptyIcon}"></i>
+            <p>${emptyMessage}</p>
+            ${!searchTerm ? '<button class="btn-primary" onclick="elements.newClientBtn.click()">Створити першого клієнта</button>' : ''}
           </div>
         `;
         return;
       }
   
-      elements.clientsList.innerHTML = filtered
-        .map(
-          (client) => `
-        <div class="client-item ${state.currentClient?.id === client.id ? 'active' : ''}" data-id="${client.id}">
-          <div class="client-info">
-            <div class="client-name">${escapeHtml(client.company)}</div>
-            <div class="client-meta">
-              ${client.sector ? `<span>${escapeHtml(client.sector)}</span>` : ''}
-              ${client.analyses_count ? `<span>${client.analyses_count} аналізів</span>` : ''}
+      // Sort clients by last analysis date (most recent first), then by name
+      const sorted = filtered.sort((a, b) => {
+        if (a.last_analysis && b.last_analysis) {
+          return new Date(b.last_analysis) - new Date(a.last_analysis);
+        }
+        if (a.last_analysis && !b.last_analysis) return -1;
+        if (!a.last_analysis && b.last_analysis) return 1;
+        return (a.company || '').localeCompare(b.company || '');
+      });
+  
+      elements.clientsList.innerHTML = sorted
+        .map((client) => {
+          const isActive = state.currentClient?.id === client.id;
+          const analysisText = client.analyses_count 
+            ? `${client.analyses_count} аналіз${client.analyses_count === 1 ? '' : 'ів'}`
+            : 'Новий';
+          
+          return `
+            <div class="client-item ${isActive ? 'active' : ''}" data-id="${client.id}">
+              <div class="client-info">
+                <div class="client-name" title="${escapeHtml(client.company)}">
+                  ${escapeHtml(client.company)}
+                </div>
+                <div class="client-meta">
+                  ${client.sector ? `<span><i class="fas fa-industry"></i> ${escapeHtml(client.sector)}</span>` : ''}
+                  <span><i class="fas fa-chart-bar"></i> ${analysisText}</span>
+                  ${client.last_analysis ? `<span title="Останній аналіз"><i class="fas fa-clock"></i> ${formatDate(client.last_analysis)}</span>` : ''}
+                </div>
+              </div>
+              <div class="client-actions">
+                <button class="btn-icon btn-edit" title="Редагувати профіль">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-delete" title="Видалити клієнта">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </div>
-          </div>
-          <div class="client-actions">
-            <button class="btn-icon btn-edit" title="Редагувати">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-icon btn-delete" title="Видалити">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      `
-        )
+          `;
+        })
         .join('');
   
-      // Attach event listeners
+      // Attach event listeners with improved UX
       $$('.client-item').forEach((item) => {
+        const clientId = Number(item.dataset.id);
+        
+        // Add hover effect with client preview
+        item.addEventListener('mouseenter', () => {
+          if (!item.classList.contains('active')) {
+            item.style.transform = 'translateX(6px)';
+          }
+        });
+        
+        item.addEventListener('mouseleave', () => {
+          if (!item.classList.contains('active')) {
+            item.style.transform = '';
+          }
+        });
+        
         item.addEventListener('click', (e) => {
           if (e.target.closest('.btn-edit')) {
-            editClient(Number(item.dataset.id));
+            e.stopPropagation();
+            editClient(clientId);
           } else if (e.target.closest('.btn-delete')) {
-            deleteClient(Number(item.dataset.id));
+            e.stopPropagation();
+            deleteClient(clientId);
           } else {
-            selectClient(Number(item.dataset.id));
+            selectClient(clientId);
           }
         });
       });
+      
+      logger.debug('Rendered clients list', { total: state.clients.length, filtered: filtered.length, searchTerm });
     }
   
     async function selectClient(id) {
@@ -194,6 +256,7 @@
         renderClientsList();
         showNotification(`Обрано клієнта: ${state.currentClient.company}`, 'success');
       } catch (err) {
+        logger.error('Failed to load client', { id, error: err.message });
         showNotification('Помилка завантаження клієнта', 'error');
       }
     }
@@ -237,6 +300,7 @@
         displayAnalysisResults(data.analysis);
         showNotification('Аналіз завантажено', 'success');
       } catch (err) {
+        logger.error('Failed to load analysis', { analysisId, error: err.message });
         showNotification('Помилка завантаження аналізу', 'error');
       }
     }
@@ -245,11 +309,39 @@
       const client = state.clients.find((c) => c.id === id);
       if (!client) return;
       state.currentClient = client;
+      
+      logger.debug('Editing client', { clientId: id, company: client.company });
   
-      // Fill form
+      // Fill basic info
       $('#company').value = client.company || '';
       $('#negotiator').value = client.negotiator || '';
-      $('#sector').value = client.sector || '';
+      
+      // Handle sector dropdown
+      const sectorSelect = $('#sector-select');
+      const sectorInput = $('#sector');
+      if (client.sector) {
+        const option = sectorSelect.querySelector(`option[value="${client.sector}"]`);
+        if (option) {
+          sectorSelect.value = client.sector;
+          sectorInput.style.display = 'none';
+        } else {
+          sectorSelect.value = 'Other';
+          sectorInput.style.display = 'block';
+          sectorInput.value = client.sector;
+        }
+      }
+      
+      // Fill new fields
+      $('#company-size').value = client.company_size || '';
+      $('#negotiation-type').value = client.negotiation_type || '';
+      $('#deal-value').value = client.deal_value || '';
+      $('#timeline').value = client.timeline || '';
+      $('#competitors').value = client.competitors || '';
+      $('#competitive-advantage').value = client.competitive_advantage || '';
+      $('#market-position').value = client.market_position || '';
+      $('#previous-interactions').value = client.previous_interactions || '';
+      
+      // Fill existing fields
       $('#goal').value = client.goal || '';
       $('#criteria').value = client.decision_criteria || '';
       $('#constraints').value = client.constraints || '';
@@ -282,44 +374,68 @@
         await loadClients();
         showNotification('Клієнта видалено', 'success');
       } catch (err) {
+        logger.error('Failed to delete client', { id, error: err.message });
         showNotification('Помилка видалення', 'error');
       }
     }
   
     async function saveClient() {
+      // Get sector value (from dropdown or input)
+      const sectorSelect = $('#sector-select');
+      const sectorInput = $('#sector');
+      const sectorValue = sectorSelect.value === 'Other' ? sectorInput.value.trim() : sectorSelect.value;
+      
       const clientData = {
         company: $('#company').value.trim(),
         negotiator: $('#negotiator').value.trim(),
-        sector: $('#sector').value.trim(),
+        sector: sectorValue,
+        company_size: $('#company-size').value,
+        negotiation_type: $('#negotiation-type').value,
+        deal_value: $('#deal-value').value.trim(),
+        timeline: $('#timeline').value,
         goal: $('#goal').value.trim(),
         criteria: $('#criteria').value.trim(),
         constraints: $('#constraints').value.trim(),
         user_goals: $('#user_goals').value.trim(),
         client_goals: $('#client_goals').value.trim(),
+        competitors: $('#competitors').value.trim(),
+        competitive_advantage: $('#competitive-advantage').value.trim(),
+        market_position: $('#market-position').value,
         weekly_hours: $('#weekly_hours').value || 0,
         offered_services: $('#offered_services').value.trim(),
         deadlines: $('#deadlines').value.trim(),
+        previous_interactions: $('#previous-interactions').value.trim(),
         notes: $('#notes').value.trim()
       };
+      
       if (!clientData.company) {
         showNotification('Введіть назву компанії', 'warning');
+        $('#company').focus();
         return;
       }
+      
+      const isUpdate = state.currentClient && state.currentClient.id;
+      logger.debug('Saving client', { isUpdate, company: clientData.company });
   
       try {
-        const res = await fetch('/api/clients', {
-          method: 'POST',
+        const url = isUpdate ? `/api/clients/${state.currentClient.id}` : '/api/clients';
+        const method = isUpdate ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(clientData)
         });
   
         const data = await res.json();
+        logger.info('Client saved successfully', { clientId: data.id, isUpdate });
   
         await loadClients();
         selectClient(data.id);
   
-        showNotification(data.updated ? 'Клієнта оновлено' : 'Клієнта створено', 'success');
+        showNotification(isUpdate ? 'Клієнта оновлено' : 'Клієнта створено', 'success');
       } catch (err) {
+        logger.error('Failed to save client', { clientData, error: err.message });
         showNotification('Помилка збереження', 'error');
       }
     }
@@ -400,7 +516,7 @@
         const decoder = new TextDecoder();
         let outputHtml = '';
         let highlights = [];
-        let barometer = null;
+        let barometerData = null;
   
         // eslint-disable-next-line no-constant-condition
         while (true) {
@@ -426,7 +542,7 @@
                   highlights = obj.items || [];
                   renderHighlights(highlights);
                 } else if (obj.type === 'barometer') {
-                  barometer = obj;
+                  barometerData = obj;
                   updateBarometer(obj);
                   outputHtml += `<div class="stream-item barometer">Barometer: ${obj.score} - ${obj.label}</div>`;
                 } else if (obj.type === 'summary') {
@@ -454,8 +570,10 @@
         showNotification('Аналіз завершено', 'success');
       } catch (err) {
         if (err.name === 'AbortError') {
+          logger.info('Analysis aborted by user');
           showNotification('Аналіз скасовано', 'warning');
         } else {
+          logger.error('Analysis failed', { error: err.message, clientId: state.currentClient?.id });
           showNotification(`Помилка: ${err.message}`, 'error');
         }
         elements.streamOutput.innerHTML = `<div class="error">Помилка: ${err.message}</div>`;
@@ -647,6 +765,7 @@
           showNotification('Рекомендації готові', 'success');
         }
       } catch (err) {
+        logger.error('Failed to get advice', { fragmentsCount: state.selectedFragments.length, error: err.message });
         showNotification('Помилка отримання рекомендацій', 'error');
       } finally {
         elements.adviceBtn.disabled = false;
@@ -680,14 +799,44 @@
       elements.rightSidebar.classList.toggle('active');
     });
     elements.clientSearch?.addEventListener('input', renderClientsList);
+    elements.clearSearch?.addEventListener('click', () => {
+      elements.clientSearch.value = '';
+      elements.clearSearch.style.display = 'none';
+      renderClientsList();
+      elements.clientSearch.focus();
+    });
   
     elements.newClientBtn?.addEventListener('click', () => {
       state.currentClient = null;
-      // Clear form
-      $$('#client-form input, #client-form textarea').forEach((el) => (el.value = ''));
+      logger.debug('Creating new client');
+      
+      // Clear all form fields
+      $$('#client-form input, #client-form textarea, #client-form select').forEach((el) => {
+        el.value = '';
+      });
+      
+      // Reset sector dropdown
+      $('#sector-select').value = '';
+      $('#sector').style.display = 'none';
+      
       elements.welcomeScreen.style.display = 'none';
       elements.analysisSection.style.display = 'none';
       elements.clientForm.style.display = 'block';
+      
+      // Focus on company name field
+      setTimeout(() => $('#company').focus(), 100);
+    });
+    
+    // Handle sector dropdown change
+    $('#sector-select')?.addEventListener('change', (e) => {
+      const sectorInput = $('#sector');
+      if (e.target.value === 'Other') {
+        sectorInput.style.display = 'block';
+        sectorInput.focus();
+      } else {
+        sectorInput.style.display = 'none';
+        sectorInput.value = '';
+      }
     });
   
     elements.saveClientBtn?.addEventListener('click', saveClient);
@@ -749,15 +898,137 @@
       location.href = '/login';
     });
   
-    // Demo function
-    window.showDemo = () => {
-      elements.textInput.value = `Ми пропонуємо вам унікальну можливість, яка доступна лише сьогодні. Якщо ви не приймете рішення зараз, ця пропозиція більше не повториться. Всі успішні компанії вже працюють з нами. Ви ж не хочете залишитися позаду? Ціна може збільшитися вже завтра, тому краще підписати контракт негайно.`;
-      showNotification('Демо текст завантажено', 'info');
+    // ===== Onboarding System =====
+    const onboarding = {
+      currentStep: 1,
+      totalSteps: 4,
+      modal: $('#onboarding-modal'),
+      
+      init() {
+        // Show onboarding for first-time users
+        const hasSeenOnboarding = localStorage.getItem('teampulse_onboarding_completed');
+        if (!hasSeenOnboarding && state.clients.length === 0) {
+          this.show();
+        }
+        
+        this.bindEvents();
+      },
+      
+      show() {
+        this.modal.classList.add('show');
+        this.updateStep();
+        console.log('📚 Onboarding started');
+      },
+      
+      hide() {
+        this.modal.classList.remove('show');
+        localStorage.setItem('teampulse_onboarding_completed', 'true');
+        console.log('📚 Onboarding completed');
+      },
+      
+      nextStep() {
+        if (this.currentStep < this.totalSteps) {
+          this.currentStep++;
+          this.updateStep();
+        } else {
+          this.complete();
+        }
+      },
+      
+      prevStep() {
+        if (this.currentStep > 1) {
+          this.currentStep--;
+          this.updateStep();
+        }
+      },
+      
+      updateStep() {
+        // Hide all steps
+        $$('.onboarding-step').forEach(step => step.style.display = 'none');
+        
+        // Show current step
+        $(`#step-${this.currentStep}`).style.display = 'block';
+        
+        // Update progress
+        const progress = (this.currentStep / this.totalSteps) * 100;
+        $('#progress-fill').style.width = `${progress}%`;
+        $('#progress-text').textContent = `Крок ${this.currentStep} з ${this.totalSteps}`;
+        
+        // Update buttons
+        const prevBtn = $('#prev-step');
+        const nextBtn = $('#next-step');
+        
+        prevBtn.style.display = this.currentStep > 1 ? 'block' : 'none';
+        
+        if (this.currentStep === this.totalSteps) {
+          nextBtn.innerHTML = 'Почати <i class="fas fa-rocket"></i>';
+        } else {
+          nextBtn.innerHTML = 'Далі <i class="fas fa-arrow-right"></i>';
+        }
+      },
+      
+      complete() {
+        this.hide();
+        // Auto-create first client
+        elements.newClientBtn.click();
+        showNotification('Ласкаво просимо! Створіть свого першого клієнта', 'success');
+      },
+      
+      bindEvents() {
+        $('#skip-onboarding')?.addEventListener('click', () => this.hide());
+        $('#next-step')?.addEventListener('click', () => this.nextStep());
+        $('#prev-step')?.addEventListener('click', () => this.prevStep());
+        
+        // Close on outside click
+        this.modal?.addEventListener('click', (e) => {
+          if (e.target === this.modal) this.hide();
+        });
+      }
+    };
+    
+    // ===== Enhanced Logging System =====
+    const logger = {
+      levels: { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 },
+      currentLevel: 2, // INFO level by default
+      
+      log(level, message, data = null) {
+        if (this.levels[level] <= this.currentLevel) {
+          const timestamp = new Date().toISOString();
+          const prefix = `[${timestamp}] [${level}]`;
+          
+          if (data) {
+            console.log(`${prefix} ${message}`, data);
+          } else {
+            console.log(`${prefix} ${message}`);
+          }
+          
+          // Send critical errors to server if needed
+          if (level === 'ERROR' && window.navigator?.sendBeacon) {
+            try {
+              const errorData = { level, message, data, timestamp, url: location.href };
+              fetch('/api/log-error', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(errorData)
+              }).catch(() => {/* Silent fail for logging */});
+            } catch (e) {
+              // Silent fail for logging
+            }
+          }
+        }
+      },
+      
+      error: (msg, data) => logger.log('ERROR', msg, data),
+      warn: (msg, data) => logger.log('WARN', msg, data),
+      info: (msg, data) => logger.log('INFO', msg, data),
+      debug: (msg, data) => logger.log('DEBUG', msg, data)
     };
   
     // ===== Initialize =====
-    loadClients();
+    loadClients().then(() => {
+      onboarding.init();
+    });
     resetBarometer();
-    console.log('⚡ TeamPulse Turbo initialized');
+    logger.info('⚡ TeamPulse Turbo initialized', { version: '2.0.0', timestamp: new Date().toISOString() });
   })();
   
