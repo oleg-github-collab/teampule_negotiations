@@ -124,6 +124,10 @@
         
         const data = await res.json();
         
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `HTTP Error: ${res.status}`);
+        }
+        
         if (data.clients) {
           state.clients = data.clients;
           logger.info(`Loaded ${data.clients.length} clients`);
@@ -248,6 +252,11 @@
       try {
         const res = await fetch(`/api/clients/${id}`);
         const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `HTTP Error: ${res.status}`);
+        }
+        
         state.currentClient = data.client;
         state.analyses = data.analyses || [];
   
@@ -311,6 +320,10 @@
       try {
         const res = await fetch(`/api/clients/${state.currentClient.id}/analysis/${analysisId}`);
         const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `HTTP Error: ${res.status}`);
+        }
         
         // Store original text for highlighting
         state.originalText = data.analysis.original_text || '';
@@ -379,7 +392,12 @@
     async function deleteClient(id) {
       if (!confirm('Видалити клієнта та всі його аналізи?')) return;
       try {
-        await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `HTTP Error: ${res.status}`);
+        }
   
         if (state.currentClient?.id === id) {
           state.currentClient = null;
@@ -412,7 +430,7 @@
         deal_value: $('#deal-value').value.trim(),
         timeline: $('#timeline').value,
         goal: $('#goal').value.trim(),
-        criteria: $('#criteria').value.trim(),
+        decision_criteria: $('#criteria').value.trim(),
         constraints: $('#constraints').value.trim(),
         user_goals: $('#user_goals').value.trim(),
         client_goals: $('#client_goals').value.trim(),
@@ -446,6 +464,11 @@
         });
   
         const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `HTTP Error: ${res.status}`);
+        }
+        
         logger.info('Client saved successfully', { clientId: data.id, isUpdate });
   
         await loadClients();
@@ -454,7 +477,7 @@
         showNotification(isUpdate ? 'Клієнта оновлено' : 'Клієнта створено', 'success');
       } catch (err) {
         logger.error('Failed to save client', { clientData, error: err.message });
-        showNotification('Помилка збереження', 'error');
+        showNotification(`Помилка збереження: ${err.message}`, 'error');
       }
     }
   
@@ -880,6 +903,10 @@
         });
   
         const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `HTTP Error: ${res.status}`);
+        }
   
         if (data.advice) {
           elements.adviceOutput.innerHTML = `
@@ -1182,6 +1209,11 @@
       try {
         const res = await fetch('/api/usage');
         const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(`HTTP Error: ${res.status}`);
+        }
+        
         updateTokenDisplay(data);
       } catch (err) {
         logger.error('Failed to load token usage', err);
