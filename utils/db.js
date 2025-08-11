@@ -25,17 +25,25 @@ db.pragma('foreign_keys = ON');
 db.exec(`
 CREATE TABLE IF NOT EXISTS clients(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  company TEXT UNIQUE,
+  company TEXT NOT NULL,
   negotiator TEXT,
   sector TEXT,
+  company_size TEXT,
+  negotiation_type TEXT,
+  deal_value TEXT,
+  timeline TEXT,
   goal TEXT,
   decision_criteria TEXT,
   constraints TEXT,
   user_goals TEXT,
   client_goals TEXT,
+  competitors TEXT,
+  competitive_advantage TEXT,
+  market_position TEXT,
   weekly_hours INTEGER DEFAULT 0,
   offered_services TEXT,
   deadlines TEXT,
+  previous_interactions TEXT,
   notes TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -81,6 +89,28 @@ try {
   console.log('✅ Added original_text column to analyses');
 } catch (e) {
   // Column already exists
+}
+
+// Add new client fields
+const newClientFields = [
+  'company_size TEXT',
+  'negotiation_type TEXT',
+  'deal_value TEXT', 
+  'timeline TEXT',
+  'competitors TEXT',
+  'competitive_advantage TEXT',
+  'market_position TEXT',
+  'previous_interactions TEXT'
+];
+
+for (const field of newClientFields) {
+  try {
+    const [fieldName] = field.split(' ');
+    db.exec(`ALTER TABLE clients ADD COLUMN ${field};`);
+    console.log(`✅ Added ${fieldName} column to clients`);
+  } catch (e) {
+    // Column already exists
+  }
 }
 
 // Unified interface

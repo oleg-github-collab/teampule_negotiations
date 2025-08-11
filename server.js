@@ -180,5 +180,5 @@ app.listen(PORT, '0.0.0.0', () => {
   const env = process.env.NODE_ENV || 'development';
   console.log(`🚀 TeamPulse Turbo v3.0 running on :${PORT} (${env})`);
   console.log(`📊 Daily token limit: ${Number(process.env.DAILY_TOKEN_LIMIT || 512000).toLocaleString()}`);
-  console.log(`🤖 AI Model: ${process.env.OPENAI_MODEL || 'gpt-4o-mini'}`);
+  console.log(`🤖 AI Model: ${process.env.OPENAI_MODEL || 'gpt-4o'}`);
 });

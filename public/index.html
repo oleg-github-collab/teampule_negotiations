@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
-  <link rel="stylesheet" href="/styles-new.css"/>
+  <link rel="stylesheet" href="/styles.css"/>
 </head>
 <body>
   <!-- Background effects -->
@@ -79,6 +79,9 @@
               <div class="token-progress-fill" id="token-progress-fill"></div>
             </div>
           </div>
+          <button class="nav-action" id="help-toggle" title="Довідка" onclick="showOnboardingHelp()">
+            <i class="fas fa-question-circle"></i>
+          </button>
           <button class="nav-action" id="tools-toggle" title="Інструменти">
             <i class="fas fa-sliders-h"></i>
           </button>
@@ -485,20 +488,7 @@
             </div>
           </div>
 
-      <!-- Welcome Screen -->
-      <div id="welcome-screen" class="welcome-screen">
-        <div class="welcome-content">
-          <h1>👋 Ласкаво просимо до TeamPulse Turbo</h1>
-          <p>Потужний AI-аналіз переговорів для виявлення маніпуляцій та когнітивних викривлень</p>
-          <div class="welcome-actions">
-            <button class="btn-primary" onclick="document.getElementById('new-client-btn').click()">
-              <i class="fas fa-plus"></i> Створити клієнта
-            </button>
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
+    </div>
 
   <!-- Onboarding Modal -->
   <div id="onboarding-modal" class="onboarding-modal">
@@ -605,54 +595,59 @@
         </div>
         </div>
 
-        <!-- Recommendations Panel (Right) -->
+        <!-- Right Sidebar Panel -->
         <div class="recommendations-panel" id="recommendations-panel">
           <div class="panel-header">
-            <h3><i class="fas fa-lightbulb"></i> Рекомендації AI</h3>
+            <h3><i class="fas fa-chart-line"></i> Історія та інструменти</h3>
             <div class="panel-actions">
-              <button class="btn-icon" id="refresh-recommendations" title="Оновити">
+              <button class="btn-icon" id="refresh-panel" title="Оновити">
                 <i class="fas fa-sync"></i>
               </button>
-              <button class="btn-icon" id="toggle-recommendations" title="Згорнути">
+              <button class="btn-icon" id="toggle-panel" title="Згорнути">
                 <i class="fas fa-chevron-right"></i>
               </button>
             </div>
           </div>
           
           <div class="panel-content">
-            <!-- Current Analysis Context -->
-            <div class="recommendation-section" id="context-section">
-              <h4><i class="fas fa-crosshairs"></i> Поточний контекст</h4>
-              <div class="context-info" id="context-info">
-                <div class="context-item">
-                  <span class="context-label">Клієнт:</span>
-                  <span class="context-value" id="current-client-context">Не вибрано</span>
-                </div>
-                <div class="context-item">
-                  <span class="context-label">Аналізів:</span>
-                  <span class="context-value" id="analyses-count">0</span>
-                </div>
-                <div class="context-item">
-                  <span class="context-label">Останній:</span>
-                  <span class="context-value" id="last-analysis">—</span>
+            <!-- Current Client Info -->
+            <div class="recommendation-section" id="client-info-section">
+              <h4><i class="fas fa-building"></i> Поточний клієнт</h4>
+              <div class="client-info-card" id="client-info-card">
+                <div class="client-placeholder">
+                  <i class="fas fa-user-plus"></i>
+                  <p>Оберіть або створіть клієнта</p>
                 </div>
               </div>
             </div>
 
-            <!-- Smart Recommendations -->
-            <div class="recommendation-section" id="smart-recommendations">
-              <h4><i class="fas fa-robot"></i> Розумні рекомендації</h4>
-              <div class="recommendations-list" id="recommendations-list">
-                <div class="recommendation-item">
-                  <div class="rec-icon"><i class="fas fa-user-plus"></i></div>
-                  <div class="rec-content">
-                    <div class="rec-title">Створіть першого клієнта</div>
-                    <div class="rec-desc">Почніть з додавання інформації про клієнта для персоналізованого аналізу</div>
-                  </div>
-                  <button class="rec-action" onclick="document.getElementById('new-client-btn').click()">
-                    <i class="fas fa-arrow-right"></i>
-                  </button>
+            <!-- Analysis History -->
+            <div class="recommendation-section" id="history-section" style="display: none;">
+              <h4><i class="fas fa-history"></i> Історія аналізів</h4>
+              <div class="analysis-history-list" id="analysis-history-list">
+                <!-- Analysis history items will be populated here -->
+              </div>
+            </div>
+
+            <!-- Selected Fragments -->
+            <div class="recommendation-section" id="fragments-section">
+              <h4><i class="fas fa-bookmark"></i> Вибрані фрагменти</h4>
+              <div class="selected-fragments" id="selected-fragments-list">
+                <div class="fragments-placeholder">
+                  <i class="fas fa-highlighter"></i>
+                  <p>Аналізуйте текст щоб побачити фрагменти</p>
                 </div>
+              </div>
+              <button class="btn-primary full-width" id="get-advice-btn" disabled>
+                <i class="fas fa-lightbulb"></i> Отримати поради
+              </button>
+            </div>
+
+            <!-- AI Advice -->
+            <div class="recommendation-section" id="advice-section" style="display: none;">
+              <h4><i class="fas fa-robot"></i> Поради AI</h4>
+              <div class="ai-advice-content" id="ai-advice-content">
+                <!-- AI advice will appear here -->
               </div>
             </div>
 
@@ -660,58 +655,40 @@
             <div class="recommendation-section" id="quick-actions">
               <h4><i class="fas fa-bolt"></i> Швидкі дії</h4>
               <div class="quick-actions-grid">
+                <button class="quick-action" id="quick-new-client">
+                  <i class="fas fa-user-plus"></i>
+                  <span>Новий клієнт</span>
+                </button>
                 <button class="quick-action" id="quick-new-analysis" disabled>
                   <i class="fas fa-plus"></i>
-                  <span>Новий аналіз</span>
+                  <span>Аналіз</span>
                 </button>
-                <button class="quick-action" id="quick-export">
+                <button class="quick-action" id="quick-export" disabled>
                   <i class="fas fa-download"></i>
                   <span>Експорт</span>
                 </button>
-                <button class="quick-action" id="quick-insights">
-                  <i class="fas fa-chart-bar"></i>
-                  <span>Статистика</span>
-                </button>
-                <button class="quick-action" id="quick-settings">
-                  <i class="fas fa-cog"></i>
-                  <span>Налаштування</span>
+                <button class="quick-action" id="quick-help" onclick="showOnboardingHelp()">
+                  <i class="fas fa-question-circle"></i>
+                  <span>Довідка</span>
                 </button>
               </div>
             </div>
 
-            <!-- Recent Activity -->
-            <div class="recommendation-section" id="recent-activity">
-              <h4><i class="fas fa-history"></i> Остання активність</h4>
-              <div class="activity-list" id="activity-list">
-                <div class="activity-item">
-                  <div class="activity-icon empty">
-                    <i class="fas fa-clock"></i>
-                  </div>
-                  <div class="activity-content">
-                    <div class="activity-text">Поки що немає активності</div>
-                    <div class="activity-time">Почніть працювати з системою</div>
-                  </div>
+            <!-- Performance Stats -->
+            <div class="recommendation-section" id="stats-section">
+              <h4><i class="fas fa-chart-bar"></i> Статистика</h4>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-value" id="total-clients">0</div>
+                  <div class="stat-label">Клієнтів</div>
                 </div>
-              </div>
-            </div>
-
-            <!-- Performance Metrics -->
-            <div class="recommendation-section" id="performance-section">
-              <h4><i class="fas fa-tachometer-alt"></i> Метрики</h4>
-              <div class="metrics-grid">
-                <div class="metric-card">
-                  <div class="metric-value" id="success-rate">—</div>
-                  <div class="metric-label">Успішність</div>
-                  <div class="metric-trend">
-                    <i class="fas fa-arrow-up text-success"></i>
-                  </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="total-analyses">0</div>
+                  <div class="stat-label">Аналізів</div>
                 </div>
-                <div class="metric-card">
-                  <div class="metric-value" id="avg-complexity">—</div>
-                  <div class="metric-label">Складність</div>
-                  <div class="metric-trend">
-                    <i class="fas fa-minus text-warning"></i>
-                  </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="avg-score">—</div>
+                  <div class="stat-label">Сер. складність</div>
                 </div>
               </div>
             </div>

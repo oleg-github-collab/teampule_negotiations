@@ -6,7 +6,7 @@ import Busboy from 'busboy';
 import mammoth from 'mammoth';
 
 const r = Router();
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const MAX_HIGHLIGHTS_PER_1000_WORDS = Number(
   process.env.MAX_HIGHLIGHTS_PER_1000_WORDS || 12
 );

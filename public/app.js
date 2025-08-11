@@ -35,7 +35,7 @@
   
       // Forms
       clientForm: $('#client-form'),
-      analysisSection: $('#analysis-section'),
+      analysisSection: $('#analysis-dashboard'),
       welcomeScreen: $('#welcome-screen'),
   
       // Analysis
@@ -267,6 +267,7 @@
         }
   
         renderClientsList();
+        updateRightPanel();
         showNotification(`Обрано клієнта: ${state.currentClient.company}`, 'success');
       } catch (err) {
         logger.error('Failed to load client', { id, error: err.message });
@@ -922,8 +923,27 @@
       elements.leftSidebar?.classList.toggle('active');
     });
     elements.toolsToggle?.addEventListener('click', () => {
-      elements.rightSidebar?.classList.toggle('active');
+      const panel = $('#recommendations-panel');
+      panel?.classList.toggle('active');
+      panel?.classList.toggle('collapsed');
     });
+    
+    // Right panel event listeners
+    $('#refresh-panel')?.addEventListener('click', () => {
+      updateRightPanel();
+      showNotification('Панель оновлено', 'info');
+    });
+    
+    $('#toggle-panel')?.addEventListener('click', () => {
+      const panel = $('#recommendations-panel');
+      panel?.classList.toggle('collapsed');
+    });
+    
+    $('#quick-new-client')?.addEventListener('click', () => {
+      document.getElementById('new-client-btn')?.click();
+    });
+    
+    $('#get-advice-btn')?.addEventListener('click', getAdvice);
     elements.clientSearch?.addEventListener('input', renderClientsList);
     elements.clearSearch?.addEventListener('click', () => {
       elements.clientSearch.value = '';
@@ -1237,6 +1257,13 @@
       this.modal?.addEventListener('click', (e) => {
         e.stopPropagation();
       });
+    };
+    
+    // Global function to show onboarding help
+    window.showOnboardingHelp = function() {
+      onboarding.currentStep = 1;
+      onboarding.show();
+      showNotification('📚 Онбординг запущено повторно', 'info');
     };
 
     // ===== Step-based Analysis =====
@@ -1679,11 +1706,138 @@
       goToStep(1);
     }
 
+    // ===== Right Panel Management =====
+    function updateRightPanel() {
+      updateClientInfo();
+      updateAnalysisHistory();
+      updateSelectedFragments();
+      updateStats();
+    }
+    
+    function updateClientInfo() {
+      const clientCard = $('#client-info-card');
+      if (!clientCard) return;
+      
+      if (state.currentClient) {
+        clientCard.innerHTML = `
+          <div class="client-card-content">
+            <div class="client-header">
+              <h5>${escapeHtml(state.currentClient.company)}</h5>
+              <span class="client-sector">${escapeHtml(state.currentClient.sector || 'Не вказано')}</span>
+            </div>
+            <div class="client-stats">
+              <div class="stat-item">
+                <i class="fas fa-chart-bar"></i>
+                <span>${state.analyses.length} аналізів</span>
+              </div>
+              <div class="stat-item">
+                <i class="fas fa-user"></i>
+                <span>${escapeHtml(state.currentClient.negotiator || 'Не вказано')}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        clientCard.innerHTML = `
+          <div class="client-placeholder">
+            <i class="fas fa-user-plus"></i>
+            <p>Оберіть або створіть клієнта</p>
+          </div>
+        `;
+      }
+    }
+    
+    function updateAnalysisHistory() {
+      const historySection = $('#history-section');
+      const historyList = $('#analysis-history-list');
+      
+      if (!historySection || !historyList) return;
+      
+      if (state.currentClient && state.analyses.length > 0) {
+        historySection.style.display = 'block';
+        historyList.innerHTML = state.analyses.slice(0, 5).map(analysis => {
+          const barometer = JSON.parse(analysis.barometer_json || '{}');
+          const score = barometer.score ? Math.round(barometer.score) : '—';
+          return `
+            <div class="history-item-mini" data-id="${analysis.id}" title="Завантажити аналіз">
+              <div class="history-content">
+                <div class="history-title">${escapeHtml(analysis.title || 'Без назви')}</div>
+                <div class="history-meta">
+                  <span class="history-date">${formatDate(analysis.created_at)}</span>
+                  <span class="history-score">📊 ${score}</span>
+                </div>
+              </div>
+              <button class="btn-icon-mini" onclick="loadAnalysis(${analysis.id})">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          `;
+        }).join('');
+      } else {
+        historySection.style.display = 'none';
+      }
+    }
+    
+    function updateSelectedFragments() {
+      const fragmentsList = $('#selected-fragments-list');
+      const adviceBtn = $('#get-advice-btn');
+      
+      if (!fragmentsList || !adviceBtn) return;
+      
+      if (state.selectedFragments.length > 0) {
+        fragmentsList.innerHTML = state.selectedFragments.slice(0, 3).map(fragment => {
+          const catClass = fragment.category === 'manipulation' ? 'manip' : 
+                          fragment.category === 'cognitive_bias' ? 'cog' : 'fallacy';
+          return `
+            <div class="fragment-mini ${catClass}">
+              <div class="fragment-text">${escapeHtml(fragment.text?.slice(0, 60) || '')}...</div>
+              <div class="fragment-label">${escapeHtml(fragment.label || '')}</div>
+            </div>
+          `;
+        }).join('') + (state.selectedFragments.length > 3 ? 
+          `<div class="fragment-more">+${state.selectedFragments.length - 3} більше</div>` : '');
+        
+        adviceBtn.disabled = false;
+      } else {
+        fragmentsList.innerHTML = `
+          <div class="fragments-placeholder">
+            <i class="fas fa-highlighter"></i>
+            <p>Аналізуйте текст щоб побачити фрагменти</p>
+          </div>
+        `;
+        adviceBtn.disabled = true;
+      }
+    }
+    
+    function updateStats() {
+      const totalClients = $('#total-clients');
+      const totalAnalyses = $('#total-analyses');
+      const avgScore = $('#avg-score');
+      
+      if (totalClients) totalClients.textContent = state.clients.length;
+      
+      const totalAnalysisCount = state.clients.reduce((sum, client) => 
+        sum + (client.analyses_count || 0), 0);
+      if (totalAnalyses) totalAnalyses.textContent = totalAnalysisCount;
+      
+      if (avgScore && state.currentClient && state.analyses.length > 0) {
+        const scores = state.analyses
+          .map(a => JSON.parse(a.barometer_json || '{}').score)
+          .filter(s => s !== undefined);
+        const avg = scores.length > 0 ? 
+          Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0;
+        avgScore.textContent = avg || '—';
+      } else if (avgScore) {
+        avgScore.textContent = '—';
+      }
+    }
+    
     // ===== Initialize =====
     loadClients().then(() => {
       onboarding.init();
       initStepAnalysis();
       loadTokenUsage();
+      updateRightPanel();
       // Refresh token usage every 5 minutes
       setInterval(loadTokenUsage, 5 * 60 * 1000);
     });
