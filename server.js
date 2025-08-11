@@ -54,10 +54,20 @@ app.use(express.static(join(__dirname, 'public')));
 
 // Simple auth middleware
 const authMiddleware = (req, res, next) => {
-  if (req.cookies?.auth === 'authorized') {
-    next();
+  // For API requests, return JSON error instead of redirect
+  if (req.path.startsWith('/api/')) {
+    if (req.cookies?.auth === 'authorized') {
+      next();
+    } else {
+      return res.status(401).json({ error: 'Unauthorized', redirect: '/login' });
+    }
   } else {
-    res.redirect('/login');
+    // For page requests, redirect to login
+    if (req.cookies?.auth === 'authorized') {
+      next();
+    } else {
+      return res.redirect('/login');
+    }
   }
 };
 
@@ -78,6 +88,17 @@ app.post('/api/login', (req, res) => {
 app.post('/api/logout', (req, res) => {
   res.clearCookie('auth');
   res.json({ success: true });
+});
+
+// Token usage endpoint
+app.get('/api/usage', authMiddleware, (req, res) => {
+  // Mock data - replace with real implementation
+  res.json({ 
+    used_tokens: 12500, 
+    total_tokens: 100000, 
+    percentage: 12.5,
+    reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  });
 });
 
 // API routes (protected)

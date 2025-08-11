@@ -28,6 +28,19 @@
         <span class="badge">Negotiation AI</span>
       </div>
       <div class="nav-actions">
+        <div class="token-counter" id="token-counter">
+          <div class="token-info">
+            <div class="token-usage">
+              <span class="used-tokens" id="used-tokens">—</span>
+              <span class="token-separator">/</span>
+              <span class="total-tokens" id="total-tokens">—</span>
+            </div>
+            <div class="token-label">Токени</div>
+          </div>
+          <div class="token-progress">
+            <div class="token-progress-fill" id="token-progress-fill"></div>
+          </div>
+        </div>
         <button class="nav-action" id="tools-toggle" title="Інструменти">
           <i class="fas fa-sliders-h"></i>
         </button>
@@ -315,45 +328,66 @@
           </div>
         </div>
 
-        <div class="analysis-grid">
-          <!-- Input Section -->
-          <div class="card">
-            <h3>Вхідні дані</h3>
-
-            <div id="dropzone" class="dropzone">
-              <i class="fas fa-cloud-upload-alt"></i>
-              <p>Перетягніть файл сюди</p>
-              <span>або натисніть для вибору</span>
+        <!-- Split Screen Layout -->
+        <div class="split-screen">
+          <!-- Left Panel -->
+          <div class="split-panel split-left">
+            <div class="panel-header">
+              <h3><i class="fas fa-upload"></i> Вхідні дані</h3>
+              <div class="panel-actions">
+                <button id="clear-btn" class="btn-icon" title="Очистити">
+                  <i class="fas fa-eraser"></i>
+                </button>
+              </div>
             </div>
-            <input type="file" id="file-input" accept=".txt,.docx" hidden />
+            
+            <div class="panel-content">
+              <div id="dropzone" class="dropzone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Перетягніть файл сюди</p>
+                <span>або натисніть для вибору</span>
+              </div>
+              <input type="file" id="file-input" accept=".txt,.docx" hidden />
 
-            <div class="divider">АБО</div>
+              <div class="divider">АБО</div>
 
-            <textarea id="text-input" placeholder="Вставте текст переговорів тут..." rows="8"></textarea>
+              <div class="textarea-container">
+                <textarea id="text-input" placeholder="Вставте текст переговорів тут або використайте файл..." rows="20"></textarea>
+                <div class="textarea-stats">
+                  <span id="char-count">0 символів</span>
+                  <span id="word-count">0 слів</span>
+                </div>
+              </div>
 
-            <div class="input-actions">
-              <button id="analyze-btn" class="btn-primary" disabled>
-                <i class="fas fa-play"></i> Аналізувати
-              </button>
-              <button id="clear-btn" class="btn-ghost">
-                <i class="fas fa-eraser"></i> Очистити
-              </button>
+              <div class="input-actions">
+                <button id="analyze-btn" class="btn-primary" disabled>
+                  <i class="fas fa-play"></i> Аналізувати переговори
+                </button>
+              </div>
             </div>
           </div>
 
-          <!-- Results Section -->
-          <div class="card">
-            <div class="card-header">
-              <h3>Результати аналізу</h3>
-              <button id="export-btn" class="btn-icon" title="Експорт" disabled>
-                <i class="fas fa-download"></i>
-              </button>
-            </div>
+          <!-- Split Divider -->
+          <div class="split-divider"></div>
 
-            <div id="stream-output" class="stream-output">
-              <div class="empty-state">
-                <i class="fas fa-chart-line"></i>
-                <p>Результати з'являться тут</p>
+          <!-- Right Panel -->
+          <div class="split-panel split-right">
+            <div class="panel-header">
+              <h3><i class="fas fa-chart-line"></i> Результати аналізу</h3>
+              <div class="panel-actions">
+                <button id="export-btn" class="btn-icon" title="Експорт результатів" disabled>
+                  <i class="fas fa-download"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div class="panel-content">
+              <div id="stream-output" class="stream-output">
+                <div class="empty-state">
+                  <i class="fas fa-brain"></i>
+                  <h4>AI готовий до аналізу</h4>
+                  <p>Завантажте текст переговорів і натисніть "Аналізувати"</p>
+                </div>
               </div>
             </div>
           </div>
@@ -532,7 +566,9 @@
       </div>
       
       <div class="onboarding-actions">
-        <button class="btn-ghost" id="skip-onboarding">Пропустити</button>
+        <button class="btn-ghost disabled" id="skip-onboarding" disabled title="Онбординг обов'язковий">
+          <i class="fas fa-lock"></i> Обов'язковий
+        </button>
         <div class="nav-buttons">
           <button class="btn-secondary" id="prev-step" style="display: none;">
             <i class="fas fa-arrow-left"></i> Назад

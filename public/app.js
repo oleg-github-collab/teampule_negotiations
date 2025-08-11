@@ -1138,11 +1138,100 @@
       debug: (msg, data) => logger.log('DEBUG', msg, data)
     };
   
+    // ===== Token Management =====
+    async function loadTokenUsage() {
+      try {
+        const res = await fetch('/api/usage');
+        const data = await res.json();
+        updateTokenDisplay(data);
+      } catch (err) {
+        logger.error('Failed to load token usage', err);
+      }
+    }
+
+    function updateTokenDisplay(data) {
+      const usedTokens = $('#used-tokens');
+      const totalTokens = $('#total-tokens');
+      const tokenProgressFill = $('#token-progress-fill');
+      
+      if (!usedTokens || !totalTokens || !tokenProgressFill) return;
+      
+      const used = data.used_tokens || 0;
+      const total = data.total_tokens || 100000;
+      const percentage = data.percentage || 0;
+      
+      usedTokens.textContent = formatNumber(used);
+      totalTokens.textContent = formatNumber(total);
+      tokenProgressFill.style.width = `${Math.min(percentage, 100)}%`;
+      
+      // Change color based on usage
+      tokenProgressFill.className = 'token-progress-fill';
+      if (percentage > 90) {
+        tokenProgressFill.classList.add('danger');
+      } else if (percentage > 75) {
+        tokenProgressFill.classList.add('warning');
+      }
+      
+      logger.debug('Token usage updated', { used, total, percentage });
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toString();
+    }
+
+    // ===== Text Statistics =====
+    function updateTextStats() {
+      const text = elements.textInput?.value || '';
+      const chars = text.length;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      
+      const charCount = $('#char-count');
+      const wordCount = $('#word-count');
+      
+      if (charCount) charCount.textContent = `${chars} символів`;
+      if (wordCount) wordCount.textContent = `${words} слів`;
+    }
+
+    // Update onboarding to be mandatory
+    onboarding.init = function() {
+      // Always show onboarding for new users or when no clients exist
+      const hasSeenOnboarding = localStorage.getItem('teampulse_onboarding_completed');
+      if (!hasSeenOnboarding || state.clients.length === 0) {
+        this.show();
+      }
+      this.bindEvents();
+    };
+
+    onboarding.bindEvents = function() {
+      // Make onboarding mandatory - remove skip functionality
+      $('#skip-onboarding')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        showNotification('Онбординг обов\'язковий для нових користувачів', 'warning');
+      });
+      
+      $('#next-step')?.addEventListener('click', () => this.nextStep());
+      $('#prev-step')?.addEventListener('click', () => this.prevStep());
+      
+      // Prevent closing on outside click
+      this.modal?.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    };
+
     // ===== Initialize =====
     loadClients().then(() => {
       onboarding.init();
+      loadTokenUsage();
+      // Refresh token usage every 5 minutes
+      setInterval(loadTokenUsage, 5 * 60 * 1000);
     });
+    
+    // Add text input listener
+    elements.textInput?.addEventListener('input', updateTextStats);
+    
     resetBarometer();
-    logger.info('⚡ TeamPulse Turbo initialized', { version: '2.0.0', timestamp: new Date().toISOString() });
+    logger.info('⚡ TeamPulse Turbo initialized', { version: '3.0.0', timestamp: new Date().toISOString() });
   })();
   
