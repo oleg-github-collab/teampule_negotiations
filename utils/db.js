@@ -1,4 +1,4 @@
-// utils/db.js
+// utils/db.js - База даних з оновленою схемою
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -7,24 +7,25 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const DB_PATH = process.env.DB_PATH || join(__dirname, '../data/teampulse.db');
+const DB_PATH =
+  process.env.DB_PATH || join(__dirname, '../data/teampulse.db');
 
-// створюємо папку під БД, якщо треба
+// Create directory if needed
 const dir = dirname(DB_PATH);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-// Відкриваємо синхронно (better-sqlite3 — sync API)
+// Open database
 const db = new Database(DB_PATH, { fileMustExist: false });
 
-// PRAGMA
+// Pragmas for performance
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// Схема
+// Updated schema with better structure
 db.exec(`
 CREATE TABLE IF NOT EXISTS clients(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  company TEXT,
+  company TEXT UNIQUE,
   negotiator TEXT,
   sector TEXT,
   goal TEXT,
@@ -32,51 +33,61 @@ CREATE TABLE IF NOT EXISTS clients(
   constraints TEXT,
   user_goals TEXT,
   client_goals TEXT,
-  weekly_hours INTEGER,
+  weekly_hours INTEGER DEFAULT 0,
   offered_services TEXT,
   deadlines TEXT,
   notes TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
 CREATE TABLE IF NOT EXISTS analyses(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  client_id INTEGER,
+  client_id INTEGER NOT NULL,
+  title TEXT,
   source TEXT,
   original_filename TEXT,
+  original_text TEXT,
   tokens_estimated INTEGER,
   highlights_json TEXT,
   summary_json TEXT,
   barometer_json TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(client_id) REFERENCES clients(id)
+  FOREIGN KEY(client_id) REFERENCES clients(id) ON DELETE CASCADE
 );
+
 CREATE TABLE IF NOT EXISTS usage_daily(
   day TEXT PRIMARY KEY,
   tokens_used INTEGER DEFAULT 0,
   locked_until TEXT
 );
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_analyses_client ON analyses(client_id);
+CREATE INDEX IF NOT EXISTS idx_analyses_created ON analyses(created_at);
+CREATE INDEX IF NOT EXISTS idx_clients_company ON clients(company);
 `);
 
-// Уніфікований інтерфейс
+// Unified interface
 export function run(sql, params = []) {
   const stmt = db.prepare(sql);
   const info = Array.isArray(params) ? stmt.run(...params) : stmt.run(params);
   return { lastID: info.lastInsertRowid, changes: info.changes };
 }
+
 export function get(sql, params = []) {
   const stmt = db.prepare(sql);
   return Array.isArray(params) ? stmt.get(...params) : stmt.get(params);
 }
+
 export function all(sql, params = []) {
   const stmt = db.prepare(sql);
   return Array.isArray(params) ? stmt.all(...params) : stmt.all(params);
 }
 
-// Транзакції коли потрібно
 export const transaction = (fn) => db.transaction(fn);
 
-// 🔧 Shim для старого коду — повертає об'єкт з тим же API
+// Shim for old code
 export function getDB() {
   return { run, get, all, transaction };
 }

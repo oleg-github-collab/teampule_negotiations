@@ -3,143 +3,222 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
-  <title>TeamPulse Turbo — Negotiation (Kaminskyi AI)</title>
+  <title>TeamPulse Turbo — Negotiation Analysis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
   <link rel="stylesheet" href="/styles.css"/>
 </head>
 <body>
-  <!-- Background particles -->
+  <!-- Background effects -->
   <div class="particles" aria-hidden="true">
     <div class="particle"></div><div class="particle"></div><div class="particle"></div>
     <div class="particle"></div><div class="particle"></div><div class="particle"></div>
   </div>
-
   <div class="app-container">
-    <!-- Top Nav -->
-    <nav class="top-nav" role="navigation" aria-label="Головна навігація">
-      <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <button class="nav-toggle" id="nav-toggle" aria-label="Меню">
+        <i class="fas fa-bars"></i>
+      </button>
       <div class="nav-brand">
         <span class="brand-icon">⚡</span>
         <span class="brand-text">TeamPulse Turbo</span>
-        <span class="badge">Kaminskyi AI</span>
-      </div>
-      <div class="nav-tabs" role="tablist">
-        <button class="nav-tab active" data-tab="neg" role="tab" aria-selected="true"><i class="fas fa-handshake"></i><span>Negotiation</span></button>
+        <span class="badge">Negotiation AI</span>
       </div>
       <div class="nav-actions">
-        <button class="nav-action" id="right-sidebar-toggle" title="Інструменти" aria-label="Відкрити інструменти"><i class="fas fa-sliders-h"></i></button>
-        <form id="logoutForm" style="display:inline">
-          <button type="submit" class="nav-action" title="Вихід" aria-label="Вихід"><i class="fas fa-right-from-bracket"></i></button>
-        </form>
+        <button class="nav-action" id="tools-toggle" title="Інструменти">
+          <i class="fas fa-sliders-h"></i>
+        </button>
+        <button class="nav-action" id="logout-btn" title="Вихід">
+          <i class="fas fa-right-from-bracket"></i>
+        </button>
       </div>
     </nav>
 
-    <!-- Left Sidebar -->
-    <aside class="sidebar sidebar-left" id="sidebar-left" aria-label="Профіль клієнта">
+    <!-- Left Sidebar - Client History -->
+    <aside class="sidebar sidebar-left" id="sidebar-left">
       <div class="sidebar-header">
-        <h3>👤 Профіль клієнта</h3>
-        <div>
-          <button class="sidebar-close" onclick="closeSidebar('left')" aria-label="Закрити"><i class="fas fa-times"></i></button>
-        </div>
+        <h3><i class="fas fa-building"></i> Клієнти</h3>
+        <button class="sidebar-close" onclick="closeSidebar('left')">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
+
+      <div class="sidebar-search">
+        <input type="text" id="client-search" placeholder="Пошук клієнта..." />
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="btn-primary full-width" id="new-client-btn">
+          <i class="fas fa-plus"></i> Новий клієнт
+        </button>
+      </div>
+
       <div class="sidebar-content">
-        <div class="profile-section">
-          <div class="profile-field"><label for="company">Компанія</label><input id="company" placeholder="ТОВ Приклад"/></div>
-          <div class="profile-field"><label for="negotiator">Переговорник</label><input id="negotiator" placeholder="Ім'я, посада"/></div>
-          <div class="profile-field"><label for="sector">Сфера</label><input id="sector" placeholder="SaaS, виробництво..."/></div>
-          <div class="profile-field"><label for="goal">Ціль переговорів</label><input id="goal" placeholder="Підписати контракт..."/></div>
-          <div class="profile-field"><label for="criteria">Критерії рішення</label><input id="criteria" placeholder="Ціна, терміни..."/></div>
-          <div class="profile-field"><label for="constraints">Обмеження</label><input id="constraints" placeholder="Бюджет, ресурси..."/></div>
-
-          <div class="profile-field"><label for="user_goals">Цілі юзера</label><textarea id="user_goals" rows="2"></textarea></div>
-          <div class="profile-field"><label for="client_goals">Цілі клієнта (як ви бачите)</label><textarea id="client_goals" rows="2"></textarea></div>
-          <div class="profile-field"><label for="weekly_hours">Годин/тиждень</label><input id="weekly_hours" type="number" min="0" placeholder="10"/></div>
-          <div class="profile-field"><label for="offered_services">Послуги</label><textarea id="offered_services" rows="2"></textarea></div>
-          <div class="profile-field"><label for="deadlines">Дедлайни</label><input id="deadlines" placeholder="дати/місяці"/></div>
-          <div class="profile-field"><label for="notes">Нотатки</label><textarea id="notes" rows="3" placeholder="Деталі, конкуренти..."></textarea></div>
-
-          <div style="display:flex; gap:.5rem; margin:.5rem 0 1rem">
-            <button class="btn-secondary full-width" onclick="saveClientDeep()"><i class="fas fa-database"></i> Зберегти у БД</button>
-            <button class="btn-ghost full-width" onclick="clearProfileForm()"><i class="fas fa-file"></i> Новий</button>
-          </div>
-        </div>
-
-        <div class="client-list">
-          <h4>Клієнти</h4>
-          <div id="saved-clients" class="chat-like-list"></div>
+        <div id="clients-list" class="clients-list">
+          <!-- Dynamic client list will be here -->
         </div>
       </div>
     </aside>
 
-    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar('left');closeSidebar('right')"></div>
-
-    <!-- Right Sidebar -->
-    <aside class="sidebar sidebar-right" id="sidebar-right" aria-label="Інструменти">
+    <!-- Right Sidebar - Tools & History -->
+    <aside class="sidebar sidebar-right" id="sidebar-right">
       <div class="sidebar-header">
-        <h3>🛠 Інструменти</h3>
-        <button class="sidebar-close" onclick="closeSidebar('right')" aria-label="Закрити"><i class="fas fa-times"></i></button>
+        <h3><i class="fas fa-tools"></i> Інструменти</h3>
+        <button class="sidebar-close" onclick="closeSidebar('right')">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
+
       <div class="sidebar-content">
+        <!-- Selected fragments -->
         <div class="tool-section">
           <h4>Відібрані фрагменти</h4>
-          <div id="bucket" class="bucket-list" aria-live="polite"></div>
-          <button class="btn-primary full-width" id="adviceBtn"><i class="fas fa-lightbulb"></i> Отримати рекомендації</button>
-          <div id="adviceOut" class="output-area" style="margin-top:.75rem; display:none;"></div>
+          <div id="bucket" class="bucket-list"></div>
+          <button class="btn-primary full-width" id="advice-btn" disabled>
+            <i class="fas fa-lightbulb"></i> Отримати рекомендації
+          </button>
+          <div id="advice-output" class="advice-output"></div>
+        </div>
+
+        <!-- Analysis history for current client -->
+        <div class="tool-section" id="analysis-history" style="display:none;">
+          <h4>Історія аналізів</h4>
+          <div id="history-list" class="history-list">
+            <!-- Dynamic analysis history -->
+          </div>
         </div>
       </div>
     </aside>
 
-    <!-- Main -->
+    <!-- Main Content Area -->
     <main class="main-content">
-      <section id="neg" class="tab-pane active" aria-labelledby="neg-tab">
+      <!-- Client Profile Form -->
+      <div id="client-form" class="content-section" style="display:none;">
         <div class="content-header">
-          <h1><i class="fas fa-handshake"></i> Аналіз переговорів</h1>
-          <div class="header-actions">
-            <span class="status-badge"><i class="fas fa-circle"></i> 512K токенів/добу</span>
+          <h1><i class="fas fa-user-tie"></i> Профіль клієнта</h1>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="company">Компанія*</label>
+            <input id="company" placeholder="Назва компанії" required />
+          </div>
+          <div class="form-group">
+            <label for="negotiator">Переговорник</label>
+            <input id="negotiator" placeholder="Ім'я та посада" />
+          </div>
+          <div class="form-group">
+            <label for="sector">Сфера діяльності</label>
+            <input id="sector" placeholder="IT, виробництво, послуги..." />
+          </div>
+          <div class="form-group">
+            <label for="goal">Ціль переговорів</label>
+            <input id="goal" placeholder="Підписання контракту, партнерство..." />
+          </div>
+          <div class="form-group full-width">
+            <label for="criteria">Критерії рішення</label>
+            <textarea id="criteria" rows="2" placeholder="Ціна, терміни, якість..."></textarea>
+          </div>
+          <div class="form-group full-width">
+            <label for="constraints">Обмеження</label>
+            <textarea id="constraints" rows="2" placeholder="Бюджет, ресурси, час..."></textarea>
+          </div>
+          <div class="form-group full-width">
+            <label for="user_goals">Ваші цілі</label>
+            <textarea id="user_goals" rows="3" placeholder="Що ви хочете досягнути?"></textarea>
+          </div>
+          <div class="form-group full-width">
+            <label for="client_goals">Цілі клієнта</label>
+            <textarea id="client_goals" rows="3" placeholder="Що хоче клієнт?"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="weekly_hours">Годин/тиждень</label>
+            <input id="weekly_hours" type="number" min="0" placeholder="10" />
+          </div>
+          <div class="form-group">
+            <label for="deadlines">Дедлайни</label>
+            <input id="deadlines" placeholder="Дати, терміни" />
+          </div>
+          <div class="form-group full-width">
+            <label for="offered_services">Послуги</label>
+            <textarea id="offered_services" rows="2" placeholder="Що пропонуєте?"></textarea>
+          </div>
+          <div class="form-group full-width">
+            <label for="notes">Нотатки</label>
+            <textarea id="notes" rows="3" placeholder="Додаткова інформація..."></textarea>
           </div>
         </div>
 
-        <p class="muted">AI виявляє маніпуляції, когнітивні викривлення та софізми у реальному часі.</p>
+        <div class="form-actions">
+          <button class="btn-primary" id="save-client-btn">
+            <i class="fas fa-save"></i> Зберегти клієнта
+          </button>
+          <button class="btn-secondary" id="cancel-client-btn">
+            <i class="fas fa-times"></i> Скасувати
+          </button>
+        </div>
+      </div>
 
-        <div class="grid-2">
-          <!-- Input -->
-          <div class="card input-section">
-            <h3>Вхід</h3>
-            <div id="dropzone" class="dropzone" role="button" tabindex="0">
+      <!-- Analysis Section -->
+      <div id="analysis-section" class="content-section">
+        <div class="content-header">
+          <h1><i class="fas fa-microscope"></i> Аналіз переговорів</h1>
+          <div class="header-info">
+            <span class="current-client" id="current-client">
+              <i class="fas fa-building"></i> <span>Оберіть клієнта</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="analysis-grid">
+          <!-- Input Section -->
+          <div class="card">
+            <h3>Вхідні дані</h3>
+
+            <div id="dropzone" class="dropzone">
               <i class="fas fa-cloud-upload-alt"></i>
-              <p>Перетягніть DOCX/TXT</p><span>або натисніть для вибору</span>
+              <p>Перетягніть файл сюди</p>
+              <span>або натисніть для вибору</span>
             </div>
-            <label class="btn-secondary" style="cursor:pointer; margin:.5rem 0 1rem; display:inline-flex;gap:.5rem;align-items:center;">
-              <input type="file" id="file" accept=".txt,.docx" hidden/>
-              <i class="fas fa-file-upload"></i> Обрати файл
-            </label>
+            <input type="file" id="file-input" accept=".txt,.docx" hidden />
 
-            <textarea id="inputText" placeholder="Або вставте текст переговорів тут..." rows="10"></textarea>
+            <div class="divider">АБО</div>
+
+            <textarea id="text-input" placeholder="Вставте текст переговорів тут..." rows="8"></textarea>
+
             <div class="input-actions">
-              <button id="analyzeBtn" class="btn-primary"><i class="fas fa-play"></i> Аналізувати</button>
+              <button id="analyze-btn" class="btn-primary" disabled>
+                <i class="fas fa-play"></i> Аналізувати
+              </button>
+              <button id="clear-btn" class="btn-ghost">
+                <i class="fas fa-eraser"></i> Очистити
+              </button>
             </div>
           </div>
 
-          <!-- Stream -->
-          <div class="card results-section">
-            <div class="results-header">
-              <h3>Стрім результатів</h3>
-              <div class="results-actions">
-                <button id="exportBtn" class="btn-icon" title="Експорт"><i class="fas fa-download"></i></button>
+          <!-- Results Section -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Результати аналізу</h3>
+              <button id="export-btn" class="btn-icon" title="Експорт" disabled>
+                <i class="fas fa-download"></i>
+              </button>
+            </div>
+
+            <div id="stream-output" class="stream-output">
+              <div class="empty-state">
+                <i class="fas fa-chart-line"></i>
+                <p>Результати з'являться тут</p>
               </div>
             </div>
-            <div id="stream" class="output-area" aria-live="polite"></div>
-            <div id="badJson" class="alert alert-warning" style="display:none;">
-              <i class="fas fa-exclamation-triangle"></i> Вихід містив невалідні рядки — пропущено
-            </div>
           </div>
         </div>
 
-        <div class="grid-2">
-          <!-- Highlighted text -->
+        <!-- Highlighted Text & Barometer -->
+        <div class="analysis-grid">
           <div class="card">
             <h3>Підсвічений текст</h3>
             <div class="legend">
@@ -147,63 +226,84 @@
               <span class="legend-item cog">Когнітивні</span>
               <span class="legend-item fallacy">Софізми</span>
             </div>
-            <div id="annotated" class="annotated-section" style="display:none;">
-              <div id="highlighted" class="highlighted-text"></div>
+            <div id="highlighted-text" class="highlighted-text">
+              <div class="empty-state">
+                <i class="fas fa-highlighter"></i>
+                <p>Текст з підсвіткою з'явиться тут</p>
+              </div>
             </div>
           </div>
 
-          <!-- Barometer V2 -->
           <div class="card">
-            <h3>Barometer</h3>
-            <div id="barometer" class="barometer">
-              <div class="barometer-gauge" role="img" aria-label="Рівень складності переговорів">
-                <div class="glass barometer-glass" aria-hidden="true"></div>
-                <div class="barometer-ring" aria-hidden="true"></div>
-                <div class="barometer-glow" aria-hidden="true"></div>
-
-                <div class="barometer-needle" aria-hidden="true"></div>
-                <div class="barometer-score"><div class="value">—</div></div>
-                <div class="barometer-label">Очікуємо...</div>
-
-                <div class="barometer-ticks" aria-hidden="true">
-                  <div class="tick major t0"></div><div class="tick major t1"></div><div class="tick major t2"></div>
-                  <div class="tick major t3"></div><div class="tick major t4"></div><div class="tick major t5"></div>
-                  <div class="tick major t6"></div><div class="tick major t7"></div><div class="tick major t8"></div><div class="tick major t9"></div>
-                </div>
-
-                <div class="barometer-zones" aria-hidden="true">
-                  <span class="zone-tag zone-easy">Easy mode</span>
-                  <span class="zone-tag zone-clear">Clear client</span>
-                  <span class="zone-tag zone-medium">Medium</span>
-                  <span class="zone-tag zone-high">High</span>
-                  <span class="zone-tag zone-bloody">Bloody hell</span>
-                  <span class="zone-tag zone-impossible">Mission impossible</span>
+            <h3>Барометр складності</h3>
+            <div id="barometer" class="barometer-container">
+              <div class="barometer-gauge">
+                <svg viewBox="0 0 200 120" class="barometer-svg">
+                  <defs>
+                    <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+                      <stop offset="30%" style="stop-color:#00ffff;stop-opacity:1" />
+                      <stop offset="60%" style="stop-color:#ffaa00;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#ff0066;stop-opacity:1" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gauge-gradient)" stroke-width="15" opacity="0.3"/>
+                  <path id="gauge-fill" d="M 20 100 A 80 80 0 0 1 20 100" fill="none" stroke="url(#gauge-gradient)" stroke-width="15"/>
+                  <circle cx="100" cy="100" r="5" fill="#fff"/>
+                  <line id="gauge-needle" x1="100" y1="100" x2="100" y2="30" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div class="barometer-value">
+                  <span id="barometer-score">—</span>
+                  <span id="barometer-label">Очікування...</span>
                 </div>
               </div>
-
               <div class="barometer-factors">
-                <div class="factor"><span>🎯 Goal alignment</span><div class="bar"><div></div></div></div>
-                <div class="factor"><span>🧪 Manipulation density</span><div class="bar"><div></div></div></div>
-                <div class="factor"><span>📐 Scope clarity</span><div class="bar"><div></div></div></div>
-                <div class="factor"><span>⏱ Time pressure</span><div class="bar"><div></div></div></div>
-                <div class="factor"><span>⚙️ Resources</span><div class="bar"><div></div></div></div>
+                <div class="factor">
+                  <span>🎯 Goal alignment</span>
+                  <div class="factor-bar"><div id="factor-goal"></div></div>
+                </div>
+                <div class="factor">
+                  <span>🧪 Manipulation density</span>
+                  <div class="factor-bar"><div id="factor-manip"></div></div>
+                </div>
+                <div class="factor">
+                  <span>📐 Scope clarity</span>
+                  <div class="factor-bar"><div id="factor-scope"></div></div>
+                </div>
+                <div class="factor">
+                  <span>⏱ Time pressure</span>
+                  <div class="factor-bar"><div id="factor-time"></div></div>
+                </div>
+                <div class="factor">
+                  <span>⚙️ Resources</span>
+                  <div class="factor-bar"><div id="factor-resources"></div></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-      </section>
+      <!-- Welcome Screen -->
+      <div id="welcome-screen" class="welcome-screen">
+        <div class="welcome-content">
+          <h1>👋 Ласкаво просимо до TeamPulse Turbo</h1>
+          <p>Потужний AI-аналіз переговорів для виявлення маніпуляцій та когнітивних викривлень</p>
+          <div class="welcome-actions">
+            <button class="btn-primary" onclick="document.getElementById('new-client-btn').click()">
+              <i class="fas fa-plus"></i> Створити клієнта
+            </button>
+            <button class="btn-secondary" onclick="showDemo()">
+              <i class="fas fa-play"></i> Демо
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 
+  <!-- Notifications container -->
+  <div id="notifications" class="notifications"></div>
   <script src="/app.js"></script>
-  <script>
-    // logout
-    document.getElementById('logoutForm')?.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      await fetch('/api/logout',{method:'POST'});
-      location.href = '/login';
-    });
-  </script>
 </body>
 </html>

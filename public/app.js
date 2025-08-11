@@ -1,566 +1,763 @@
+// public/app.js - Покращена логіка додатку
 (() => {
     'use strict';
   
-    // ===== Utilities =====
-    const $ = (sel, root = document) => root.querySelector(sel);
-    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  
-    function showNotification(message, type = 'info') {
-      const n = document.createElement('div');
-      n.className = `notification-toast notification-${type}`;
-      const icon =
-        type === 'success'
-          ? 'check-circle'
-          : type === 'error'
-          ? 'exclamation-circle'
-          : type === 'warning'
-          ? 'exclamation-triangle'
-          : 'info-circle';
-      n.innerHTML = `<i class="fas fa-${icon}"></i><span>${message}</span>`;
-      document.body.appendChild(n);
-  
-      // стилі тоста, якщо ще не додані
-      if (!$('#notification-styles')) {
-        const style = document.createElement('style');
-        style.id = 'notification-styles';
-        style.textContent = `
-          .notification-toast{
-            position:fixed;bottom:20px;right:20px;z-index:300;
-            padding:16px 20px;border-radius:12px;display:flex;gap:12px;align-items:center;
-            background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);
-            font-size:14px;max-width:350px;animation:slide-in .25s ease-out
-          }
-          .notification-success{border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.1)}
-          .notification-error{border-color:rgba(255,0,128,.3);background:rgba(255,0,128,.1)}
-          .notification-warning{border-color:rgba(255,234,0,.3);background:rgba(255,234,0,.1)}
-          .notification-info i{color:var(--neon-blue)}
-          @keyframes slide-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-          @media (max-width:480px){.notification-toast{left:20px;right:20px;max-width:none}}
-        `;
-        document.head.appendChild(style);
-      }
-  
-      setTimeout(() => {
-        n.style.animation = 'slide-in .25s ease-out reverse';
-        setTimeout(() => n.remove(), 250);
-      }, 4200);
-    }
-  
-    // ===== Sidebars =====
-    const leftSidebar = $('#sidebar-left');
-    const rightSidebar = $('#sidebar-right');
-    const mobileMenuToggle = $('#mobile-menu-toggle');
-    const rightSidebarToggle = $('#right-sidebar-toggle');
-  
-    function closeSidebar(side) {
-      if (side === 'left') leftSidebar?.classList.remove('active');
-      if (side === 'right') rightSidebar?.classList.remove('active');
-    }
-    window.closeSidebar = closeSidebar;
-    mobileMenuToggle?.addEventListener('click', () => leftSidebar?.classList.toggle('active'));
-    rightSidebarToggle?.addEventListener('click', () => rightSidebar?.classList.toggle('active'));
-  
-    // ===== Elements =====
-    const dropzone = $('#dropzone');
-    const fileInput = $('#file');
-    const inputTextEl = $('#inputText');
-    const analyzeBtn = $('#analyzeBtn');
-    const streamEl = $('#stream');
-    const exportBtn = $('#exportBtn');
-  
-    const highlighted = $('#highlighted');
-    const annotated = $('#annotated');
-  
-    const bucket = $('#bucket');
-    const adviceBtn = $('#adviceBtn');
-    const adviceOut = $('#adviceOut');
-  
-    const badJsonBanner = $('#badJson');
-  
-    // ===== Client Deep Profile (left sidebar) =====
-    function val(id) {
-      return $(`#${id}`)?.value?.trim() || '';
-    }
-    function num(id) {
-      return Number($(`#${id}`)?.value) || 0;
-    }
-    function gatherProfileDeep() {
-      return {
-        company: val('company'),
-        negotiator: val('negotiator'),
-        sector: val('sector'),
-        goal: val('goal'),
-        criteria: val('criteria'),
-        constraints: val('constraints'),
-        user_goals: val('user_goals'),
-        client_goals: val('client_goals'),
-        weekly_hours: num('weekly_hours'),
-        offered_services: val('offered_services'),
-        deadlines: val('deadlines'),
-        notes: val('notes')
-      };
-    }
-    window.clearProfileForm = () => {
-      [
-        'company',
-        'negotiator',
-        'sector',
-        'goal',
-        'criteria',
-        'constraints',
-        'user_goals',
-        'client_goals',
-        'weekly_hours',
-        'offered_services',
-        'deadlines',
-        'notes'
-      ].forEach((id) => {
-        const el = $(`#${id}`);
-        if (el) el.value = '';
-      });
+    // ===== State Management =====
+    const state = {
+      currentClient: null,
+      currentAnalysis: null,
+      clients: [],
+      analyses: [],
+      selectedFragments: []
     };
   
-    async function fetchClients() {
-      const res = await fetch('/api/clients');
-      const j = await res.json();
-      return j.clients || [];
-    }
-    async function saveClientToDB(client) {
-      const res = await fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(client)
-      });
-      return await res.json();
-    }
-    async function deleteClientFromDB(id) {
-      await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+    // ===== DOM Elements =====
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+  
+    const elements = {
+      // Sidebars
+      leftSidebar: $('#sidebar-left'),
+      rightSidebar: $('#sidebar-right'),
+      navToggle: $('#nav-toggle'),
+      toolsToggle: $('#tools-toggle'),
+  
+      // Client management
+      clientsList: $('#clients-list'),
+      clientSearch: $('#client-search'),
+      newClientBtn: $('#new-client-btn'),
+      saveClientBtn: $('#save-client-btn'),
+      cancelClientBtn: $('#cancel-client-btn'),
+      currentClientSpan: $('#current-client span'),
+  
+      // Forms
+      clientForm: $('#client-form'),
+      analysisSection: $('#analysis-section'),
+      welcomeScreen: $('#welcome-screen'),
+  
+      // Analysis
+      dropzone: $('#dropzone'),
+      fileInput: $('#file-input'),
+      textInput: $('#text-input'),
+      analyzeBtn: $('#analyze-btn'),
+      clearBtn: $('#clear-btn'),
+      exportBtn: $('#export-btn'),
+      streamOutput: $('#stream-output'),
+      highlightedText: $('#highlighted-text'),
+  
+      // Tools
+      bucket: $('#bucket'),
+      adviceBtn: $('#advice-btn'),
+      adviceOutput: $('#advice-output'),
+      historyList: $('#history-list'),
+      analysisHistory: $('#analysis-history'),
+  
+      // Barometer
+      barometerScore: $('#barometer-score'),
+      barometerLabel: $('#barometer-label'),
+      gaugeNeedle: $('#gauge-needle'),
+      gaugeFill: $('#gauge-fill'),
+      factorGoal: $('#factor-goal'),
+      factorManip: $('#factor-manip'),
+      factorScope: $('#factor-scope'),
+      factorTime: $('#factor-time'),
+      factorResources: $('#factor-resources')
+    };
+  
+    // ===== Utilities =====
+    function showNotification(message, type = 'info') {
+      const container = $('#notifications');
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+      notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+      `;
+      container.appendChild(notification);
+      setTimeout(() => {
+        notification.classList.add('fade-out');
+        setTimeout(() => notification.remove(), 300);
+      }, 4000);
     }
   
-    async function renderClientsFromDB() {
-      const container = $('#saved-clients');
-      if (!container) return;
-      const clients = await fetchClients();
-      if (!clients.length) {
-        container.innerHTML = '<p class="muted">Немає клієнтів</p>';
+    function closeSidebar(which) {
+      if (which === 'left') elements.leftSidebar?.classList.remove('active');
+      if (which === 'right') elements.rightSidebar?.classList.remove('active');
+    }
+    window.closeSidebar = closeSidebar;
+  
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('uk-UA', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  
+    // ===== Client Management =====
+    async function loadClients() {
+      try {
+        const res = await fetch('/api/clients');
+        const data = await res.json();
+        state.clients = data.clients || [];
+        renderClientsList();
+      } catch (err) {
+        showNotification('Помилка завантаження клієнтів', 'error');
+      }
+    }
+  
+    function renderClientsList() {
+      const filtered = state.clients.filter(
+        (c) =>
+          !elements.clientSearch.value ||
+          c.company?.toLowerCase().includes(elements.clientSearch.value.toLowerCase())
+      );
+  
+      if (filtered.length === 0) {
+        elements.clientsList.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-users"></i>
+            <p>Немає клієнтів</p>
+          </div>
+        `;
         return;
       }
-      container.innerHTML = clients
+  
+      elements.clientsList.innerHTML = filtered
         .map(
-          (c) => `
-          <div class="client-item" data-id="${c.id}">
-            <div class="client-item-info" data-role="load">
-              <i class="fas fa-building"></i><span>${escapeHTML(c.company || 'Без назви')}</span>
-            </div>
-            <div class="client-item-actions">
-              <button data-role="delete" title="Видалити"><i class="fas fa-trash"></i></button>
+          (client) => `
+        <div class="client-item ${state.currentClient?.id === client.id ? 'active' : ''}" data-id="${client.id}">
+          <div class="client-info">
+            <div class="client-name">${escapeHtml(client.company)}</div>
+            <div class="client-meta">
+              ${client.sector ? `<span>${escapeHtml(client.sector)}</span>` : ''}
+              ${client.analyses_count ? `<span>${client.analyses_count} аналізів</span>` : ''}
             </div>
           </div>
-        `
+          <div class="client-actions">
+            <button class="btn-icon btn-edit" title="Редагувати">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn-icon btn-delete" title="Видалити">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `
         )
         .join('');
-      container.onclick = async (e) => {
-        const item = e.target.closest('.client-item');
-        if (!item) return;
-        const id = Number(item.getAttribute('data-id'));
-        if (e.target.closest('[data-role="load"]')) {
-          const cls = (await fetchClients()).find((x) => x.id === id);
-          if (!cls) return;
-          const set = (id, v) => {
-            const el = $(`#${id}`);
-            if (el) el.value = v || '';
-          };
-          set('company', cls.company);
-          set('negotiator', cls.negotiator);
-          set('sector', cls.sector);
-          set('goal', cls.goal);
-          set('criteria', cls.decision_criteria);
-          set('constraints', cls.constraints);
-          set('user_goals', cls.user_goals);
-          set('client_goals', cls.client_goals);
-          set('weekly_hours', cls.weekly_hours || 0);
-          set('offered_services', cls.offered_services);
-          set('deadlines', cls.deadlines);
-          set('notes', cls.notes);
-          showNotification('Клієнта завантажено', 'info');
-        } else if (e.target.closest('[data-role="delete"]')) {
-          if (confirm('Видалити клієнта?')) {
-            await deleteClientFromDB(id);
-            renderClientsFromDB();
-            showNotification('Клієнта видалено', 'success');
+  
+      // Attach event listeners
+      $$('.client-item').forEach((item) => {
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-edit')) {
+            editClient(Number(item.dataset.id));
+          } else if (e.target.closest('.btn-delete')) {
+            deleteClient(Number(item.dataset.id));
+          } else {
+            selectClient(Number(item.dataset.id));
           }
-        }
-      };
+        });
+      });
     }
-    window.saveClientDeep = async () => {
-      const payload = gatherProfileDeep();
-      if (!payload.company) {
+  
+    async function selectClient(id) {
+      try {
+        const res = await fetch(`/api/clients/${id}`);
+        const data = await res.json();
+        state.currentClient = data.client;
+        state.analyses = data.analyses || [];
+  
+        // Update UI
+        elements.currentClientSpan.textContent = state.currentClient.company;
+        elements.analyzeBtn.disabled = false;
+        elements.welcomeScreen.style.display = 'none';
+        elements.clientForm.style.display = 'none';
+        elements.analysisSection.style.display = 'block';
+  
+        // Show analysis history
+        if (state.analyses.length > 0) {
+          elements.analysisHistory.style.display = 'block';
+          renderAnalysisHistory();
+        } else {
+          elements.analysisHistory.style.display = 'none';
+        }
+  
+        renderClientsList();
+        showNotification(`Обрано клієнта: ${state.currentClient.company}`, 'success');
+      } catch (err) {
+        showNotification('Помилка завантаження клієнта', 'error');
+      }
+    }
+  
+    function renderAnalysisHistory() {
+      if (state.analyses.length === 0) {
+        elements.historyList.innerHTML = '<p class="muted">Немає аналізів</p>';
+        return;
+      }
+      elements.historyList.innerHTML = state.analyses
+        .map((analysis) => {
+          const barometer = JSON.parse(analysis.barometer_json || '{}');
+          return `
+          <div class="history-item" data-id="${analysis.id}">
+            <div class="history-info">
+              <div class="history-title">${escapeHtml(analysis.title || 'Без назви')}</div>
+              <div class="history-meta">
+                <span>${formatDate(analysis.created_at)}</span>
+                ${barometer.score ? `<span class="score-badge">${Math.round(barometer.score)}</span>` : ''}
+              </div>
+            </div>
+            <button class="btn-icon btn-load" title="Завантажити">
+              <i class="fas fa-folder-open"></i>
+            </button>
+          </div>
+        `;
+        })
+        .join('');
+  
+      $$('.history-item').forEach((item) => {
+        item.addEventListener('click', () => {
+          loadAnalysis(Number(item.dataset.id));
+        });
+      });
+    }
+  
+    async function loadAnalysis(analysisId) {
+      try {
+        const res = await fetch(`/api/clients/${state.currentClient.id}/analysis/${analysisId}`);
+        const data = await res.json();
+        displayAnalysisResults(data.analysis);
+        showNotification('Аналіз завантажено', 'success');
+      } catch (err) {
+        showNotification('Помилка завантаження аналізу', 'error');
+      }
+    }
+  
+    function editClient(id) {
+      const client = state.clients.find((c) => c.id === id);
+      if (!client) return;
+      state.currentClient = client;
+  
+      // Fill form
+      $('#company').value = client.company || '';
+      $('#negotiator').value = client.negotiator || '';
+      $('#sector').value = client.sector || '';
+      $('#goal').value = client.goal || '';
+      $('#criteria').value = client.decision_criteria || '';
+      $('#constraints').value = client.constraints || '';
+      $('#user_goals').value = client.user_goals || '';
+      $('#client_goals').value = client.client_goals || '';
+      $('#weekly_hours').value = client.weekly_hours || '';
+      $('#offered_services').value = client.offered_services || '';
+      $('#deadlines').value = client.deadlines || '';
+      $('#notes').value = client.notes || '';
+  
+      // Show form
+      elements.welcomeScreen.style.display = 'none';
+      elements.analysisSection.style.display = 'none';
+      elements.clientForm.style.display = 'block';
+    }
+  
+    async function deleteClient(id) {
+      if (!confirm('Видалити клієнта та всі його аналізи?')) return;
+      try {
+        await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+  
+        if (state.currentClient?.id === id) {
+          state.currentClient = null;
+          elements.currentClientSpan.textContent = 'Оберіть клієнта';
+          elements.analyzeBtn.disabled = true;
+          elements.analysisSection.style.display = 'none';
+          elements.welcomeScreen.style.display = 'block';
+        }
+  
+        await loadClients();
+        showNotification('Клієнта видалено', 'success');
+      } catch (err) {
+        showNotification('Помилка видалення', 'error');
+      }
+    }
+  
+    async function saveClient() {
+      const clientData = {
+        company: $('#company').value.trim(),
+        negotiator: $('#negotiator').value.trim(),
+        sector: $('#sector').value.trim(),
+        goal: $('#goal').value.trim(),
+        criteria: $('#criteria').value.trim(),
+        constraints: $('#constraints').value.trim(),
+        user_goals: $('#user_goals').value.trim(),
+        client_goals: $('#client_goals').value.trim(),
+        weekly_hours: $('#weekly_hours').value || 0,
+        offered_services: $('#offered_services').value.trim(),
+        deadlines: $('#deadlines').value.trim(),
+        notes: $('#notes').value.trim()
+      };
+      if (!clientData.company) {
         showNotification('Введіть назву компанії', 'warning');
         return;
       }
-      const res = await saveClientToDB(payload);
-      if (res.success) {
-        showNotification('Збережено у БД', 'success');
-        renderClientsFromDB();
-      } else {
-        showNotification('Помилка збереження', 'error');
-      }
-    };
-    renderClientsFromDB();
   
-    // ===== Dropzone =====
-    function updateDropzoneText(fn) {
-      if (!dropzone) return;
-      dropzone.innerHTML = `<i class="fas fa-file-check"></i><p>Файл обрано</p><span class="muted">${fn}</span>`;
-    }
-    dropzone?.addEventListener('click', () => fileInput?.click());
-    dropzone?.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
-    });
-    dropzone?.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-    dropzone?.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-      if (e.dataTransfer?.files?.length) {
-        const [file] = e.dataTransfer.files;
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        fileInput.files = dt.files;
-        updateDropzoneText(file.name);
-      }
-    });
-    fileInput?.addEventListener('change', () => {
-      if (fileInput.files?.length) updateDropzoneText(fileInput.files[0].name);
-    });
-  
-    // ===== Highlight helpers =====
-    function mapCls(cat) {
-      if (cat === 'manipulation') return 'manip';
-      if (cat === 'cognitive_bias') return 'cog';
-      if (cat === 'rhetological_fallacy') return 'fallacy';
-      return 'manip';
-    }
-    function escapeHTML(s) {
-      return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-    }
-    function wrapHighlights(text, spans, paraIndex) {
-      spans.sort((a, b) => a.start - b.start);
-      let i = 0,
-        out = '';
-      for (const s of spans) {
-        if (s.start > i) out += escapeHTML(text.slice(i, s.start));
-        const fragText = text.slice(s.start, s.end);
-        out += `<span class="highlight-span ${s.cls}" draggable="true"
-                   title="${escapeHTML(s.tooltip || '')}"
-                   data-text="${escapeHTML(fragText)}"
-                   data-paragraph="${paraIndex}"
-                   data-start="${s.start}"
-                   data-end="${s.end}">${escapeHTML(fragText)}</span>`;
-        i = s.end;
-      }
-      if (i < text.length) out += escapeHTML(text.slice(i));
-      return out;
-    }
-  
-    function installHighlightDnD() {
-      $('#highlighted')?.addEventListener('dragstart', (e) => {
-        const el = e.target.closest('.highlight-span');
-        if (!el) return;
-        e.dataTransfer.setData(
-          'text/plain',
-          JSON.stringify({
-            text: el.getAttribute('data-text'),
-            paragraph_index: Number(el.getAttribute('data-paragraph')),
-            char_start: Number(el.getAttribute('data-start')),
-            char_end: Number(el.getAttribute('data-end')),
-            category: el.classList.contains('manip')
-              ? 'manipulation'
-              : el.classList.contains('cog')
-              ? 'cognitive_bias'
-              : 'rhetological_fallacy',
-            label: el.getAttribute('title') || ''
-          })
-        );
-      });
-      bucket?.addEventListener('dragover', (e) => e.preventDefault());
-      bucket?.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const data = e.dataTransfer.getData('text/plain');
-        if (!data) return;
-        try {
-          const obj = JSON.parse(data);
-          addToBucket(obj);
-        } catch {
-          /* ignore */
-        }
-      });
-      // click to add
-      $('#highlighted')?.addEventListener('click', (e) => {
-        const el = e.target.closest('.highlight-span');
-        if (!el) return;
-        addToBucket({
-          text: el.getAttribute('data-text'),
-          paragraph_index: Number(el.getAttribute('data-paragraph')),
-          char_start: Number(el.getAttribute('data-start')),
-          char_end: Number(el.getAttribute('data-end')),
-          category: el.classList.contains('manip')
-            ? 'manipulation'
-            : el.classList.contains('cog')
-            ? 'cognitive_bias'
-            : 'rhetological_fallacy',
-          label: el.getAttribute('title') || ''
-        });
-      });
-    }
-  
-    function addToBucket(item) {
-      const row = document.createElement('div');
-      row.className = 'history-item';
-      row.innerHTML = `
-        <div class="history-item-client" style="display:flex;gap:.5rem;align-items:center">
-          <span class="legend-item ${item.category === 'manipulation' ? 'manip' : item.category === 'cognitive_bias' ? 'cog' : 'fallacy'}">
-            ${escapeHTML(item.category.replace('_', ' '))}
-          </span>
-          <span style="flex:1">${escapeHTML(item.text || '(фрагмент)')}</span>
-          <button class="btn-icon" title="Видалити"><i class="fas fa-times"></i></button>
-        </div>
-      `;
-      row.querySelector('button')?.addEventListener('click', () => row.remove());
-      row.dataset.payload = JSON.stringify(item);
-      bucket?.appendChild(row);
-    }
-  
-    // ===== Advice =====
-    adviceBtn?.addEventListener('click', async () => {
-      const items = $$('.history-item', bucket).map((el) => JSON.parse(el.dataset.payload));
-      if (!items.length) {
-        showNotification('Додайте фрагменти у праву панель', 'warning');
-        return;
-      }
-      adviceBtn.disabled = true;
-      adviceBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Думаймо...';
       try {
-        const profile = gatherProfileDeep();
-        const res = await fetch('/api/advice', {
+        const res = await fetch('/api/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items, profile })
+          body: JSON.stringify(clientData)
         });
-        const j = await res.json();
-        if (!res.ok) throw new Error(j.error || 'Помилка');
-        adviceOut.style.display = 'block';
-        adviceOut.textContent = JSON.stringify(j.advice, null, 2);
-        showNotification('Рекомендації готові', 'success');
-      } catch (e) {
-        showNotification(`Помилка: ${e.message}`, 'error');
-      } finally {
-        adviceBtn.disabled = false;
-        adviceBtn.innerHTML = '<i class="fas fa-lightbulb"></i> Отримати рекомендації';
+  
+        const data = await res.json();
+  
+        await loadClients();
+        selectClient(data.id);
+  
+        showNotification(data.updated ? 'Клієнта оновлено' : 'Клієнта створено', 'success');
+      } catch (err) {
+        showNotification('Помилка збереження', 'error');
       }
-    });
+    }
   
-    // ===== Analyze (NDJSON SSE with recovery + Abort) =====
-    let currentAbort = null;
+    // ===== Analysis Functions =====
+    let currentAbortController = null;
   
-    analyzeBtn?.addEventListener('click', async () => {
-      // toggle stop
-      if (currentAbort) {
-        currentAbort.abort();
-        return;
-      }
-  
-      const inputText = inputTextEl?.value?.trim() || '';
-      const file = fileInput?.files?.[0];
-      const profile = gatherProfileDeep();
-  
-      if (!inputText && !file) {
+    async function runAnalysis() {
+      const text = elements.textInput.value.trim();
+      const file = elements.fileInput.files?.[0];
+      if (!text && !file) {
         showNotification('Введіть текст або оберіть файл', 'warning');
         return;
       }
   
-      const form = new FormData();
-      form.append('profile', JSON.stringify(profile));
-      if (file) form.append('file', file);
-      else form.append('text', inputText);
+      if (!state.currentClient) {
+        showNotification('Спочатку оберіть клієнта', 'warning');
+        return;
+      }
   
-      // UI reset
-      if (streamEl) streamEl.textContent = '';
-      if (badJsonBanner) badJsonBanner.style.display = 'none';
-      if (annotated) annotated.style.display = 'none';
-      if (highlighted) highlighted.innerHTML = '';
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('client_id', state.currentClient.id);
+  
+      const profile = {
+        company: state.currentClient.company,
+        negotiator: state.currentClient.negotiator,
+        sector: state.currentClient.sector,
+        goal: state.currentClient.goal,
+        criteria: state.currentClient.decision_criteria,
+        constraints: state.currentClient.constraints,
+        user_goals: state.currentClient.user_goals,
+        client_goals: state.currentClient.client_goals,
+        weekly_hours: state.currentClient.weekly_hours,
+        offered_services: state.currentClient.offered_services,
+        deadlines: state.currentClient.deadlines,
+        notes: state.currentClient.notes
+      };
+  
+      formData.append('profile', JSON.stringify(profile));
+      if (file) {
+        formData.append('file', file);
+      } else {
+        formData.append('text', text);
+      }
+  
+      // Reset UI
+      elements.streamOutput.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Аналізую...</div>';
+      elements.highlightedText.innerHTML = '<div class="empty-state"><i class="fas fa-highlighter"></i><p>Обробка...</p></div>';
       resetBarometer();
+      state.selectedFragments = [];
+      elements.bucket.innerHTML = '';
+      elements.adviceBtn.disabled = true;
+      elements.exportBtn.disabled = true;
   
-      // для підсвічування
-      const fullText = inputText;
-      const paras = fullText ? fullText.split(/\n{2,}/) : [];
-      const paraSpans = {}; // idx -> [{start,end,cls,tooltip?}]
-  
-      function autoscroll() {
-        if (!streamEl) return;
-        streamEl.scrollTop = streamEl.scrollHeight;
-      }
-  
-      function applyMerged(items) {
-        if (!fullText) return;
-        for (const it of items) {
-          const idx = it.paragraph_index;
-          if (!paraSpans[idx]) paraSpans[idx] = [];
-          paraSpans[idx].push({
-            start: it.char_start,
-            end: it.char_end,
-            cls: mapCls(it.category),
-            tooltip: (Array.isArray(it.labels) ? it.labels.join(', ') : it.label) || it.explanation || ''
-          });
-        }
-        const html = paras.map((t, i) => `<p>${wrapHighlights(t, paraSpans[i] || [], i)}</p>`).join('\n');
-        highlighted.innerHTML = html;
-        annotated.style.display = 'block';
-        installHighlightDnD();
-      }
-  
-      // run
-      currentAbort = new AbortController();
-      analyzeBtn.disabled = false;
-      analyzeBtn.innerHTML = '<i class="fas fa-stop"></i> Зупинити';
+      // Toggle analyze button
+      currentAbortController = new AbortController();
+      elements.analyzeBtn.innerHTML = '<i class="fas fa-stop"></i> Зупинити';
+      elements.analyzeBtn.onclick = () => {
+        currentAbortController?.abort();
+        currentAbortController = null;
+        elements.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Аналізувати';
+        elements.analyzeBtn.onclick = runAnalysis;
+      };
   
       try {
-        const res = await fetch('/api/analyze', { method: 'POST', body: form, signal: currentAbort.signal });
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          body: formData,
+          signal: currentAbortController.signal
+        });
+  
         if (!res.ok || !res.body) {
-          let errMsg = res.statusText;
-          try {
-            const j = await res.json();
-            errMsg = j.error || errMsg;
-          } catch {}
-          throw new Error(errMsg || 'Помилка мережі');
+          throw new Error('Помилка аналізу');
         }
   
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
+        let outputHtml = '';
+        let highlights = [];
+        let barometer = null;
   
+        // eslint-disable-next-line no-constant-condition
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
+  
           const chunk = decoder.decode(value, { stream: true });
-  
-          // SSE протокол: лінії event: ... / data: ...
-          // читаємо пострічково
           const lines = chunk.split('\n');
-          for (const raw of lines) {
-            const line = raw.trim();
-            if (!line) continue;
   
-            if (line.startsWith('event:')) {
-              const ev = line.slice(6).trim();
-              if (ev === 'done') {
-                showNotification('Аналіз завершено', 'success');
-              } else if (ev === 'error') {
-                showNotification('Помилка стріму', 'error');
-              }
-              continue;
-            }
+          for (const line of lines) {
+            if (!line.trim()) continue;
   
             if (line.startsWith('data:')) {
-              const payload = line.slice(5).trim();
-              if (!payload) continue;
-  
-              // Показуємо сирий JSON для дебагу/логів
-              if (streamEl) {
-                streamEl.textContent += payload + '\n';
-                autoscroll();
-              }
+              const data = line.slice(5).trim();
+              if (!data) continue;
   
               try {
-                const obj = JSON.parse(payload);
-                // live highlight — можна ігнорити, бо прийде merged
-                if (obj.type === 'merged_highlights') {
-                  applyMerged(obj.items || []);
-                } else if (obj.type === 'summary') {
-                  // тут можна намалювати summary у окремому блоці
+                const obj = JSON.parse(data);
+  
+                if (obj.type === 'highlight') {
+                  outputHtml += `<div class="stream-item highlight">${escapeHtml(JSON.stringify(obj))}</div>`;
+                } else if (obj.type === 'merged_highlights') {
+                  highlights = obj.items || [];
+                  renderHighlights(highlights);
                 } else if (obj.type === 'barometer') {
+                  barometer = obj;
                   updateBarometer(obj);
+                  outputHtml += `<div class="stream-item barometer">Barometer: ${obj.score} - ${obj.label}</div>`;
+                } else if (obj.type === 'summary') {
+                  outputHtml += `<div class="stream-item summary">${escapeHtml(JSON.stringify(obj))}</div>`;
+                } else if (obj.type === 'analysis_saved') {
+                  await loadClients(); // Refresh to show new analysis count
+                  if (state.currentClient?.id === obj.client_id) {
+                    const r2 = await fetch(`/api/clients/${obj.client_id}`);
+                    const d2 = await r2.json();
+                    state.analyses = d2.analyses || [];
+                    renderAnalysisHistory();
+                  }
                 }
-              } catch {
-                // невалідний NDJSON рядок — не падаємо
-                if (badJsonBanner) badJsonBanner.style.display = 'block';
-                console.warn('[NDJSON client bad line]', payload);
+  
+                elements.streamOutput.innerHTML = outputHtml;
+                elements.streamOutput.scrollTop = elements.streamOutput.scrollHeight;
+              } catch (err) {
+                console.warn('Parse error:', err);
               }
             }
           }
         }
-      } catch (e) {
-        if (e.name === 'AbortError') {
-          showNotification('Стрім скасовано', 'warning');
-        } else {
-          if (streamEl) streamEl.textContent += `\nПомилка: ${e.message}`;
-          showNotification(`Помилка аналізу: ${e.message}`, 'error');
-        }
-      } finally {
-        analyzeBtn.disabled = false;
-        analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Аналізувати';
-        currentAbort = null;
-      }
-    });
   
-    // ===== Export stream =====
-    exportBtn?.addEventListener('click', () => {
-      const content = streamEl?.textContent || '';
+        elements.exportBtn.disabled = false;
+        showNotification('Аналіз завершено', 'success');
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          showNotification('Аналіз скасовано', 'warning');
+        } else {
+          showNotification(`Помилка: ${err.message}`, 'error');
+        }
+        elements.streamOutput.innerHTML = `<div class="error">Помилка: ${err.message}</div>`;
+      } finally {
+        currentAbortController = null;
+        elements.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Аналізувати';
+        elements.analyzeBtn.onclick = runAnalysis;
+      }
+    }
+  
+    function displayAnalysisResults(analysis) {
+      // Display highlights
+      const highlights = analysis.highlights || [];
+      renderHighlights(highlights);
+  
+      // Display barometer
+      if (analysis.barometer) {
+        updateBarometer(analysis.barometer);
+      }
+  
+      // Display summary
+      if (analysis.summary) {
+        elements.streamOutput.innerHTML = `
+          <div class="summary-display">
+            <h4>Підсумок аналізу</h4>
+            <pre>${JSON.stringify(analysis.summary, null, 2)}</pre>
+          </div>
+        `;
+      }
+  
+      elements.exportBtn.disabled = false;
+    }
+  
+    function renderHighlights(highlights) {
+      if (highlights.length === 0) {
+        elements.highlightedText.innerHTML =
+          '<div class="empty-state"><i class="fas fa-highlighter"></i><p>Немає підсвічених фрагментів</p></div>';
+        return;
+      }
+      const html = highlights
+        .map((h) => {
+          const cls =
+            h.category === 'manipulation'
+              ? 'manip'
+              : h.category === 'cognitive_bias'
+              ? 'cog'
+              : 'fallacy';
+          const labels = Array.isArray(h.labels) ? h.labels.join(', ') : h.label || '';
+  
+          return `
+          <div class="highlight-item ${cls}" data-highlight='${JSON.stringify(h)}'>
+            <div class="highlight-header">
+              <span class="highlight-category">${h.category}</span>
+              <span class="highlight-label">${escapeHtml(labels)}</span>
+            </div>
+            <div class="highlight-text">${escapeHtml(h.text || '[Fragment]')}</div>
+            ${h.explanation ? `<div class="highlight-explanation">${escapeHtml(h.explanation)}</div>` : ''}
+            <button class="btn-icon btn-add-fragment" title="Додати до інструментів">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+        `;
+        })
+        .join('');
+  
+      elements.highlightedText.innerHTML = html;
+  
+      // Add click handlers
+      $$('.btn-add-fragment').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const item = e.target.closest('.highlight-item');
+          const highlight = JSON.parse(item.dataset.highlight);
+          addFragmentToBucket(highlight);
+        });
+      });
+    }
+  
+    function addFragmentToBucket(fragment) {
+      state.selectedFragments.push(fragment);
+      const item = document.createElement('div');
+      item.className = 'bucket-item';
+      const catClass =
+        fragment.category === 'manipulation'
+          ? 'manip'
+          : fragment.category === 'cognitive_bias'
+          ? 'cog'
+          : 'fallacy';
+      item.innerHTML = `
+        <div class="bucket-content">
+          <span class="bucket-category ${catClass}">
+            ${fragment.category}
+          </span>
+          <span class="bucket-text">${escapeHtml(fragment.text || '')}</span>
+        </div>
+        <button class="btn-icon btn-remove" title="Видалити">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+  
+      item.querySelector('.btn-remove').addEventListener('click', () => {
+        const idx = state.selectedFragments.indexOf(fragment);
+        if (idx > -1) state.selectedFragments.splice(idx, 1);
+        item.remove();
+        elements.adviceBtn.disabled = state.selectedFragments.length === 0;
+      });
+  
+      elements.bucket.appendChild(item);
+      elements.adviceBtn.disabled = false;
+  
+      showNotification('Фрагмент додано', 'success');
+    }
+  
+    // ===== Barometer =====
+    function resetBarometer() {
+      elements.barometerScore.textContent = '—';
+      elements.barometerLabel.textContent = 'Очікування...';
+      updateGauge(0);
+      updateFactors({});
+    }
+  
+    function updateBarometer(data) {
+      const score = Math.round(data.score || 0);
+      elements.barometerScore.textContent = score;
+      elements.barometerLabel.textContent = data.label || '';
+      updateGauge(score);
+      updateFactors(data.factors || {});
+    }
+  
+    function updateGauge(score) {
+      const angle = -90 + (score / 100) * 180;
+      elements.gaugeNeedle.setAttribute('x2', 100 + 70 * Math.cos((angle * Math.PI) / 180));
+      elements.gaugeNeedle.setAttribute('y2', 100 + 70 * Math.sin((angle * Math.PI) / 180));
+      const arcPath = describeArc(100, 100, 80, -90, -90 + (score / 100) * 180);
+      elements.gaugeFill.setAttribute('d', arcPath);
+    }
+  
+    function describeArc(x, y, radius, startAngle, endAngle) {
+      const start = polarToCartesian(x, y, radius, endAngle);
+      const end = polarToCartesian(x, y, radius, startAngle);
+      const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+      return `M ${end.x} ${end.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${start.x} ${start.y}`;
+    }
+  
+    function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+      const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+      return {
+        x: centerX + radius * Math.cos(angleInRadians),
+        y: centerY + radius * Math.sin(angleInRadians)
+      };
+    }
+  
+    function updateFactors(factors) {
+      elements.factorGoal.style.width = `${(factors.goal_alignment || 0) * 100}%`;
+      elements.factorManip.style.width = `${(factors.manipulation_density || 0) * 100}%`;
+      elements.factorScope.style.width = `${(factors.scope_clarity || 0) * 100}%`;
+      elements.factorTime.style.width = `${(factors.time_pressure || 0) * 100}%`;
+      elements.factorResources.style.width = `${(factors.resource_demand || 0) * 100}%`;
+    }
+  
+    // ===== Advice =====
+    async function getAdvice() {
+      if (state.selectedFragments.length === 0) {
+        showNotification('Додайте фрагменти для аналізу', 'warning');
+        return;
+      }
+      elements.adviceBtn.disabled = true;
+      elements.adviceBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Обробка...';
+  
+      try {
+        const res = await fetch('/api/advice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: state.selectedFragments,
+            profile: state.currentClient || {}
+          })
+        });
+  
+        const data = await res.json();
+  
+        if (data.advice) {
+          elements.adviceOutput.innerHTML = `
+            <div class="advice-content">
+              <h4>Рекомендації</h4>
+              <pre>${JSON.stringify(data.advice, null, 2)}</pre>
+            </div>
+          `;
+          elements.adviceOutput.style.display = 'block';
+          showNotification('Рекомендації готові', 'success');
+        }
+      } catch (err) {
+        showNotification('Помилка отримання рекомендацій', 'error');
+      } finally {
+        elements.adviceBtn.disabled = false;
+        elements.adviceBtn.innerHTML = '<i class="fas fa-lightbulb"></i> Отримати рекомендації';
+      }
+    }
+  
+    // ===== Export =====
+    function exportResults() {
+      const content = elements.streamOutput.textContent || '';
       if (!content) {
         showNotification('Немає даних для експорту', 'warning');
         return;
       }
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.download = `neg_analysis_${Date.now()}.txt`;
-      a.href = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = `analysis_${Date.now()}.txt`;
       a.click();
-      showNotification('Експортовано', 'success');
+      URL.revokeObjectURL(url);
+  
+      showNotification('Дані експортовано', 'success');
+    }
+  
+    // ===== Event Listeners =====
+    elements.navToggle?.addEventListener('click', () => {
+      elements.leftSidebar.classList.toggle('active');
+    });
+    elements.toolsToggle?.addEventListener('click', () => {
+      elements.rightSidebar.classList.toggle('active');
+    });
+    elements.clientSearch?.addEventListener('input', renderClientsList);
+  
+    elements.newClientBtn?.addEventListener('click', () => {
+      state.currentClient = null;
+      // Clear form
+      $$('#client-form input, #client-form textarea').forEach((el) => (el.value = ''));
+      elements.welcomeScreen.style.display = 'none';
+      elements.analysisSection.style.display = 'none';
+      elements.clientForm.style.display = 'block';
     });
   
-    // ===== Barometer (visual with needle you already have) =====
-    function resetBarometer() {
-      setBarometer(0, 'Очікуємо...', {
-        goal_alignment: 0,
-        manipulation_density: 0,
-        scope_clarity: 0,
-        time_pressure: 0,
-        resource_demand: 0
-      });
-    }
-    function updateBarometer(obj) {
-      const score = Number(obj.score || 0);
-      const label = obj.label || '—';
-      const f =
-        obj.factors || {
-          goal_alignment: 0,
-          manipulation_density: 0,
-          scope_clarity: 0,
-          time_pressure: 0,
-          resource_demand: 0
-        };
-      setBarometer(score, label, f);
-    }
-    function setBarometer(score, label, factors) {
-      const needle = $('.barometer-needle');
-      const scoreEl = $('.barometer-score');
-      const labelEl = $('.barometer-label');
+    elements.saveClientBtn?.addEventListener('click', saveClient);
+    elements.cancelClientBtn?.addEventListener('click', () => {
+      elements.clientForm.style.display = 'none';
+      if (state.currentClient) {
+        elements.analysisSection.style.display = 'block';
+      } else {
+        elements.welcomeScreen.style.display = 'block';
+      }
+    });
   
-      const deg = Math.min(100, Math.max(0, score)) * 3.6; // 0..360deg
-      if (needle) needle.style.transform = `translate(-50%,-100%) rotate(${deg}deg)`;
-      if (scoreEl) scoreEl.textContent = String(Math.round(score));
-      if (labelEl) labelEl.textContent = label;
+    elements.dropzone?.addEventListener('click', () => {
+      elements.fileInput?.click();
+    });
+    elements.dropzone?.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      elements.dropzone.classList.add('dragover');
+    });
+    elements.dropzone?.addEventListener('dragleave', () => {
+      elements.dropzone.classList.remove('dragover');
+    });
+    elements.dropzone?.addEventListener('drop', (e) => {
+      e.preventDefault();
+      elements.dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        elements.fileInput.files = e.dataTransfer.files;
+        updateDropzoneText(e.dataTransfer.files[0].name);
+      }
+    });
+    elements.fileInput?.addEventListener('change', () => {
+      if (elements.fileInput.files.length > 0) {
+        updateDropzoneText(elements.fileInput.files[0].name);
+      }
+    });
   
-      const bars = $$('.factor .bar div');
-      const vals = [
-        factors.goal_alignment || 0,
-        factors.manipulation_density || 0,
-        factors.scope_clarity || 0,
-        factors.time_pressure || 0,
-        factors.resource_demand || 0
-      ];
-      bars.forEach((b, i) => (b.style.width = `${Math.round(vals[i] * 100)}%`));
+    function updateDropzoneText(filename) {
+      elements.dropzone.innerHTML = `
+        <i class="fas fa-file"></i>
+        <p>Файл обрано</p>
+        <span>${escapeHtml(filename)}</span>
+      `;
     }
   
-    console.log('TeamPulse Turbo ready ⚡');
+    elements.analyzeBtn?.addEventListener('click', runAnalysis);
+    elements.clearBtn?.addEventListener('click', () => {
+      elements.textInput.value = '';
+      elements.fileInput.value = '';
+      elements.dropzone.innerHTML = `
+        <i class="fas fa-cloud-upload-alt"></i>
+        <p>Перетягніть файл сюди</p>
+        <span>або натисніть для вибору</span>
+      `;
+    });
+    elements.exportBtn?.addEventListener('click', exportResults);
+    elements.adviceBtn?.addEventListener('click', getAdvice);
+    $('#logout-btn')?.addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      location.href = '/login';
+    });
+  
+    // Demo function
+    window.showDemo = () => {
+      elements.textInput.value = `Ми пропонуємо вам унікальну можливість, яка доступна лише сьогодні. Якщо ви не приймете рішення зараз, ця пропозиція більше не повториться. Всі успішні компанії вже працюють з нами. Ви ж не хочете залишитися позаду? Ціна може збільшитися вже завтра, тому краще підписати контракт негайно.`;
+      showNotification('Демо текст завантажено', 'info');
+    };
+  
+    // ===== Initialize =====
+    loadClients();
+    resetBarometer();
+    console.log('⚡ TeamPulse Turbo initialized');
   })();
   

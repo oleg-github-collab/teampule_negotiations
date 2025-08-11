@@ -1,7 +1,8 @@
+// package.json
 {
     "name": "teampulse-turbo",
-    "version": "1.0.0",
-    "description": "TeamPulse Turbo — Negotiation Analysis (Kaminskyi AI)",
+    "version": "2.0.0",
+    "description": "TeamPulse Turbo — Advanced Negotiation Analysis (Kaminskyi AI)",
     "type": "module",
     "scripts": {
       "start": "node server.js",

@@ -1,3 +1,4 @@
+// utils/openAIClient.js - Без змін
 import OpenAI from 'openai';
 
 export const client = process.env.OPENAI_API_KEY

@@ -1,13 +1,24 @@
-// routes/clients.js
+// routes/clients.js - Покращена робота з клієнтами
 import { Router } from 'express';
 import { run, get, all } from '../utils/db.js';
 
 const r = Router();
 
-// GET /api/clients — список (новіші зверху)
-r.get('/clients', (_req, res) => {
+// GET /api/clients - список клієнтів з кількістю аналізів
+r.get('/', (_req, res) => {
   try {
-    const rows = all(`SELECT * FROM clients ORDER BY datetime(updated_at) DESC, id DESC`);
+    const rows = all(
+      `
+      SELECT
+        c.*,
+        COUNT(a.id) as analyses_count,
+        MAX(a.created_at) as last_analysis_at
+      FROM clients c
+      LEFT JOIN analyses a ON c.id = a.client_id
+      GROUP BY c.id
+      ORDER BY datetime(c.updated_at) DESC, c.id DESC
+      `
+    );
     res.json({ success: true, clients: rows });
   } catch (e) {
     console.error('GET /clients error', e);
@@ -15,20 +26,83 @@ r.get('/clients', (_req, res) => {
   }
 });
 
-// POST /api/clients — створити або оновити за company (upsert-lite)
-r.post('/clients', (req, res) => {
+// GET /api/clients/:id - деталі клієнта з історією аналізів
+r.get('/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const client = get(`SELECT * FROM clients WHERE id = ?`, [id]);
+    if (!client)
+      return res.status(404).json({ success: false, error: 'Client not found' });
+
+    const analyses = all(
+      `
+      SELECT id, title, source, original_filename, barometer_json, created_at
+      FROM analyses 
+      WHERE client_id = ?
+      ORDER BY datetime(created_at) DESC
+      `,
+      [id]
+    );
+
+    res.json({ success: true, client, analyses });
+  } catch (e) {
+    console.error('GET /clients/:id error', e);
+    res.status(500).json({ success: false, error: 'DB error' });
+  }
+});
+
+// GET /api/clients/:id/analysis/:analysisId - конкретний аналіз
+r.get('/:id/analysis/:analysisId', (req, res) => {
+  try {
+    const clientId = Number(req.params.id);
+    const analysisId = Number(req.params.analysisId);
+    const analysis = get(
+      `
+      SELECT * FROM analyses 
+      WHERE id = ? AND client_id = ?
+      `,
+      [analysisId, clientId]
+    );
+
+    if (!analysis)
+      return res.status(404).json({ success: false, error: 'Analysis not found' });
+
+    res.json({
+      success: true,
+      analysis: {
+        ...analysis,
+        highlights: JSON.parse(analysis.highlights_json || '[]'),
+        summary: JSON.parse(analysis.summary_json || '{}'),
+        barometer: JSON.parse(analysis.barometer_json || '{}'),
+      },
+    });
+  } catch (e) {
+    console.error('GET analysis error', e);
+    res.status(500).json({ success: false, error: 'DB error' });
+  }
+});
+
+// POST /api/clients - створити або оновити клієнта
+r.post('/', (req, res) => {
   try {
     const c = req.body || {};
-    const existing = get(`SELECT id FROM clients WHERE company = ?`, [c.company || '']);
+    if (!c.company) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'Company name required' });
+    }
+    const existing = get(`SELECT id FROM clients WHERE company = ?`, [c.company]);
     const now = new Date().toISOString();
 
     if (existing?.id) {
       run(
-        `UPDATE clients SET 
-          negotiator=?, sector=?, goal=?, decision_criteria=?, constraints=?, 
-          user_goals=?, client_goals=?, weekly_hours=?, offered_services=?, deadlines=?, notes=?, 
-          updated_at=?
-         WHERE id=?`,
+        `
+        UPDATE clients SET 
+          negotiator=?, sector=?, goal=?, decision_criteria=?, constraints=?,
+          user_goals=?, client_goals=?, weekly_hours=?, offered_services=?, 
+          deadlines=?, notes=?, updated_at=?
+        WHERE id=?
+        `,
         [
           c.negotiator || null,
           c.sector || null,
@@ -42,20 +116,22 @@ r.post('/clients', (req, res) => {
           c.deadlines || null,
           c.notes || null,
           now,
-          existing.id
+          existing.id,
         ]
       );
       const row = get(`SELECT * FROM clients WHERE id=?`, [existing.id]);
       res.json({ success: true, id: existing.id, client: row, updated: true });
     } else {
       const info = run(
-        `INSERT INTO clients(
-           company, negotiator, sector, goal, decision_criteria, constraints,
-           user_goals, client_goals, weekly_hours, offered_services, deadlines, notes,
-           created_at, updated_at
-         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        `
+        INSERT INTO clients(
+          company, negotiator, sector, goal, decision_criteria, constraints,
+          user_goals, client_goals, weekly_hours, offered_services, deadlines, notes,
+          created_at, updated_at
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        `,
         [
-          c.company || null,
+          c.company,
           c.negotiator || null,
           c.sector || null,
           c.goal || null,
@@ -68,7 +144,7 @@ r.post('/clients', (req, res) => {
           c.deadlines || null,
           c.notes || null,
           now,
-          now
+          now,
         ]
       );
       const row = get(`SELECT * FROM clients WHERE id=?`, [info.lastID]);
@@ -81,14 +157,28 @@ r.post('/clients', (req, res) => {
 });
 
 // DELETE /api/clients/:id
-r.delete('/clients/:id', (req, res) => {
+r.delete('/:id', (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ success: false, error: 'Bad id' });
+    // Cascade delete will remove analyses too
     run(`DELETE FROM clients WHERE id=?`, [id]);
     res.json({ success: true });
   } catch (e) {
     console.error('DELETE /clients error', e);
+    res.status(500).json({ success: false, error: 'DB error' });
+  }
+});
+
+// DELETE /api/clients/:id/analysis/:analysisId
+r.delete('/:id/analysis/:analysisId', (req, res) => {
+  try {
+    const clientId = Number(req.params.id);
+    const analysisId = Number(req.params.analysisId);
+    run(`DELETE FROM analyses WHERE id=? AND client_id=?`, [analysisId, clientId]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('DELETE analysis error', e);
     res.status(500).json({ success: false, error: 'DB error' });
   }
 });
