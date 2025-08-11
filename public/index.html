@@ -31,6 +31,9 @@
       </div>
       <div class="nav-actions">
         <button class="nav-action" id="right-sidebar-toggle" title="Інструменти" aria-label="Відкрити інструменти"><i class="fas fa-sliders-h"></i></button>
+        <form id="logoutForm" style="display:inline">
+          <button type="submit" class="nav-action" title="Вихід" aria-label="Вихід"><i class="fas fa-right-from-bracket"></i></button>
+        </form>
       </div>
     </nav>
 
@@ -38,7 +41,9 @@
     <aside class="sidebar sidebar-left" id="sidebar-left" aria-label="Профіль клієнта">
       <div class="sidebar-header">
         <h3>👤 Профіль клієнта</h3>
-        <button class="sidebar-close" onclick="closeSidebar('left')" aria-label="Закрити"><i class="fas fa-times"></i></button>
+        <div>
+          <button class="sidebar-close" onclick="closeSidebar('left')" aria-label="Закрити"><i class="fas fa-times"></i></button>
+        </div>
       </div>
       <div class="sidebar-content">
         <div class="profile-section">
@@ -69,6 +74,8 @@
       </div>
     </aside>
 
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar('left');closeSidebar('right')"></div>
+
     <!-- Right Sidebar -->
     <aside class="sidebar sidebar-right" id="sidebar-right" aria-label="Інструменти">
       <div class="sidebar-header">
@@ -84,8 +91,6 @@
         </div>
       </div>
     </aside>
-
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <!-- Main -->
     <main class="main-content">
@@ -152,31 +157,20 @@
             <h3>Barometer</h3>
             <div id="barometer" class="barometer">
               <div class="barometer-gauge" role="img" aria-label="Рівень складності переговорів">
-                <!-- decorative layers -->
                 <div class="glass barometer-glass" aria-hidden="true"></div>
                 <div class="barometer-ring" aria-hidden="true"></div>
                 <div class="barometer-glow" aria-hidden="true"></div>
 
-                <!-- needle + score + label -->
                 <div class="barometer-needle" aria-hidden="true"></div>
-                <div class="barometer-score">—</div>
+                <div class="barometer-score"><div class="value">—</div></div>
                 <div class="barometer-label">Очікуємо...</div>
 
-                <!-- ticks -->
                 <div class="barometer-ticks" aria-hidden="true">
-                  <div class="tick major t0"></div>
-                  <div class="tick major t1"></div>
-                  <div class="tick major t2"></div>
-                  <div class="tick major t3"></div>
-                  <div class="tick major t4"></div>
-                  <div class="tick major t5"></div>
-                  <div class="tick major t6"></div>
-                  <div class="tick major t7"></div>
-                  <div class="tick major t8"></div>
-                  <div class="tick major t9"></div>
+                  <div class="tick major t0"></div><div class="tick major t1"></div><div class="tick major t2"></div>
+                  <div class="tick major t3"></div><div class="tick major t4"></div><div class="tick major t5"></div>
+                  <div class="tick major t6"></div><div class="tick major t7"></div><div class="tick major t8"></div><div class="tick major t9"></div>
                 </div>
 
-                <!-- zones -->
                 <div class="barometer-zones" aria-hidden="true">
                   <span class="zone-tag zone-easy">Easy mode</span>
                   <span class="zone-tag zone-clear">Clear client</span>
@@ -187,7 +181,6 @@
                 </div>
               </div>
 
-              <!-- factors (JS fills widths) -->
               <div class="barometer-factors">
                 <div class="factor"><span>🎯 Goal alignment</span><div class="bar"><div></div></div></div>
                 <div class="factor"><span>🧪 Manipulation density</span><div class="bar"><div></div></div></div>
@@ -204,5 +197,13 @@
   </div>
 
   <script src="/app.js"></script>
+  <script>
+    // logout
+    document.getElementById('logoutForm')?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      await fetch('/api/logout',{method:'POST'});
+      location.href = '/login';
+    });
+  </script>
 </body>
 </html>

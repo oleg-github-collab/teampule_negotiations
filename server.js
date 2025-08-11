@@ -35,10 +35,10 @@ const __dirname = dirname(__filename);
 
 app.use(express.static(join(__dirname, 'public')));
 
-// API
+// API (усі роутери під /api)
 app.use('/api', analyzeRoutes);
-app.use('/api', clientsRoutes); // <-- було '/api/clients'
-app.use('/api', adviceRoutes);  // <-- було '/api/advice'
+app.use('/api', clientsRoutes); // було '/api/clients'
+app.use('/api', adviceRoutes);  // було '/api/advice'
 
 // Health
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));

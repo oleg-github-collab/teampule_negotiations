@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
+  <title>TeamPulse Turbo — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="particles" aria-hidden="true">
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  </div>
+
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="nav-brand" style="margin-bottom:.5rem">
+        <span class="brand-icon">⚡</span>
+        <span class="brand-text">TeamPulse Turbo</span>
+        <span class="badge">Kaminskyi AI</span>
+      </div>
+      <h1>Вхід</h1>
+      <span class="muted">Введіть облікові дані</span>
+      <form id="loginForm" class="login-form">
+        <div class="row">
+          <label for="username">Логін</label>
+          <input id="username" placeholder="janeDVDops" autocomplete="username" />
+        </div>
+        <div class="row">
+          <label for="password">Пароль</label>
+          <input id="password" type="password" placeholder="jane2210" autocomplete="current-password"/>
+        </div>
+        <div class="login-actions">
+          <button class="btn-primary" type="submit"><i class="fas fa-right-to-bracket"></i> Увійти</button>
+          <button class="btn-ghost" type="button" id="fillDemo">Заповнити демо</button>
+        </div>
+        <div id="loginError" class="login-error">Невірний логін або пароль</div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('fillDemo')?.addEventListener('click', ()=>{
+      document.getElementById('username').value = 'janeDVDops';
+      document.getElementById('password').value = 'jane2210';
+    });
+
+    document.getElementById('loginForm')?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const resp = await fetch('/api/login',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username, password })
+      });
+      if (resp.ok){
+        location.href = '/';
+      } else {
+        document.getElementById('loginError').style.display='block';
+      }
+    });
+  </script>
+</body>
+</html>
