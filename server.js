@@ -94,11 +94,26 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/usage', authMiddleware, (req, res) => {
   // Mock data - replace with real implementation
   res.json({ 
-    used_tokens: 12500, 
-    total_tokens: 100000, 
-    percentage: 12.5,
+    used_tokens: 125000, 
+    total_tokens: 512000, 
+    percentage: 24.4,
     reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
   });
+});
+
+// Client error logging endpoint
+app.post('/api/log-error', (req, res) => {
+  const { error, url, line, column, stack } = req.body;
+  console.error('🐛 Client error:', {
+    error: error?.toString() || 'Unknown error',
+    url,
+    line,
+    column,
+    stack,
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString()
+  });
+  res.status(200).json({ logged: true });
 });
 
 // API routes (protected)
@@ -115,13 +130,55 @@ app.get('/health', (_req, res) =>
 app.get('/login', (_req, res) =>
   res.sendFile(join(__dirname, 'public', 'login.html'))
 );
-app.get('/', authMiddleware, (_req, res) =>
-  res.sendFile(join(__dirname, 'public', 'index.html'))
-);
+
+app.get('/', (req, res) => {
+  // Check if user is authenticated
+  if (req.cookies?.auth === 'authorized') {
+    res.sendFile(join(__dirname, 'public', 'index.html'));
+  } else {
+    res.redirect('/login');
+  }
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error:', err);
+  
+  // Don't leak error details in production
+  const isDev = process.env.NODE_ENV !== 'production';
+  
+  res.status(500).json({
+    error: 'Internal server error',
+    message: isDev ? err.message : 'Something went wrong',
+    ...(isDev && { stack: err.stack })
+  });
+});
 
 // 404 handler
-app.use((req, res) => res.status(404).json({ error: 'Not found' }));
+app.use((req, res) => {
+  console.warn(`404 - ${req.method} ${req.url}`);
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n⚡ Shutting down TeamPulse Turbo...');
+  process.exit(0);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 TeamPulse Turbo running on :${PORT}`);
+  const env = process.env.NODE_ENV || 'development';
+  console.log(`🚀 TeamPulse Turbo v3.0 running on :${PORT} (${env})`);
+  console.log(`📊 Daily token limit: ${Number(process.env.DAILY_TOKEN_LIMIT || 512000).toLocaleString()}`);
+  console.log(`🤖 AI Model: ${process.env.OPENAI_MODEL || 'gpt-4o-mini'}`);
 });

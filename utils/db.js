@@ -68,6 +68,21 @@ CREATE INDEX IF NOT EXISTS idx_analyses_created ON analyses(created_at);
 CREATE INDEX IF NOT EXISTS idx_clients_company ON clients(company);
 `);
 
+// Migration: Add missing columns to existing tables
+try {
+  db.exec(`ALTER TABLE analyses ADD COLUMN title TEXT;`);
+  console.log('✅ Added title column to analyses');
+} catch (e) {
+  // Column already exists
+}
+
+try {
+  db.exec(`ALTER TABLE analyses ADD COLUMN original_text TEXT;`);
+  console.log('✅ Added original_text column to analyses');
+} catch (e) {
+  // Column already exists
+}
+
 // Unified interface
 export function run(sql, params = []) {
   const stmt = db.prepare(sql);

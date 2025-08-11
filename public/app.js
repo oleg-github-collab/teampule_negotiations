@@ -18,8 +18,8 @@
   
     const elements = {
       // Sidebars
-      leftSidebar: $('#sidebar-left'),
-      rightSidebar: $('#sidebar-right'),
+      leftSidebar: $('.sidebar-left'),
+      rightSidebar: $('.sidebar-right'),
       navToggle: $('#nav-toggle'),
       toolsToggle: $('#tools-toggle'),
   
@@ -84,8 +84,12 @@
     }
   
     function closeSidebar(which) {
-      if (which === 'left') elements.leftSidebar?.classList.remove('active');
-      if (which === 'right') elements.rightSidebar?.classList.remove('active');
+      if (which === 'left') {
+        elements.leftSidebar?.classList.remove('active');
+      }
+      if (which === 'right') {
+        elements.rightSidebar?.classList.remove('active');
+      }
     }
     window.closeSidebar = closeSidebar;
   
@@ -110,6 +114,14 @@
       try {
         logger.debug('Loading clients...');
         const res = await fetch('/api/clients');
+        
+        if (res.status === 401) {
+          // Not authenticated, redirect to login
+          logger.warn('Not authenticated, redirecting to login');
+          window.location.href = '/login';
+          return;
+        }
+        
         const data = await res.json();
         
         if (data.clients) {
@@ -907,10 +919,10 @@
   
     // ===== Event Listeners =====
     elements.navToggle?.addEventListener('click', () => {
-      elements.leftSidebar.classList.toggle('active');
+      elements.leftSidebar?.classList.toggle('active');
     });
     elements.toolsToggle?.addEventListener('click', () => {
-      elements.rightSidebar.classList.toggle('active');
+      elements.rightSidebar?.classList.toggle('active');
     });
     elements.clientSearch?.addEventListener('input', renderClientsList);
     elements.clearSearch?.addEventListener('click', () => {
@@ -1029,15 +1041,22 @@
       },
       
       show() {
-        this.modal.classList.add('show');
+        this.modal.classList.add('active');
         this.updateStep();
         console.log('📚 Onboarding started');
       },
       
       hide() {
-        this.modal.classList.remove('show');
+        this.modal.classList.remove('active');
         localStorage.setItem('teampulse_onboarding_completed', 'true');
         console.log('📚 Onboarding completed');
+      },
+
+      complete() {
+        this.hide();
+        // Automatically open client creation form
+        elements.newClientBtn.click();
+        showNotification('Ласкаво просимо до TeamPulse Turbo! 🚀', 'success');
       },
       
       nextStep() {
@@ -1220,9 +1239,450 @@
       });
     };
 
+    // ===== Step-based Analysis =====
+    let currentStep = 1;
+    let selectedUploadMethod = null;
+    let analysisResults = null;
+
+    function initStepAnalysis() {
+      // Initialize step navigation
+      const steps = $$('.step');
+      const stepPanels = $$('.step-content-panel');
+      
+      steps.forEach((step, index) => {
+        step.addEventListener('click', () => {
+          if (step.classList.contains('completed') || index + 1 === currentStep) {
+            goToStep(index + 1);
+          }
+        });
+      });
+
+      // Upload method selection
+      const uploadMethods = $$('.upload-method');
+      uploadMethods.forEach(method => {
+        method.addEventListener('click', () => {
+          uploadMethods.forEach(m => m.classList.remove('active'));
+          method.classList.add('active');
+          selectedUploadMethod = method.dataset.method;
+          
+          // Show appropriate input area
+          const fileArea = $('.upload-zone');
+          const textArea = $('.text-input-area');
+          
+          if (selectedUploadMethod === 'file') {
+            fileArea.style.display = 'block';
+            textArea.style.display = 'none';
+          } else {
+            fileArea.style.display = 'none';
+            textArea.style.display = 'block';
+          }
+          
+          updateStepNavigation();
+        });
+      });
+
+      // Step navigation buttons
+      const prevBtn = $('#step-prev');
+      const nextBtn = $('#step-next');
+      const analyzeBtn = $('#step-analyze');
+      
+      if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+          if (currentStep > 1) goToStep(currentStep - 1);
+        });
+      }
+      
+      if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+          if (currentStep < 3) goToStep(currentStep + 1);
+        });
+      }
+      
+      if (analyzeBtn) {
+        analyzeBtn.addEventListener('click', startStepAnalysis);
+      }
+
+      // Text input stats
+      const textInput = $('.text-input-area textarea');
+      if (textInput) {
+        textInput.addEventListener('input', updateTextStats);
+      }
+
+      // File upload handling
+      setupFileUpload();
+    }
+
+    function goToStep(step) {
+      if (step < 1 || step > 3) return;
+      
+      currentStep = step;
+      
+      // Update step indicators
+      const steps = $$('.step');
+      const stepsContainer = $('.analysis-steps');
+      
+      steps.forEach((stepEl, index) => {
+        stepEl.classList.remove('active');
+        if (index + 1 < step) {
+          stepEl.classList.add('completed');
+        } else {
+          stepEl.classList.remove('completed');
+        }
+        
+        if (index + 1 === step) {
+          stepEl.classList.add('active');
+        }
+      });
+      
+      // Update progress line
+      if (stepsContainer) {
+        stepsContainer.className = `analysis-steps step-${step}`;
+      }
+      
+      // Show appropriate panel
+      const panels = $$('.step-content-panel');
+      panels.forEach((panel, index) => {
+        panel.classList.remove('active');
+        if (index + 1 === step) {
+          panel.classList.add('active');
+        }
+      });
+      
+      updateStepNavigation();
+    }
+
+    function updateStepNavigation() {
+      const prevBtn = $('#step-prev');
+      const nextBtn = $('#step-next');
+      const analyzeBtn = $('#step-analyze');
+      
+      if (prevBtn) {
+        prevBtn.disabled = currentStep === 1;
+      }
+      
+      if (nextBtn) {
+        if (currentStep === 1) {
+          // Enable next if upload method is selected and has content
+          const canProceed = selectedUploadMethod && (
+            (selectedUploadMethod === 'file' && $('.upload-zone input')?.files?.length > 0) ||
+            (selectedUploadMethod === 'text' && $('.text-input-area textarea')?.value?.trim())
+          );
+          nextBtn.disabled = !canProceed;
+        } else {
+          nextBtn.disabled = currentStep >= 3;
+        }
+      }
+      
+      if (analyzeBtn) {
+        analyzeBtn.style.display = currentStep === 1 ? 'inline-flex' : 'none';
+        const canAnalyze = selectedUploadMethod && (
+          (selectedUploadMethod === 'file' && $('.upload-zone input')?.files?.length > 0) ||
+          (selectedUploadMethod === 'text' && $('.text-input-area textarea')?.value?.trim())
+        );
+        analyzeBtn.disabled = !canAnalyze;
+      }
+    }
+
+    function updateTextStats() {
+      const textarea = $('.text-input-area textarea');
+      const stats = $('.text-stats');
+      
+      if (!textarea || !stats) return;
+      
+      const text = textarea.value;
+      const charCount = text.length;
+      const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const lineCount = text.split('\n').length;
+      
+      stats.innerHTML = `
+        <span><i class="fas fa-font"></i> ${charCount.toLocaleString()} символів</span>
+        <span><i class="fas fa-file-word"></i> ${wordCount.toLocaleString()} слів</span>
+        <span><i class="fas fa-list-ol"></i> ${lineCount} рядків</span>
+      `;
+      
+      updateStepNavigation();
+    }
+
+    function setupFileUpload() {
+      const dropzone = $('.upload-zone');
+      const fileInput = $('.upload-zone input[type="file"]');
+      
+      if (!dropzone || !fileInput) return;
+      
+      // Drag and drop
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+      });
+      
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          fileInput.files = files;
+          updateFileDisplay();
+        }
+      });
+      
+      dropzone.addEventListener('click', () => {
+        fileInput.click();
+      });
+      
+      fileInput.addEventListener('change', updateFileDisplay);
+    }
+
+    function updateFileDisplay() {
+      const fileInput = $('.upload-zone input[type="file"]');
+      const dropzone = $('.upload-zone');
+      
+      if (!fileInput || !dropzone) return;
+      
+      const file = fileInput.files[0];
+      if (file) {
+        const size = (file.size / 1024).toFixed(1);
+        dropzone.innerHTML = `
+          <i class="fas fa-file-check upload-icon"></i>
+          <h4>${file.name}</h4>
+          <p>Розмір: ${size} KB • Готовий до аналізу</p>
+        `;
+        dropzone.classList.add('has-file');
+      }
+      
+      updateStepNavigation();
+    }
+
+    async function startStepAnalysis() {
+      if (!state.currentClient) {
+        showNotification('Спочатку оберіть клієнта', 'warning');
+        return;
+      }
+      
+      // Move to analysis step
+      goToStep(2);
+      
+      // Show progress
+      showAnalysisProgress();
+      
+      try {
+        // Prepare form data
+        const formData = new FormData();
+        
+        if (selectedUploadMethod === 'file') {
+          const fileInput = $('.upload-zone input[type="file"]');
+          const file = fileInput?.files[0];
+          if (file) {
+            formData.append('file', file);
+          }
+        } else {
+          const text = $('.text-input-area textarea')?.value;
+          if (text) {
+            formData.append('text', text);
+          }
+        }
+        
+        formData.append('client_id', state.currentClient.id);
+        
+        // Start analysis
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error('Помилка аналізу');
+        }
+        
+        // Process streaming response
+        await processAnalysisStream(response);
+        
+      } catch (error) {
+        console.error('Analysis error:', error);
+        showNotification(`Помилка: ${error.message}`, 'error');
+        goToStep(1); // Go back to upload step
+      }
+    }
+
+    function showAnalysisProgress() {
+      const progressText = $('.progress-text');
+      const progressDetail = $('.progress-detail');
+      const progressLogs = $('.progress-logs');
+      
+      if (progressText) progressText.textContent = 'Аналізую текст переговорів...';
+      if (progressDetail) progressDetail.textContent = 'Обробляю контент та виявляю маніпулятивні техніки';
+      if (progressLogs) progressLogs.innerHTML = '';
+      
+      // Add some progress log items
+      setTimeout(() => addProgressLog('Завантаження тексту...'), 500);
+      setTimeout(() => addProgressLog('Токенізація контенту...'), 1500);
+      setTimeout(() => addProgressLog('Аналіз маніпуляцій...'), 3000);
+    }
+
+    function addProgressLog(message) {
+      const progressLogs = $('.progress-logs');
+      if (!progressLogs) return;
+      
+      const logItem = document.createElement('div');
+      logItem.className = 'progress-log-item';
+      logItem.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        <span>${message}</span>
+      `;
+      progressLogs.appendChild(logItem);
+      progressLogs.scrollTop = progressLogs.scrollHeight;
+    }
+
+    async function processAnalysisStream(response) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let highlights = [];
+      let summary = null;
+      let barometer = null;
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith('data:')) continue;
+          
+          const data = line.slice(5).trim();
+          if (!data) continue;
+          
+          try {
+            const obj = JSON.parse(data);
+            
+            if (obj.type === 'highlight') {
+              addProgressLog(`Знайдено: ${obj.label}`);
+            } else if (obj.type === 'merged_highlights') {
+              highlights = obj.items || [];
+              addProgressLog(`Оброблено ${highlights.length} елементів`);
+            } else if (obj.type === 'summary') {
+              summary = obj;
+              addProgressLog('Генерую підсумок...');
+            } else if (obj.type === 'barometer') {
+              barometer = obj;
+              addProgressLog(`Оцінка складності: ${obj.label}`);
+            } else if (obj.type === 'analysis_saved') {
+              addProgressLog('Збереження результатів...');
+              // Move to results step
+              setTimeout(() => {
+                showAnalysisResults(highlights, summary, barometer);
+                goToStep(3);
+              }, 1000);
+            }
+          } catch (err) {
+            console.warn('Parse error:', err);
+          }
+        }
+      }
+    }
+
+    function showAnalysisResults(highlights, summary, barometer) {
+      analysisResults = { highlights, summary, barometer };
+      
+      // Update summary stats
+      const summaryStats = $('.summary-stats');
+      if (summaryStats && summary) {
+        const counts = summary.counts_by_category || {};
+        summaryStats.innerHTML = `
+          <div class="summary-stat">
+            <div class="stat-number manip">${counts.manipulation || 0}</div>
+            <div class="stat-label">Маніпуляції</div>
+          </div>
+          <div class="summary-stat">
+            <div class="stat-number cog">${counts.cognitive_bias || 0}</div>
+            <div class="stat-label">Когнітивні спотворення</div>
+          </div>
+          <div class="summary-stat">
+            <div class="stat-number fallacy">${counts.rhetological_fallacy || 0}</div>
+            <div class="stat-label">Логічні помилки</div>
+          </div>
+        `;
+      }
+      
+      // Show highlights
+      const highlightsList = $('.highlights-list');
+      if (highlightsList && highlights) {
+        highlightsList.innerHTML = highlights.map(highlight => `
+          <div class="highlight-item ${highlight.category?.replace('_', '') || 'manip'}">
+            <div class="highlight-header">
+              <span class="highlight-label">${highlight.label || 'Без назви'}</span>
+              <div class="highlight-severity">
+                ${Array.from({length: 3}, (_, i) => 
+                  `<div class="severity-dot${i < (highlight.severity || 0) ? ' active' : ''}"></div>`
+                ).join('')}
+              </div>
+            </div>
+            <div class="highlight-explanation">${highlight.explanation || ''}</div>
+          </div>
+        `).join('');
+      }
+      
+      // Show barometer
+      const barometerDisplay = $('.barometer-display');
+      if (barometerDisplay && barometer) {
+        const labelClass = barometer.label?.toLowerCase().replace(/\s+/g, '') || 'medium';
+        barometerDisplay.innerHTML = `
+          <div class="barometer-score" style="color: ${getBarometerColor(barometer.score)}">${barometer.score}</div>
+          <div class="barometer-label ${labelClass}">${barometer.label || 'Medium'}</div>
+          <div class="barometer-rationale">${barometer.rationale || ''}</div>
+        `;
+      }
+    }
+
+    function getBarometerColor(score) {
+      if (score <= 20) return '#00ff88';
+      if (score <= 40) return '#00aaff';
+      if (score <= 60) return '#ffaa00';
+      if (score <= 80) return '#ff6600';
+      return '#ff0066';
+    }
+
+    function resetStepAnalysis() {
+      currentStep = 1;
+      selectedUploadMethod = null;
+      analysisResults = null;
+      
+      // Reset upload methods
+      $$('.upload-method').forEach(method => {
+        method.classList.remove('active');
+      });
+      
+      // Reset inputs
+      const fileInput = $('.upload-zone input[type="file"]');
+      if (fileInput) fileInput.value = '';
+      
+      const textInput = $('.text-input-area textarea');
+      if (textInput) textInput.value = '';
+      
+      // Reset UI
+      const dropzone = $('.upload-zone');
+      if (dropzone) {
+        dropzone.innerHTML = `
+          <i class="fas fa-cloud-upload-alt upload-icon"></i>
+          <p>Перетягніть файл сюди або натисніть для вибору</p>
+          <span>Підтримуються: .txt, .docx</span>
+          <input type="file" accept=".txt,.docx" style="display: none;">
+        `;
+        dropzone.classList.remove('has-file');
+      }
+      
+      updateTextStats();
+      goToStep(1);
+    }
+
     // ===== Initialize =====
     loadClients().then(() => {
       onboarding.init();
+      initStepAnalysis();
       loadTokenUsage();
       // Refresh token usage every 5 minutes
       setInterval(loadTokenUsage, 5 * 60 * 1000);
@@ -1232,6 +1692,61 @@
     elements.textInput?.addEventListener('input', updateTextStats);
     
     resetBarometer();
-    logger.info('⚡ TeamPulse Turbo initialized', { version: '3.0.0', timestamp: new Date().toISOString() });
+    // Global error handling
+    window.addEventListener('error', (event) => {
+      const errorData = {
+        error: event.error?.message || event.message || 'Unknown error',
+        url: event.filename || window.location.href,
+        line: event.lineno || 0,
+        column: event.colno || 0,
+        stack: event.error?.stack || ''
+      };
+      
+      // Log to server
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(errorData)
+      }).catch(() => {}); // Silent fail for logging
+      
+      // Show user-friendly error
+      showNotification('Виникла технічна помилка. Будь ласка, оновіть сторінку.', 'error');
+    });
+
+    // Handle unhandled promise rejections
+    window.addEventListener('unhandledrejection', (event) => {
+      const errorData = {
+        error: event.reason?.message || event.reason || 'Unhandled promise rejection',
+        url: window.location.href,
+        stack: event.reason?.stack || ''
+      };
+      
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(errorData)
+      }).catch(() => {});
+      
+      // Prevent the error from showing in console (optional)
+      // event.preventDefault();
+    });
+
+    // Enhanced performance monitoring
+    if ('performance' in window && 'measure' in window.performance) {
+      window.performance.mark('app-start');
+      window.addEventListener('load', () => {
+        window.performance.mark('app-loaded');
+        window.performance.measure('app-init', 'app-start', 'app-loaded');
+        const measure = window.performance.getEntriesByName('app-init')[0];
+        logger.info(`📊 App initialization took ${Math.round(measure.duration)}ms`);
+      });
+    }
+
+    logger.info('⚡ TeamPulse Turbo v3.0 initialized', { 
+      version: '3.0.0',
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      viewport: `${window.innerWidth}x${window.innerHeight}`
+    });
   })();
   

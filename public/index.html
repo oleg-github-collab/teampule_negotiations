@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
-  <link rel="stylesheet" href="/styles.css"/>
+  <link rel="stylesheet" href="/styles-new.css"/>
 </head>
 <body>
   <!-- Background effects -->
@@ -17,68 +17,33 @@
     <div class="particle"></div><div class="particle"></div><div class="particle"></div>
   </div>
   <div class="app-container">
-    <!-- Top Navigation -->
-    <nav class="top-nav">
-      <button class="nav-toggle" id="nav-toggle" aria-label="Меню">
-        <i class="fas fa-bars"></i>
-      </button>
-      <div class="nav-brand">
-        <span class="brand-icon">⚡</span>
-        <span class="brand-text">TeamPulse Turbo</span>
-        <span class="badge">Negotiation AI</span>
-      </div>
-      <div class="nav-actions">
-        <div class="token-counter" id="token-counter">
-          <div class="token-info">
-            <div class="token-usage">
-              <span class="used-tokens" id="used-tokens">—</span>
-              <span class="token-separator">/</span>
-              <span class="total-tokens" id="total-tokens">—</span>
-            </div>
-            <div class="token-label">Токени</div>
-          </div>
-          <div class="token-progress">
-            <div class="token-progress-fill" id="token-progress-fill"></div>
-          </div>
-        </div>
-        <button class="nav-action" id="tools-toggle" title="Інструменти">
-          <i class="fas fa-sliders-h"></i>
-        </button>
-        <button class="nav-action" id="logout-btn" title="Вихід">
-          <i class="fas fa-right-from-bracket"></i>
-        </button>
-      </div>
-    </nav>
-
-    <!-- Left Sidebar - Client History -->
-    <aside class="sidebar sidebar-left" id="sidebar-left">
+    <!-- Left Sidebar - Always Visible -->
+    <aside class="sidebar-left" id="sidebar-left">
       <div class="sidebar-header">
-        <h3><i class="fas fa-users"></i> Клієнти</h3>
-        <button class="sidebar-close" onclick="closeSidebar('left')">
-          <i class="fas fa-times"></i>
+        <div class="sidebar-brand">
+          <span class="brand-icon">⚡</span>
+          <span class="brand-text">TeamPulse Turbo</span>
+          <span class="brand-badge">AI</span>
+        </div>
+        <button class="new-chat-btn" id="new-client-btn">
+          <i class="fas fa-plus"></i> Новий клієнт
         </button>
       </div>
 
       <div class="sidebar-search">
         <div class="search-wrapper">
           <i class="fas fa-search"></i>
-          <input type="text" id="client-search" placeholder="Знайти клієнта..." />
+          <input type="text" id="client-search" placeholder="Пошук клієнтів..." />
           <button class="search-clear" id="clear-search" style="display: none;">
             <i class="fas fa-times"></i>
           </button>
         </div>
       </div>
 
-      <div class="sidebar-actions">
-        <button class="btn-primary full-width btn-create-client" id="new-client-btn">
-          <i class="fas fa-plus"></i> Створити клієнта
-        </button>
-      </div>
-
       <div class="sidebar-content">
         <div class="clients-section">
           <div class="section-header">
-            <h4>Останні клієнти</h4>
+            <h4>Клієнти</h4>
             <span class="client-count" id="client-count">0</span>
           </div>
           <div id="clients-list" class="clients-list">
@@ -88,43 +53,65 @@
       </div>
     </aside>
 
-    <!-- Right Sidebar - Tools & History -->
-    <aside class="sidebar sidebar-right" id="sidebar-right">
-      <div class="sidebar-header">
-        <h3><i class="fas fa-tools"></i> Інструменти</h3>
-        <button class="sidebar-close" onclick="closeSidebar('right')">
-          <i class="fas fa-times"></i>
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Top Navigation -->
+      <nav class="top-nav">
+        <button class="nav-toggle" id="nav-toggle" aria-label="Меню" style="display: none;">
+          <i class="fas fa-bars"></i>
         </button>
-      </div>
-
-      <div class="sidebar-content">
-        <!-- Selected fragments -->
-        <div class="tool-section">
-          <h4>Відібрані фрагменти</h4>
-          <div id="bucket" class="bucket-list"></div>
-          <button class="btn-primary full-width" id="advice-btn" disabled>
-            <i class="fas fa-lightbulb"></i> Отримати рекомендації
-          </button>
-          <div id="advice-output" class="advice-output"></div>
+        <div class="nav-brand">
+          <span class="current-client" id="current-client">
+            <i class="fas fa-building"></i> <span>TeamPulse Turbo</span>
+          </span>
         </div>
-
-        <!-- Analysis history for current client -->
-        <div class="tool-section" id="analysis-history" style="display:none;">
-          <h4>Історія аналізів</h4>
-          <div id="history-list" class="history-list">
-            <!-- Dynamic analysis history -->
+        <div class="nav-actions">
+          <div class="token-counter" id="token-counter">
+            <div class="token-info">
+              <div class="token-usage">
+                <span class="used-tokens" id="used-tokens">—</span>
+                <span class="token-separator">/</span>
+                <span class="total-tokens" id="total-tokens">—</span>
+              </div>
+              <div class="token-label">Токени</div>
+            </div>
+            <div class="token-progress">
+              <div class="token-progress-fill" id="token-progress-fill"></div>
+            </div>
           </div>
+          <button class="nav-action" id="tools-toggle" title="Інструменти">
+            <i class="fas fa-sliders-h"></i>
+          </button>
+          <button class="nav-action" id="logout-btn" title="Вихід">
+            <i class="fas fa-right-from-bracket"></i>
+          </button>
         </div>
-      </div>
-    </aside>
+      </nav>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-      <!-- Client Profile Form -->
-      <div id="client-form" class="content-section" style="display:none;">
-        <div class="content-header">
-          <h1><i class="fas fa-user-tie"></i> Профіль клієнта</h1>
-        </div>
+      <!-- Content Area - 2 Zone Layout -->
+      <div class="content-area" id="content-area">
+        <!-- Main Work Area (Left) -->
+        <div class="main-work-area" id="main-work-area">
+          
+          <!-- Welcome Screen -->
+          <div id="welcome-screen" class="welcome-screen">
+            <div class="welcome-content">
+              <h1>👋 Ласкаво просимо до TeamPulse Turbo</h1>
+              <p>Розумний AI-аналіз переговорів для виявлення маніпуляцій та покращення результатів</p>
+              <div class="welcome-actions">
+                <button class="btn-primary" onclick="document.getElementById('new-client-btn').click()">
+                  <i class="fas fa-plus"></i> Створити клієнта
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Client Profile Form -->
+          <div id="client-form" class="content-section" style="display:none;">
+            <div class="content-header">
+              <h1><i class="fas fa-user-tie"></i> Новий клієнт</h1>
+              <p class="content-description">Створіть профіль клієнта для персоналізованого аналізу переговорів</p>
+            </div>
 
         <div class="client-form-sections">
           <!-- Basic Information -->
@@ -317,148 +304,186 @@
         </div>
       </div>
 
-      <!-- Analysis Section -->
-      <div id="analysis-section" class="content-section">
-        <div class="content-header">
-          <h1><i class="fas fa-microscope"></i> Аналіз переговорів</h1>
-          <div class="header-info">
-            <span class="current-client" id="current-client">
-              <i class="fas fa-building"></i> <span>Оберіть клієнта</span>
-            </span>
+          <!-- Analysis Dashboard -->
+          <div id="analysis-dashboard" class="content-section" style="display:none;">
+            <div class="content-header">
+              <h1><i class="fas fa-chart-line"></i> Аналіз переговорів</h1>
+              <p class="content-description">Завантажте текст переговорів для розумного AI-аналізу</p>
+            </div>
+
+            <!-- Analysis Steps -->
+            <div class="analysis-steps">
+              <div class="step active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                  <h3>Завантаження тексту</h3>
+                  <p>Додайте текст переговорів</p>
+                </div>
+              </div>
+              <div class="step" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                  <h3>AI аналіз</h3>
+                  <p>Виявлення маніпуляцій</p>
+                </div>
+              </div>
+              <div class="step" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                  <h3>Результати</h3>
+                  <p>Рекомендації та звіт</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 1: Text Input -->
+            <div class="analysis-step-content" id="step-1-content">
+              <div class="upload-section">
+                <div class="upload-methods">
+                  <div class="upload-method active" data-method="file">
+                    <div class="method-icon"><i class="fas fa-file-upload"></i></div>
+                    <h4>Завантажити файл</h4>
+                    <p>DOC, DOCX, TXT</p>
+                  </div>
+                  <div class="upload-method" data-method="text">
+                    <div class="method-icon"><i class="fas fa-keyboard"></i></div>
+                    <h4>Ввести текст</h4>
+                    <p>Вставити або набрати</p>
+                  </div>
+                </div>
+
+                <!-- File Upload -->
+                <div class="upload-area" id="file-upload-area">
+                  <div id="dropzone" class="dropzone modern">
+                    <div class="dropzone-content">
+                      <i class="fas fa-cloud-upload-alt"></i>
+                      <h4>Перетягніть файл сюди</h4>
+                      <p>або натисніть для вибору</p>
+                      <button class="btn-secondary" onclick="document.getElementById('file-input').click()">
+                        <i class="fas fa-folder-open"></i> Обрати файл
+                      </button>
+                    </div>
+                  </div>
+                  <input type="file" id="file-input" accept=".txt,.docx,.doc" hidden />
+                </div>
+
+                <!-- Text Input -->
+                <div class="upload-area" id="text-upload-area" style="display:none;">
+                  <div class="text-editor">
+                    <div class="editor-toolbar">
+                      <button class="btn-icon" title="Очистити" onclick="document.getElementById('text-input').value = ''; updateTextStats();">
+                        <i class="fas fa-eraser"></i>
+                      </button>
+                      <div class="editor-stats">
+                        <span id="char-count">0 символів</span>
+                        <span id="word-count">0 слів</span>
+                      </div>
+                    </div>
+                    <textarea id="text-input" placeholder="Вставте або введіть текст переговорів тут..." rows="12"></textarea>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="step-actions">
+                  <button id="analyze-btn" class="btn-primary large" disabled>
+                    <i class="fas fa-brain"></i> Розпочати аналіз
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Analysis Progress -->
+            <div class="analysis-step-content" id="step-2-content" style="display:none;">
+              <div class="analysis-progress">
+                <div class="progress-animation">
+                  <div class="brain-icon">
+                    <i class="fas fa-brain"></i>
+                  </div>
+                  <div class="progress-text">
+                    <h3 id="analysis-status">Аналізую переговори...</h3>
+                    <p id="analysis-substatus">Виявляю маніпуляції та когнітивні викривлення</p>
+                  </div>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="analysis-progress"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3: Results -->
+            <div class="analysis-step-content" id="step-3-content" style="display:none;">
+              <div class="results-section">
+                <div class="results-header">
+                  <h2><i class="fas fa-chart-bar"></i> Результати аналізу</h2>
+                  <div class="results-actions">
+                    <button class="btn-secondary" id="export-btn">
+                      <i class="fas fa-download"></i> Експорт
+                    </button>
+                    <button class="btn-primary" onclick="startNewAnalysis()">
+                      <i class="fas fa-plus"></i> Новий аналіз
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Results Grid -->
+                <div class="results-grid">
+                  <!-- Barometer -->
+                  <div class="result-card barometer-card">
+                    <h3><i class="fas fa-tachometer-alt"></i> Барометр складності</h3>
+                    <div id="barometer" class="barometer-container">
+                      <div class="barometer-gauge">
+                        <svg viewBox="0 0 200 120" class="barometer-svg">
+                          <defs>
+                            <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+                              <stop offset="30%" style="stop-color:#00ffff;stop-opacity:1" />
+                              <stop offset="60%" style="stop-color:#ffaa00;stop-opacity:1" />
+                              <stop offset="100%" style="stop-color:#ff0066;stop-opacity:1" />
+                            </linearGradient>
+                          </defs>
+                          <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gauge-gradient)" stroke-width="15" opacity="0.3"/>
+                          <path id="gauge-fill" d="M 20 100 A 80 80 0 0 1 20 100" fill="none" stroke="url(#gauge-gradient)" stroke-width="15"/>
+                          <circle cx="100" cy="100" r="5" fill="#fff"/>
+                          <line id="gauge-needle" x1="100" y1="100" x2="100" y2="30" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <div class="barometer-value">
+                          <span id="barometer-score">—</span>
+                          <span id="barometer-label">Аналіз...</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Highlights -->
+                  <div class="result-card highlights-card">
+                    <h3><i class="fas fa-highlighter"></i> Виявлені проблеми</h3>
+                    <div class="legend">
+                      <span class="legend-item manip">Маніпуляції</span>
+                      <span class="legend-item cog">Когнітивні</span>
+                      <span class="legend-item fallacy">Софізми</span>
+                    </div>
+                    <div id="highlighted-text" class="highlighted-text">
+                      <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <p>Результати аналізу з'являться тут</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Analysis Stream -->
+                  <div class="result-card stream-card">
+                    <h3><i class="fas fa-list-alt"></i> Детальний звіт</h3>
+                    <div id="stream-output" class="stream-output">
+                      <div class="empty-state">
+                        <i class="fas fa-file-alt"></i>
+                        <p>Звіт буде згенеровано автоматично</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-
-        <!-- Split Screen Layout -->
-        <div class="split-screen">
-          <!-- Left Panel -->
-          <div class="split-panel split-left">
-            <div class="panel-header">
-              <h3><i class="fas fa-upload"></i> Вхідні дані</h3>
-              <div class="panel-actions">
-                <button id="clear-btn" class="btn-icon" title="Очистити">
-                  <i class="fas fa-eraser"></i>
-                </button>
-              </div>
-            </div>
-            
-            <div class="panel-content">
-              <div id="dropzone" class="dropzone">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p>Перетягніть файл сюди</p>
-                <span>або натисніть для вибору</span>
-              </div>
-              <input type="file" id="file-input" accept=".txt,.docx" hidden />
-
-              <div class="divider">АБО</div>
-
-              <div class="textarea-container">
-                <textarea id="text-input" placeholder="Вставте текст переговорів тут або використайте файл..." rows="20"></textarea>
-                <div class="textarea-stats">
-                  <span id="char-count">0 символів</span>
-                  <span id="word-count">0 слів</span>
-                </div>
-              </div>
-
-              <div class="input-actions">
-                <button id="analyze-btn" class="btn-primary" disabled>
-                  <i class="fas fa-play"></i> Аналізувати переговори
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Split Divider -->
-          <div class="split-divider"></div>
-
-          <!-- Right Panel -->
-          <div class="split-panel split-right">
-            <div class="panel-header">
-              <h3><i class="fas fa-chart-line"></i> Результати аналізу</h3>
-              <div class="panel-actions">
-                <button id="export-btn" class="btn-icon" title="Експорт результатів" disabled>
-                  <i class="fas fa-download"></i>
-                </button>
-              </div>
-            </div>
-            
-            <div class="panel-content">
-              <div id="stream-output" class="stream-output">
-                <div class="empty-state">
-                  <i class="fas fa-brain"></i>
-                  <h4>AI готовий до аналізу</h4>
-                  <p>Завантажте текст переговорів і натисніть "Аналізувати"</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Highlighted Text & Barometer -->
-        <div class="analysis-grid">
-          <div class="card">
-            <h3>Підсвічений текст</h3>
-            <div class="legend">
-              <span class="legend-item manip">Маніпуляції</span>
-              <span class="legend-item cog">Когнітивні</span>
-              <span class="legend-item fallacy">Софізми</span>
-            </div>
-            <div id="highlighted-text" class="highlighted-text">
-              <div class="empty-state">
-                <i class="fas fa-highlighter"></i>
-                <p>Текст з підсвіткою з'явиться тут</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <h3>Барометр складності</h3>
-            <div id="barometer" class="barometer-container">
-              <div class="barometer-gauge">
-                <svg viewBox="0 0 200 120" class="barometer-svg">
-                  <defs>
-                    <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
-                      <stop offset="30%" style="stop-color:#00ffff;stop-opacity:1" />
-                      <stop offset="60%" style="stop-color:#ffaa00;stop-opacity:1" />
-                      <stop offset="100%" style="stop-color:#ff0066;stop-opacity:1" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gauge-gradient)" stroke-width="15" opacity="0.3"/>
-                  <path id="gauge-fill" d="M 20 100 A 80 80 0 0 1 20 100" fill="none" stroke="url(#gauge-gradient)" stroke-width="15"/>
-                  <circle cx="100" cy="100" r="5" fill="#fff"/>
-                  <line id="gauge-needle" x1="100" y1="100" x2="100" y2="30" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                <div class="barometer-value">
-                  <span id="barometer-score">—</span>
-                  <span id="barometer-label">Очікування...</span>
-                </div>
-              </div>
-              <div class="barometer-factors">
-                <div class="factor">
-                  <span>🎯 Goal alignment</span>
-                  <div class="factor-bar"><div id="factor-goal"></div></div>
-                </div>
-                <div class="factor">
-                  <span>🧪 Manipulation density</span>
-                  <div class="factor-bar"><div id="factor-manip"></div></div>
-                </div>
-                <div class="factor">
-                  <span>📐 Scope clarity</span>
-                  <div class="factor-bar"><div id="factor-scope"></div></div>
-                </div>
-                <div class="factor">
-                  <span>⏱ Time pressure</span>
-                  <div class="factor-bar"><div id="factor-time"></div></div>
-                </div>
-                <div class="factor">
-                  <span>⚙️ Resources</span>
-                  <div class="factor-bar"><div id="factor-resources"></div></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- Welcome Screen -->
       <div id="welcome-screen" class="welcome-screen">
@@ -577,8 +602,153 @@
             Далі <i class="fas fa-arrow-right"></i>
           </button>
         </div>
+        </div>
+        </div>
+
+        <!-- Recommendations Panel (Right) -->
+        <div class="recommendations-panel" id="recommendations-panel">
+          <div class="panel-header">
+            <h3><i class="fas fa-lightbulb"></i> Рекомендації AI</h3>
+            <div class="panel-actions">
+              <button class="btn-icon" id="refresh-recommendations" title="Оновити">
+                <i class="fas fa-sync"></i>
+              </button>
+              <button class="btn-icon" id="toggle-recommendations" title="Згорнути">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="panel-content">
+            <!-- Current Analysis Context -->
+            <div class="recommendation-section" id="context-section">
+              <h4><i class="fas fa-crosshairs"></i> Поточний контекст</h4>
+              <div class="context-info" id="context-info">
+                <div class="context-item">
+                  <span class="context-label">Клієнт:</span>
+                  <span class="context-value" id="current-client-context">Не вибрано</span>
+                </div>
+                <div class="context-item">
+                  <span class="context-label">Аналізів:</span>
+                  <span class="context-value" id="analyses-count">0</span>
+                </div>
+                <div class="context-item">
+                  <span class="context-label">Останній:</span>
+                  <span class="context-value" id="last-analysis">—</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Smart Recommendations -->
+            <div class="recommendation-section" id="smart-recommendations">
+              <h4><i class="fas fa-robot"></i> Розумні рекомендації</h4>
+              <div class="recommendations-list" id="recommendations-list">
+                <div class="recommendation-item">
+                  <div class="rec-icon"><i class="fas fa-user-plus"></i></div>
+                  <div class="rec-content">
+                    <div class="rec-title">Створіть першого клієнта</div>
+                    <div class="rec-desc">Почніть з додавання інформації про клієнта для персоналізованого аналізу</div>
+                  </div>
+                  <button class="rec-action" onclick="document.getElementById('new-client-btn').click()">
+                    <i class="fas fa-arrow-right"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="recommendation-section" id="quick-actions">
+              <h4><i class="fas fa-bolt"></i> Швидкі дії</h4>
+              <div class="quick-actions-grid">
+                <button class="quick-action" id="quick-new-analysis" disabled>
+                  <i class="fas fa-plus"></i>
+                  <span>Новий аналіз</span>
+                </button>
+                <button class="quick-action" id="quick-export">
+                  <i class="fas fa-download"></i>
+                  <span>Експорт</span>
+                </button>
+                <button class="quick-action" id="quick-insights">
+                  <i class="fas fa-chart-bar"></i>
+                  <span>Статистика</span>
+                </button>
+                <button class="quick-action" id="quick-settings">
+                  <i class="fas fa-cog"></i>
+                  <span>Налаштування</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="recommendation-section" id="recent-activity">
+              <h4><i class="fas fa-history"></i> Остання активність</h4>
+              <div class="activity-list" id="activity-list">
+                <div class="activity-item">
+                  <div class="activity-icon empty">
+                    <i class="fas fa-clock"></i>
+                  </div>
+                  <div class="activity-content">
+                    <div class="activity-text">Поки що немає активності</div>
+                    <div class="activity-time">Почніть працювати з системою</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="recommendation-section" id="performance-section">
+              <h4><i class="fas fa-tachometer-alt"></i> Метрики</h4>
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="metric-value" id="success-rate">—</div>
+                  <div class="metric-label">Успішність</div>
+                  <div class="metric-trend">
+                    <i class="fas fa-arrow-up text-success"></i>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value" id="avg-complexity">—</div>
+                  <div class="metric-label">Складність</div>
+                  <div class="metric-trend">
+                    <i class="fas fa-minus text-warning"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+    
+    <!-- Tools Modal (replaces right sidebar) -->
+    <div class="tools-modal" id="tools-modal">
+      <div class="sidebar-header">
+        <h3><i class="fas fa-tools"></i> Інструменти</h3>
+        <button class="sidebar-close" onclick="closeSidebar('right')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="sidebar-content">
+        <!-- Selected fragments -->
+        <div class="tool-section">
+          <h4>Відібрані фрагменти</h4>
+          <div id="bucket" class="bucket-list"></div>
+          <button class="btn-primary full-width" id="advice-btn" disabled>
+            <i class="fas fa-lightbulb"></i> Отримати рекомендації
+          </button>
+          <div id="advice-output" class="advice-output"></div>
+        </div>
+
+        <!-- Analysis history for current client -->
+        <div class="tool-section" id="analysis-history" style="display:none;">
+          <h4>Історія аналізів</h4>
+          <div id="history-list" class="history-list">
+            <!-- Dynamic analysis history -->
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <!-- Notifications container -->

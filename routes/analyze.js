@@ -6,7 +6,7 @@ import Busboy from 'busboy';
 import mammoth from 'mammoth';
 
 const r = Router();
-const MODEL = process.env.OPENAI_MODEL || 'gpt-5';
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const MAX_HIGHLIGHTS_PER_1000_WORDS = Number(
   process.env.MAX_HIGHLIGHTS_PER_1000_WORDS || 12
 );
@@ -89,7 +89,7 @@ async function addTokensAndCheck(tokensToAdd) {
       `UPDATE usage_daily SET tokens_used=?, locked_until=? WHERE day=?`,
       [newTotal, lock, day]
     );
-    throw new Error(`Досягнуто 512k токенів. Блокування до ${lock}`);
+    throw new Error(`Досягнуто денний ліміт токенів. Блокування до ${lock}`);
   } else {
     await dbRun(`UPDATE usage_daily SET tokens_used=? WHERE day=?`, [
       newTotal,
@@ -340,7 +340,17 @@ r.post('/', async (req, res) => {
         reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.2);
       }
 
-      const stream = await openaiClient.chat.completions.create(reqPayload);
+      // Add AbortController for proper request handling
+      const controller = new AbortController();
+      
+      req.on('close', () => {
+        controller.abort('Request closed by client');
+      });
+      
+      const stream = await openaiClient.chat.completions.create({
+        ...reqPayload,
+        signal: controller.signal
+      });
 
       // Фільтрація та видобування JSON-об'єктів
       const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
@@ -394,36 +404,44 @@ r.post('/', async (req, res) => {
           .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 
       let buffer = '';
-      for await (const part of stream) {
-        const delta = part.choices?.[0]?.delta?.content || '';
-        if (!delta) continue;
+      try {
+        for await (const part of stream) {
+          const delta = part.choices?.[0]?.delta?.content || '';
+          if (!delta) continue;
 
-        buffer += sanitizeChunk(delta);
+          buffer += sanitizeChunk(delta);
 
-        // Витягуємо всі завершені JSON-об'єкти з буфера
-        const [rawObjs, rest] = extractJsonObjects(buffer);
-        buffer = rest;
+          // Витягуємо всі завершені JSON-об'єкти з буфера
+          const [rawObjs, rest] = extractJsonObjects(buffer);
+          buffer = rest;
 
-        for (const raw of rawObjs) {
-          try {
-            const obj = JSON.parse(raw);
+          for (const raw of rawObjs) {
+            try {
+              const obj = JSON.parse(raw);
 
-            // Пропускаємо тільки очікувані типи
-            if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
+              // Пропускаємо тільки очікувані типи
+              if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
 
-            if (obj.type === 'highlight') {
-              rawHighlights.push(obj);
-              sendLine(obj);
-            } else if (obj.type === 'summary') {
-              summaryObj = obj;
-            } else if (obj.type === 'barometer') {
-              barometerObj = obj;
+              if (obj.type === 'highlight') {
+                rawHighlights.push(obj);
+                sendLine(obj);
+              } else if (obj.type === 'summary') {
+                summaryObj = obj;
+              } else if (obj.type === 'barometer') {
+                barometerObj = obj;
+              }
+            } catch (e) {
+              // Тихо ігноруємо биті об'єкти
+              // console.warn('[NDJSON:bad_obj]', raw);
             }
-          } catch (e) {
-            // Тихо ігноруємо биті об'єкти
-            // console.warn('[NDJSON:bad_obj]', raw);
           }
         }
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          console.log('Stream aborted by client');
+          return; // Exit gracefully
+        }
+        throw error; // Re-throw other errors
       }
     }
 
