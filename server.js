@@ -37,8 +37,8 @@ app.use(express.static(join(__dirname, 'public')));
 
 // API
 app.use('/api', analyzeRoutes);
-app.use('/api/clients', clientsRoutes);
-app.use('/api/advice', adviceRoutes);
+app.use('/api', clientsRoutes); // <-- було '/api/clients'
+app.use('/api', adviceRoutes);  // <-- було '/api/advice'
 
 // Health
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));

@@ -13,7 +13,7 @@ const DB_PATH = process.env.DB_PATH || join(__dirname, '../data/teampulse.db');
 const dir = dirname(DB_PATH);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-// Відкриваємо синхронно (better-sqlite3 — sync API; це ок для невеликого навантаження)
+// Відкриваємо синхронно (better-sqlite3 — sync API)
 const db = new Database(DB_PATH, { fileMustExist: false });
 
 // PRAGMA
@@ -76,5 +76,7 @@ export function all(sql, params = []) {
 // Транзакції коли потрібно
 export const transaction = (fn) => db.transaction(fn);
 
-// (опційно) експорт шляху до БД
-export { DB_PATH };
+// 🔧 Shim для старого коду — повертає об'єкт з тим же API
+export function getDB() {
+  return { run, get, all, transaction };
+}
