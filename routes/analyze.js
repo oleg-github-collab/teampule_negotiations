@@ -262,6 +262,16 @@ r.post('/', async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      try { res.end(); } catch {}
+    });
 
     const sendLine = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
@@ -320,9 +330,10 @@ r.post('/', async (req, res) => {
         model: MODEL,
         stream: true,
         messages: [
-          { role: 'system', content: system },
+          { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
           { role: 'user', content: user },
         ],
+        stop: ['```','</artifacts>','</artifact>']
       };
 
       if (supportsTemperature(MODEL)) {
@@ -331,18 +342,75 @@ r.post('/', async (req, res) => {
 
       const stream = await openaiClient.chat.completions.create(reqPayload);
 
+      // Фільтрація та видобування JSON-об'єктів
+      const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
+
+      // Дістає з буфера всі повні JSON-об'єкти (brace-matching), повертає [objs, rest]
+      function extractJsonObjects(buffer) {
+        const out = [];
+        let i = 0;
+        const n = buffer.length;
+        let depth = 0;
+        let start = -1;
+        let inStr = false;
+        let esc = false;
+
+        while (i < n) {
+          const ch = buffer[i];
+
+          if (inStr) {
+            if (esc) { esc = false; }
+            else if (ch === '\\') { esc = true; }
+            else if (ch === '"') { inStr = false; }
+            i++; continue;
+          }
+
+          if (ch === '"') { inStr = true; i++; continue; }
+
+          if (ch === '{') {
+            if (depth === 0) start = i;
+            depth++;
+          } else if (ch === '}') {
+            depth--;
+            if (depth === 0 && start >= 0) {
+              const raw = buffer.slice(start, i + 1);
+              out.push(raw);
+              start = -1;
+            }
+          }
+
+          i++;
+        }
+
+        const rest = depth === 0 ? '' : buffer.slice(start >= 0 ? start : n);
+        return [out, rest];
+      }
+
+      // Санітизація: прибрати бектики, мітки ```json та керівні символи (крім \n\t)
+      const sanitizeChunk = (s) =>
+        s
+          .replace(/```(?:json)?/gi, '')
+          .replace(/<\/?artifact[^>]*>/gi, '')
+          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+
       let buffer = '';
       for await (const part of stream) {
         const delta = part.choices?.[0]?.delta?.content || '';
         if (!delta) continue;
-        buffer += delta;
-        let idx;
-        while ((idx = buffer.indexOf('\n')) >= 0) {
-          const line = buffer.slice(0, idx).trim();
-          buffer = buffer.slice(idx + 1);
-          if (!line) continue;
+
+        buffer += sanitizeChunk(delta);
+
+        // Витягуємо всі завершені JSON-об'єкти з буфера
+        const [rawObjs, rest] = extractJsonObjects(buffer);
+        buffer = rest;
+
+        for (const raw of rawObjs) {
           try {
-            const obj = JSON.parse(line);
+            const obj = JSON.parse(raw);
+
+            // Пропускаємо тільки очікувані типи
+            if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
+
             if (obj.type === 'highlight') {
               rawHighlights.push(obj);
               sendLine(obj);
@@ -351,8 +419,9 @@ r.post('/', async (req, res) => {
             } else if (obj.type === 'barometer') {
               barometerObj = obj;
             }
-          } catch {
-            console.warn('[NDJSON:bad_line]', line);
+          } catch (e) {
+            // Тихо ігноруємо биті об'єкти
+            // console.warn('[NDJSON:bad_obj]', raw);
           }
         }
       }
@@ -404,7 +473,12 @@ r.post('/', async (req, res) => {
       ]
     );
 
-    sendLine({ type: 'analysis_saved', id: result.lastID, client_id: finalClientId });
+    sendLine({ 
+      type: 'analysis_saved', 
+      id: result.lastID, 
+      client_id: finalClientId,
+      original_text: text 
+    });
     res.write('event: done\ndata: "ok"\n\n');
     res.end();
   } catch (err) {

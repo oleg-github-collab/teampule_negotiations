@@ -8,7 +8,8 @@
       currentAnalysis: null,
       clients: [],
       analyses: [],
-      selectedFragments: []
+      selectedFragments: [],
+      originalText: null
     };
   
     // ===== DOM Elements =====
@@ -297,6 +298,10 @@
       try {
         const res = await fetch(`/api/clients/${state.currentClient.id}/analysis/${analysisId}`);
         const data = await res.json();
+        
+        // Store original text for highlighting
+        state.originalText = data.analysis.original_text || '';
+        
         displayAnalysisResults(data.analysis);
         showNotification('Аналіз завантажено', 'success');
       } catch (err) {
@@ -482,6 +487,9 @@
         formData.append('text', text);
       }
   
+      // Store original text for highlighting (will be updated from server response for file uploads)
+      state.originalText = text || '[File content will be processed...]';
+      
       // Reset UI
       elements.streamOutput.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Аналізую...</div>';
       elements.highlightedText.innerHTML = '<div class="empty-state"><i class="fas fa-highlighter"></i><p>Обробка...</p></div>';
@@ -548,6 +556,10 @@
                 } else if (obj.type === 'summary') {
                   outputHtml += `<div class="stream-item summary">${escapeHtml(JSON.stringify(obj))}</div>`;
                 } else if (obj.type === 'analysis_saved') {
+                  // Update original text from server response
+                  if (obj.original_text) {
+                    state.originalText = obj.original_text;
+                  }
                   await loadClients(); // Refresh to show new analysis count
                   if (state.currentClient?.id === obj.client_id) {
                     const r2 = await fetch(`/api/clients/${obj.client_id}`);
@@ -613,7 +625,10 @@
           '<div class="empty-state"><i class="fas fa-highlighter"></i><p>Немає підсвічених фрагментів</p></div>';
         return;
       }
-      const html = highlights
+      
+      // Render both the paragraph view with inline highlights and the list view
+      const inlineText = renderInlineHighlights(highlights);
+      const listHtml = highlights
         .map((h) => {
           const cls =
             h.category === 'manipulation'
@@ -638,10 +653,37 @@
         `;
         })
         .join('');
+
+      // Create tabbed view
+      elements.highlightedText.innerHTML = `
+        <div class="highlight-tabs">
+          <button class="tab-btn active" data-tab="inline">📄 Текст з підсвіткою</button>
+          <button class="tab-btn" data-tab="list">📋 Список фрагментів</button>
+        </div>
+        <div class="tab-content active" data-content="inline">
+          <div class="inline-highlights">
+            ${inlineText}
+          </div>
+        </div>
+        <div class="tab-content" data-content="list">
+          <div class="highlights-list">
+            ${listHtml}
+          </div>
+        </div>
+      `;
+      
+      // Add tab switching
+      $$('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = btn.dataset.tab;
+          $$('.tab-btn').forEach(b => b.classList.remove('active'));
+          $$('.tab-content').forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          $(`[data-content="${tab}"]`).classList.add('active');
+        });
+      });
   
-      elements.highlightedText.innerHTML = html;
-  
-      // Add click handlers
+      // Add click handlers for list view
       $$('.btn-add-fragment').forEach((btn) => {
         btn.addEventListener('click', (e) => {
           const item = e.target.closest('.highlight-item');
@@ -649,6 +691,78 @@
           addFragmentToBucket(highlight);
         });
       });
+      
+      // Add click handlers for inline highlights
+      $$('.highlight-span').forEach((span) => {
+        span.addEventListener('click', (e) => {
+          const highlight = JSON.parse(span.dataset.highlight);
+          addFragmentToBucket(highlight);
+          showNotification('Фрагмент додано з тексту', 'success');
+        });
+      });
+    }
+    
+    function renderInlineHighlights(highlights) {
+      if (!state.originalText) return '<p>Оригінальний текст недоступний</p>';
+      
+      // Sort highlights by position for proper rendering
+      const sortedHighlights = highlights.sort((a, b) => (a.char_start || 0) - (b.char_start || 0));
+      
+      let result = '';
+      let lastOffset = 0;
+      
+      // Split text into paragraphs first
+      const paragraphs = state.originalText.split(/\n\s*\n/);
+      let currentOffset = 0;
+      
+      paragraphs.forEach((paragraph, paragraphIndex) => {
+        const paragraphStart = currentOffset;
+        const paragraphEnd = currentOffset + paragraph.length;
+        
+        // Find highlights that belong to this paragraph
+        const paragraphHighlights = sortedHighlights.filter(h => 
+          h.paragraph_index === paragraphIndex || 
+          (h.char_start >= paragraphStart && h.char_end <= paragraphEnd)
+        );
+        
+        let paragraphResult = '';
+        let paragraphOffset = 0;
+        
+        paragraphHighlights.forEach(highlight => {
+          const start = (highlight.char_start || 0) - paragraphStart;
+          const end = (highlight.char_end || start + 10) - paragraphStart;
+          
+          if (start >= 0 && end <= paragraph.length) {
+            // Add text before highlight
+            paragraphResult += escapeHtml(paragraph.slice(paragraphOffset, start));
+            
+            // Add highlighted text
+            const cls = highlight.category === 'manipulation' ? 'manip' : 
+                       highlight.category === 'cognitive_bias' ? 'cog' : 'fallacy';
+            const text = paragraph.slice(start, end);
+            const labels = Array.isArray(highlight.labels) ? highlight.labels.join(', ') : highlight.label || '';
+            
+            paragraphResult += `<span class="highlight-span ${cls}" 
+              title="${escapeHtml(labels)}: ${escapeHtml(highlight.explanation || '')}" 
+              data-highlight='${JSON.stringify(highlight)}'>
+              ${escapeHtml(text)}
+            </span>`;
+            
+            paragraphOffset = end;
+          }
+        });
+        
+        // Add remaining text
+        paragraphResult += escapeHtml(paragraph.slice(paragraphOffset));
+        
+        if (paragraphResult.trim()) {
+          result += `<p class="original-paragraph">${paragraphResult}</p>`;
+        }
+        
+        currentOffset = paragraphEnd + 2; // +2 for \n\n
+      });
+      
+      return result || '<p>Помилка рендерингу тексту</p>';
     }
   
     function addFragmentToBucket(fragment) {

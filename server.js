@@ -35,7 +35,12 @@ app.use(
     crossOriginEmbedderPolicy: false,
   })
 );
-app.use(compression());
+// compression — вимкнути для SSE
+const shouldCompress = (req, res) => {
+  if (req.path.startsWith('/api/analyze')) return false;
+  return compression.filter(req, res);
+};
+app.use(compression({ filter: shouldCompress }));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));

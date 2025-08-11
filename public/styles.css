@@ -499,9 +499,124 @@ textarea:focus { outline: none; border-color: var(--border-active); background: 
 .legend-item {
   padding: 0.25rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 500;
 }
-.legend-item.manip { background: rgba(255, 0, 102, 0.2); color: var(--danger); border: 1px solid var(--danger); }
-.legend-item.cog   { background: rgba(255, 170, 0, 0.2); color: var(--warning); border: 1px solid var(--warning); }
-.legend-item.fallacy { background: rgba(0, 170, 255, 0.2); color: var(--info); border: 1px solid var(--info); }
+/* Enhanced Claude-like highlighting */
+.legend-item.manip { 
+  background: rgba(255, 0, 102, 0.1); 
+  color: #ff3366; 
+  border: 1px solid rgba(255, 51, 102, 0.3);
+  position: relative;
+}
+.legend-item.manip::before {
+  content: "🚨";
+  margin-right: 0.5rem;
+}
+
+.legend-item.cog { 
+  background: rgba(255, 170, 0, 0.1); 
+  color: #ffaa33; 
+  border: 1px solid rgba(255, 170, 51, 0.3);
+}
+.legend-item.cog::before {
+  content: "🧠";
+  margin-right: 0.5rem;
+}
+
+.legend-item.fallacy { 
+  background: rgba(0, 170, 255, 0.1); 
+  color: #33aaff; 
+  border: 1px solid rgba(51, 170, 255, 0.3);
+}
+.legend-item.fallacy::before {
+  content: "🎭";
+  margin-right: 0.5rem;
+}
+
+/* Enhanced text highlighting within paragraphs */
+.highlight-span {
+  position: relative;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.highlight-span.manip {
+  background: rgba(255, 0, 102, 0.15);
+  border-bottom-color: rgba(255, 0, 102, 0.5);
+}
+.highlight-span.manip:hover {
+  background: rgba(255, 0, 102, 0.25);
+  box-shadow: 0 2px 8px rgba(255, 0, 102, 0.3);
+}
+
+.highlight-span.cog {
+  background: rgba(255, 170, 0, 0.15);
+  border-bottom-color: rgba(255, 170, 0, 0.5);
+}
+.highlight-span.cog:hover {
+  background: rgba(255, 170, 0, 0.25);
+  box-shadow: 0 2px 8px rgba(255, 170, 0, 0.3);
+}
+
+.highlight-span.fallacy {
+  background: rgba(0, 170, 255, 0.15);
+  border-bottom-color: rgba(0, 170, 255, 0.5);
+}
+.highlight-span.fallacy:hover {
+  background: rgba(0, 170, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 170, 255, 0.3);
+}
+
+/* Tab interface for highlights */
+.highlight-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: var(--transition);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.tab-btn:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.inline-highlights {
+  line-height: 1.8;
+  font-size: 0.95rem;
+}
+
+.original-paragraph {
+  margin-bottom: 1.5rem;
+  text-align: justify;
+}
+
+.original-paragraph:last-child {
+  margin-bottom: 0;
+}
 
 /* Barometer */
 .barometer-container { padding: 1rem; }
