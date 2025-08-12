@@ -554,7 +554,7 @@
         });
     }
 
-    function selectClient(clientId) {
+    async function selectClient(clientId) {
         const client = state.clients.find(c => c.id === clientId);
         if (!client) return;
 
@@ -570,8 +570,8 @@
         
         showNotification(`Обрано клієнта: ${client.company}`, 'success');
         
-        // Load analysis history for this client
-        loadAnalysisHistory(clientId);
+        // Load analysis history for this client and try to load the latest analysis
+        await loadAnalysisHistoryAndLatest(clientId);
         
         // Save state
         scheduleStateSave();
@@ -2332,6 +2332,77 @@
         } catch (error) {
             console.error('Failed to load analysis history:', error);
         }
+    }
+
+    async function loadAnalysisHistoryAndLatest(clientId) {
+        try {
+            const response = await fetch(`/api/clients/${clientId}`);
+            const data = await response.json();
+            
+            if (data.success && data.analyses) {
+                renderAnalysisHistory(data.analyses);
+                
+                // If there are analyses, automatically load the latest one
+                if (data.analyses.length > 0) {
+                    const latestAnalysis = data.analyses[0]; // Analyses should be sorted by date descending
+                    await loadAnalysis(latestAnalysis.id);
+                } else {
+                    // No analyses for this client - show clean dashboard state
+                    clearAnalysisDisplay();
+                    showNotification(`Клієнт ${state.currentClient.company} обраний. Додайте текст для аналізу.`, 'info');
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load analysis history and latest:', error);
+        }
+    }
+
+    function clearAnalysisDisplay() {
+        // Clear current analysis state
+        state.currentAnalysis = null;
+        state.originalText = '';
+        state.selectedFragments = [];
+        
+        // Clear text input
+        if (elements.negotiationText) {
+            elements.negotiationText.value = '';
+            updateTextStats();
+        }
+        
+        // Hide results section
+        if (elements.resultsSection) {
+            elements.resultsSection.style.display = 'none';
+        }
+        
+        // Clear highlights
+        if (elements.highlightsList) {
+            elements.highlightsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <p>Проблемні моменти з'являться тут після аналізу</p>
+                </div>
+            `;
+        }
+        
+        // Reset counters
+        const counters = ['manipulations-count', 'biases-count', 'fallacies-count', 'recommendations-count'];
+        counters.forEach(counterId => {
+            const element = $(`#${counterId}`);
+            if (element) element.textContent = '0';
+        });
+        
+        // Reset barometer
+        if (elements.barometerScore) elements.barometerScore.textContent = '—';
+        if (elements.barometerLabel) elements.barometerLabel.textContent = 'Очікування аналізу...';
+        
+        // Update workspace
+        updateWorkspaceFragments();
+        updateWorkspaceActions();
+        
+        // Reset analysis steps
+        updateAnalysisSteps('input');
     }
 
     function renderAnalysisHistory(analyses) {
