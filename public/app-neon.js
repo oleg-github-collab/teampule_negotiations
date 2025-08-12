@@ -44,11 +44,9 @@
         sidebarLeft: $('#sidebar-left'),
         sidebarRight: $('#sidebar-right'),
         mainContent: $('#main-content'),
-        sidebarLeftToggle: $('#sidebar-left-toggle'),
         sidebarRightToggle: $('#sidebar-right-toggle'),
         mobileMenuToggle: $('#mobile-menu-toggle'),
         workspaceToggle: $('#workspace-toggle'),
-        sidebarShowBtn: $('#sidebar-show-btn'),
         
         // Onboarding
         onboardingModal: $('#onboarding-modal'),
@@ -277,29 +275,9 @@
 
     // ===== Layout Management =====
     function toggleSidebar(side) {
-        const sidebar = side === 'left' ? elements.sidebarLeft : elements.sidebarRight;
-        const isCollapsed = sidebar.classList.contains('collapsed');
-        
-        if (side === 'left') {
-            state.ui.leftSidebarCollapsed = !state.ui.leftSidebarCollapsed;
-            sidebar.classList.toggle('collapsed', state.ui.leftSidebarCollapsed);
-            
-            // Show/hide the sidebar show button
-            if (elements.sidebarShowBtn) {
-                elements.sidebarShowBtn.style.display = state.ui.leftSidebarCollapsed ? 'flex' : 'none';
-            }
-            
-            // Update main content margin
-            if (window.innerWidth > 1024) {
-                elements.mainContent.style.marginLeft = state.ui.leftSidebarCollapsed ? '0' : 'var(--sidebar-width)';
-            }
-            
-            // Update toggle icon
-            const icon = elements.sidebarLeftToggle?.querySelector('i');
-            if (icon) {
-                icon.className = state.ui.leftSidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
-            }
-        } else {
+        // Left sidebar is now always visible, only right sidebar can be toggled
+        if (side === 'right') {
+            const sidebar = elements.sidebarRight;
             state.ui.rightSidebarCollapsed = !state.ui.rightSidebarCollapsed;
             sidebar.classList.toggle('collapsed', state.ui.rightSidebarCollapsed);
             
@@ -313,10 +291,10 @@
             if (icon) {
                 icon.className = state.ui.rightSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
             }
+            
+            // Save state
+            localStorage.setItem('teampulse-ui-state', JSON.stringify(state.ui));
         }
-        
-        // Save state
-        localStorage.setItem('teampulse-ui-state', JSON.stringify(state.ui));
     }
 
     function showSection(sectionId) {
@@ -796,9 +774,11 @@
                             if (data.type === 'highlight') {
                                 analysisData.highlights.push(data);
                                 updateHighlightsDisplay(analysisData.highlights);
+                                updateCountersFromHighlights(analysisData.highlights);
                             } else if (data.type === 'merged_highlights') {
                                 analysisData.highlights = data.items;
                                 updateHighlightsDisplay(analysisData.highlights);
+                                updateCountersFromHighlights(analysisData.highlights);
                             } else if (data.type === 'summary') {
                                 analysisData.summary = data;
                                 updateSummaryDisplay(data);
@@ -961,117 +941,257 @@
         }
     }
 
-    // ===== Custom Barometer Logic =====
+    function updateCountersFromHighlights(highlights) {
+        if (!highlights || highlights.length === 0) return;
+        
+        // Count by category
+        const counts = highlights.reduce((acc, highlight) => {
+            const category = highlight.category || 'manipulation';
+            acc[category] = (acc[category] || 0) + 1;
+            return acc;
+        }, {});
+        
+        // Update counters
+        if (elements.manipulationsCount) {
+            animateNumber(elements.manipulationsCount, counts.manipulation || 0);
+        }
+        if (elements.biasesCount) {
+            animateNumber(elements.biasesCount, counts.cognitive_bias || 0);
+        }
+        if (elements.fallaciesCount) {
+            animateNumber(elements.fallaciesCount, counts.rhetological_fallacy || 0);
+        }
+        
+        // Calculate total recommendations
+        const totalCount = highlights.length;
+        if (elements.recommendationsCount) {
+            animateNumber(elements.recommendationsCount, totalCount);
+        }
+        
+        console.log('Updated counters:', counts, 'Total:', totalCount);
+    }
+
+    // ===== Enhanced Custom Barometer Logic =====
     function calculateComplexityBarometer(clientData, analysisData) {
         let complexityScore = 0;
         let factors = {
             client_profile: 0,
             manipulation_density: 0,
+            manipulation_severity: 0,
             negotiation_type: 0,
             stakes_level: 0,
-            communication_complexity: 0
+            communication_complexity: 0,
+            risk_factors: 0,
+            time_pressure: 0,
+            resource_demands: 0
         };
         
-        // Factor 1: Client Profile Complexity (0-25 points)
+        // Factor 1: Client Profile Complexity (0-20 points)
         if (clientData) {
-            // Company size impact
-            const sizeMap = { 'startup': 5, 'small': 10, 'medium': 15, 'large': 25 };
-            factors.client_profile += sizeMap[clientData.company_size] || 10;
+            // Company size impact with more granular scoring
+            const sizeMap = { 'startup': 3, 'small': 7, 'medium': 12, 'large': 20 };
+            factors.client_profile += sizeMap[clientData.company_size] || 8;
             
-            // Sector complexity
+            // Sector complexity with refined weights
             const sectorMap = { 
-                'IT': 10, 'Finance': 20, 'Healthcare': 15, 'Education': 5,
-                'Manufacturing': 12, 'Retail': 8, 'Real Estate': 18, 'Energy': 22,
-                'Consulting': 15, 'Other': 10
+                'IT': 8, 'Finance': 18, 'Healthcare': 12, 'Education': 4,
+                'Manufacturing': 10, 'Retail': 6, 'Real Estate': 15, 'Energy': 20,
+                'Consulting': 12, 'Other': 8
             };
-            factors.client_profile += (sectorMap[clientData.sector] || 10) * 0.5;
+            factors.client_profile += (sectorMap[clientData.sector] || 8) * 0.4;
             
-            // Deal value complexity
+            // Deal value complexity with more detail
             if (clientData.deal_value) {
                 const dealStr = clientData.deal_value.toLowerCase();
                 if (dealStr.includes('m') || dealStr.includes('мільйон') || dealStr.includes('млн')) {
-                    factors.client_profile += 8;
+                    factors.client_profile += 6;
                 } else if (dealStr.includes('k') || dealStr.includes('тисяч') || dealStr.includes('тис')) {
-                    factors.client_profile += 3;
+                    factors.client_profile += 2;
                 }
+                // Look for specific amounts
+                const amount = parseFloat(dealStr.replace(/[^0-9.]/g, ''));
+                if (amount > 10) factors.client_profile += 3; // Large amounts add complexity
             }
         }
         
-        // Factor 2: Manipulation Density (0-30 points)
+        // Factor 2: Manipulation Density (0-25 points)
         if (analysisData && analysisData.highlights) {
             const totalHighlights = analysisData.highlights.length;
             const textLength = state.originalText ? state.originalText.length : 1000;
             const density = (totalHighlights / (textLength / 100)); // highlights per 100 chars
             
-            factors.manipulation_density = Math.min(30, density * 5);
+            factors.manipulation_density = Math.min(25, density * 3);
             
-            // Severity bonus
-            const avgSeverity = analysisData.highlights.reduce((sum, h) => sum + (h.severity || 1), 0) / totalHighlights;
-            factors.manipulation_density += avgSeverity * 3;
+            // Category distribution analysis
+            const categories = analysisData.highlights.reduce((acc, h) => {
+                acc[h.category] = (acc[h.category] || 0) + 1;
+                return acc;
+            }, {});
+            
+            // More manipulation types = higher complexity
+            const categoryCount = Object.keys(categories).length;
+            factors.manipulation_density += categoryCount * 2;
         }
         
-        // Factor 3: Negotiation Type Complexity (0-20 points) 
+        // Factor 3: Manipulation Severity Analysis (0-20 points)
+        if (analysisData?.highlights) {
+            const severities = analysisData.highlights.map(h => h.severity || 1);
+            const avgSeverity = severities.reduce((sum, s) => sum + s, 0) / severities.length;
+            const maxSeverity = Math.max(...severities);
+            const severeCount = severities.filter(s => s >= 3).length;
+            
+            factors.manipulation_severity = avgSeverity * 3 + maxSeverity * 2 + severeCount * 1.5;
+            factors.manipulation_severity = Math.min(20, factors.manipulation_severity);
+        }
+        
+        // Factor 4: Negotiation Type Complexity (0-15 points) 
         if (clientData?.negotiation_type) {
             const typeMap = {
-                'sales': 8, 'partnership': 12, 'contract': 10, 'investment': 18,
-                'acquisition': 20, 'licensing': 15, 'other': 10
+                'sales': 5, 'partnership': 9, 'contract': 7, 'investment': 13,
+                'acquisition': 15, 'licensing': 11, 'other': 7
             };
-            factors.negotiation_type = typeMap[clientData.negotiation_type] || 10;
+            factors.negotiation_type = typeMap[clientData.negotiation_type] || 7;
         }
         
-        // Factor 4: Stakes Level (0-15 points)
+        // Factor 5: Stakes Level Analysis (0-15 points)
         if (clientData?.goals || clientData?.user_goals) {
             const goalsText = (clientData.goals || clientData.user_goals || '').toLowerCase();
-            if (goalsText.includes('критично') || goalsText.includes('важливо') || goalsText.includes('стратегічно')) {
-                factors.stakes_level += 8;
-            }
-            if (goalsText.includes('терміново') || goalsText.includes('швидко')) {
-                factors.stakes_level += 4;
-            }
-            factors.stakes_level += Math.min(3, goalsText.length / 50);
+            
+            // High-stakes keywords
+            const criticalWords = ['критично', 'важливо', 'стратегічно', 'ключово', 'пріоритет'];
+            const urgentWords = ['терміново', 'швидко', 'негайно', 'асап', 'дедлайн'];
+            const riskWords = ['ризик', 'загроза', 'втрати', 'конкуренти', 'криза'];
+            
+            factors.stakes_level += criticalWords.filter(word => goalsText.includes(word)).length * 3;
+            factors.stakes_level += urgentWords.filter(word => goalsText.includes(word)).length * 2;
+            factors.stakes_level += riskWords.filter(word => goalsText.includes(word)).length * 2;
+            factors.stakes_level += Math.min(4, goalsText.length / 100); // Length indicates detail/complexity
         }
         
-        // Factor 5: Communication Complexity (0-10 points)
+        // Factor 6: Communication Complexity (0-12 points)
         if (analysisData?.highlights) {
             const categories = analysisData.highlights.reduce((acc, h) => {
                 acc[h.category] = (acc[h.category] || 0) + 1;
                 return acc;
             }, {});
             
-            factors.communication_complexity = Math.min(10, Object.keys(categories).length * 2);
+            factors.communication_complexity = Object.keys(categories).length * 2;
+            
+            // Check for complex manipulation patterns
+            const manipulationCount = categories.manipulation || 0;
+            const biasCount = categories.cognitive_bias || 0;
+            const fallacyCount = categories.rhetological_fallacy || 0;
+            
+            if (manipulationCount > 5) factors.communication_complexity += 2;
+            if (biasCount > 3) factors.communication_complexity += 2;
+            if (fallacyCount > 3) factors.communication_complexity += 2;
+            
+            factors.communication_complexity = Math.min(12, factors.communication_complexity);
+        }
+        
+        // Factor 7: Risk Factors (0-10 points)
+        if (clientData) {
+            // Large companies = more bureaucracy and complexity
+            if (clientData.company_size === 'large') factors.risk_factors += 3;
+            
+            // High-risk sectors
+            const riskySectors = ['Finance', 'Energy', 'Real Estate'];
+            if (riskySectors.includes(clientData.sector)) factors.risk_factors += 3;
+            
+            // Complex deal types
+            const complexDeals = ['acquisition', 'investment', 'partnership'];
+            if (complexDeals.includes(clientData.negotiation_type)) factors.risk_factors += 2;
+            
+            // Multiple stakeholders indicator
+            if (clientData.goals && clientData.goals.length > 200) factors.risk_factors += 2;
+        }
+        
+        // Factor 8: Time Pressure (0-8 points)
+        if (state.originalText) {
+            const text = state.originalText.toLowerCase();
+            const timeWords = ['терміново', 'швидко', 'негайно', 'дедлайн', 'часу мало', 'пізно'];
+            factors.time_pressure = timeWords.filter(word => text.includes(word)).length * 1.5;
+            factors.time_pressure = Math.min(8, factors.time_pressure);
+        }
+        
+        // Factor 9: Resource Demands (0-10 points)
+        if (clientData) {
+            // Large deal values require more resources
+            if (clientData.deal_value) {
+                const dealStr = clientData.deal_value.toLowerCase();
+                if (dealStr.includes('m') || dealStr.includes('мільйон')) factors.resource_demands += 4;
+                else if (dealStr.includes('k') || dealStr.includes('тисяч')) factors.resource_demands += 2;
+            }
+            
+            // Complex sectors require specialized knowledge
+            const resourceIntensiveSectors = ['Finance', 'Healthcare', 'Energy', 'Real Estate'];
+            if (resourceIntensiveSectors.includes(clientData.sector)) factors.resource_demands += 3;
+            
+            // Complex negotiation types
+            if (['acquisition', 'investment'].includes(clientData.negotiation_type)) factors.resource_demands += 3;
         }
         
         // Calculate total complexity score
         complexityScore = Object.values(factors).reduce((sum, val) => sum + val, 0);
         
-        // Determine complexity label and normalize score to 100
-        let label, normalizedScore;
-        if (complexityScore <= 25) {
+        // Enhanced complexity labels and scoring
+        let label, normalizedScore, description;
+        if (complexityScore <= 20) {
             label = 'Easy Mode';
             normalizedScore = Math.min(20, complexityScore);
-        } else if (complexityScore <= 45) {
+            description = 'Прості переговори з мінімальними ризиками';
+        } else if (complexityScore <= 40) {
             label = 'Clear Client';
-            normalizedScore = 20 + Math.min(20, (complexityScore - 25) * 1.5);
+            normalizedScore = 20 + Math.min(20, (complexityScore - 20) * 1.0);
+            description = 'Стандартні переговори з прозорими умовами';
         } else if (complexityScore <= 65) {
             label = 'Medium';
-            normalizedScore = 40 + Math.min(20, (complexityScore - 45) * 1.2);
-        } else if (complexityScore <= 85) {
+            normalizedScore = 40 + Math.min(25, (complexityScore - 40) * 1.0);
+            description = 'Помірно складні переговори, потрібна обережність';
+        } else if (complexityScore <= 90) {
             label = 'High Stakes';
-            normalizedScore = 60 + Math.min(20, (complexityScore - 65) * 1.0);
-        } else if (complexityScore <= 95) {
+            normalizedScore = 65 + Math.min(20, (complexityScore - 65) * 0.8);
+            description = 'Високоризикові переговори з серйозними викликами';
+        } else if (complexityScore <= 110) {
             label = 'Bloody Hell';
-            normalizedScore = 80 + Math.min(15, (complexityScore - 85) * 0.8);
+            normalizedScore = 85 + Math.min(10, (complexityScore - 90) * 0.5);
+            description = 'Надскладні переговори з множинними загрозами';
         } else {
             label = 'Mission Impossible';
-            normalizedScore = 95 + Math.min(5, (complexityScore - 95) * 0.2);
+            normalizedScore = 95 + Math.min(5, (complexityScore - 110) * 0.1);
+            description = 'Екстремально складні переговори, максимальна готовність';
         }
         
         return {
             score: Math.round(normalizedScore),
             label,
+            description,
             factors,
-            rawScore: complexityScore
+            rawScore: complexityScore,
+            recommendations: generateComplexityRecommendations(label, factors)
         };
+    }
+    
+    function generateComplexityRecommendations(label, factors) {
+        const recommendations = [];
+        
+        if (factors.manipulation_density > 15) {
+            recommendations.push('Високий рівень маніпуляцій - готуйте контраргументи');
+        }
+        if (factors.manipulation_severity > 12) {
+            recommendations.push('Агресивні техніки впливу - розгляньте залучення юристів');
+        }
+        if (factors.stakes_level > 10) {
+            recommendations.push('Високі ставки - детальна підготовка критично важлива');
+        }
+        if (factors.time_pressure > 5) {
+            recommendations.push('Тиск часу - не поспішайте з рішеннями');
+        }
+        if (factors.communication_complexity > 8) {
+            recommendations.push('Складна комунікація - документуйте всі домовленості');
+        }
+        
+        return recommendations;
     }
 
     function updateBarometerDisplay(barometer) {
@@ -1765,7 +1885,7 @@
             content = `
                 ${advice.recommended_replies ? `
                     <div class="advice-section">
-                        <h4><i class="fas fa-comments"></i> Рекомендовані відповіді:</h4>
+                        <h4><i class="fas fa-comments"></i><span>Рекомендовані відповіді:</span></h4>
                         <ul class="advice-list">
                             ${advice.recommended_replies.map(reply => `<li>${escapeHtml(reply)}</li>`).join('')}
                         </ul>
@@ -1774,7 +1894,7 @@
                 
                 ${advice.risks ? `
                     <div class="advice-section">
-                        <h4><i class="fas fa-exclamation-triangle"></i> Виявлені ризики:</h4>
+                        <h4><i class="fas fa-exclamation-triangle"></i><span>Виявлені ризики:</span></h4>
                         <ul class="advice-list risks">
                             ${advice.risks.map(risk => `<li>${escapeHtml(risk)}</li>`).join('')}
                         </ul>
@@ -1783,7 +1903,7 @@
                 
                 ${advice.notes ? `
                     <div class="advice-section">
-                        <h4><i class="fas fa-clipboard-list"></i> Додаткові поради:</h4>
+                        <h4><i class="fas fa-clipboard-list"></i><span>Додаткові поради:</span></h4>
                         <div class="advice-notes">${escapeHtml(advice.notes)}</div>
                     </div>
                 ` : ''}
@@ -1893,12 +2013,9 @@
 
     // ===== Event Handlers =====
     function bindEvents() {
-        // Sidebar toggles
-        elements.sidebarLeftToggle?.addEventListener('click', () => toggleSidebar('left'));
+        // Sidebar toggles (only right sidebar can be toggled now)
         elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
-        elements.mobileMenuToggle?.addEventListener('click', () => toggleSidebar('left'));
         elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
-        elements.sidebarShowBtn?.addEventListener('click', () => toggleSidebar('left'));
 
         // Client search
         elements.clientSearch?.addEventListener('input', debounce(renderClientsList, 300));
@@ -2385,11 +2502,7 @@
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }
 
-    // Start when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+    // Start when authenticated
+    window.addEventListener('auth-success', init);
 
 })();
