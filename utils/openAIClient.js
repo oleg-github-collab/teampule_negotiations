@@ -89,7 +89,48 @@ export const client = _client ? {
 
 export function estimateTokens(str) {
   if (!str) return 0;
-  return Math.ceil(str.length / 4); // груба оцінка (≈4 символи/токен)
+  
+  // More accurate token estimation for GPT models
+  // Based on OpenAI's tokenization patterns
+  
+  // Remove extra whitespace and normalize
+  const normalizedText = str.replace(/\s+/g, ' ').trim();
+  
+  // Count words (splits on whitespace and punctuation)
+  const words = normalizedText.match(/\b\w+\b/g) || [];
+  const punctuation = normalizedText.match(/[^\w\s]/g) || [];
+  
+  // Estimate tokens more accurately:
+  // - Most English words are 1 token
+  // - Longer words (>6 chars) might be 2+ tokens  
+  // - Punctuation is usually 1 token each
+  // - Ukrainian/Cyrillic text tends to use more tokens
+  
+  let tokenCount = 0;
+  
+  // Word tokens
+  words.forEach(word => {
+    if (word.length <= 4) {
+      tokenCount += 1;
+    } else if (word.length <= 8) {
+      tokenCount += 1.5;
+    } else {
+      tokenCount += 2;
+    }
+  });
+  
+  // Punctuation tokens
+  tokenCount += punctuation.length * 0.5;
+  
+  // Add buffer for system prompts and structure
+  tokenCount += Math.ceil(normalizedText.length * 0.1);
+  
+  // Cyrillic text adjustment (Ukrainian uses more tokens)
+  if (/[\u0400-\u04FF]/.test(normalizedText)) {
+    tokenCount *= 1.3;
+  }
+  
+  return Math.max(1, Math.ceil(tokenCount));
 }
 
 // Get circuit breaker status for monitoring

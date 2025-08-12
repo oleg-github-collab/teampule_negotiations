@@ -291,7 +291,13 @@ r.post('/', validateFileUpload, async (req, res) => {
     }
 
     const paragraphs = splitToParagraphs(text);
-    const approxTokensIn = estimateTokens(text) + 1200;
+    
+    // More accurate input token calculation
+    const textTokens = estimateTokens(text);
+    const systemPromptTokens = estimateTokens(buildSystemPrompt());
+    const userPayloadTokens = estimateTokens(JSON.stringify(buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)));
+    const approxTokensIn = textTokens + systemPromptTokens + userPayloadTokens + 200; // buffer
+    
     totalTokensUsed += approxTokensIn;
     
     // Check token limits before processing
@@ -583,7 +589,12 @@ r.post('/', validateFileUpload, async (req, res) => {
     if (summaryObj) sendLine(summaryObj);
     if (barometerObj) sendLine(barometerObj);
 
-    const outputTokens = 1600;
+    // More accurate output token estimation based on highlights and summary
+    let outputTokens = 500; // Base system response
+    outputTokens += merged.length * 50; // ~50 tokens per highlight
+    if (summaryObj) outputTokens += 300; // Summary tokens
+    if (barometerObj) outputTokens += 100; // Barometer tokens
+    
     totalTokensUsed += outputTokens;
     await addTokensAndCheck(outputTokens);
     

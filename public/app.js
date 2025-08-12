@@ -93,6 +93,47 @@
     }
     window.closeSidebar = closeSidebar;
     
+    // ===== Workspace Panel Management =====
+    function showWorkspacePanel() {
+      const workspacePanel = $('#workspace-panel');
+      if (workspacePanel) {
+        workspacePanel.classList.add('visible');
+        workspacePanel.classList.remove('hidden');
+        
+        // Add helpful hint about drag & drop
+        const dropZone = $('#fragments-drop-zone');
+        if (dropZone && !dropZone.querySelector('.drop-hint')) {
+          const hint = document.createElement('div');
+          hint.className = 'drop-hint';
+          hint.innerHTML = `
+            <div class="drop-hint-content">
+              <i class="fas fa-hand-pointer"></i>
+              <p>Після аналізу ви зможете перетягувати сюди важливі фрагменти для отримання персоналізованих порад</p>
+            </div>
+          `;
+          dropZone.appendChild(hint);
+          
+          // Auto-remove hint after 10 seconds
+          setTimeout(() => {
+            if (hint.parentNode) {
+              hint.remove();
+            }
+          }, 10000);
+        }
+        
+        console.log('🎯 Workspace panel shown');
+      }
+    }
+    
+    function hideWorkspacePanel() {
+      const workspacePanel = $('#workspace-panel');
+      if (workspacePanel) {
+        workspacePanel.classList.add('hidden');
+        workspacePanel.classList.remove('visible');
+        console.log('❌ Workspace panel hidden');
+      }
+    }
+    
     // ===== Enhanced User Guidance =====
     function showStepHint(step, message, element = null) {
       // Remove existing hints first
@@ -104,7 +145,7 @@
         <div class="hint-content">
           <div class="hint-header">
             <span class="hint-step">Крок ${step}</span>
-            <button class="hint-close" onclick="this.closest('.step-hint').remove()">
+            <button class="hint-close">
               <i class="fas fa-times"></i>
             </button>
           </div>
@@ -112,6 +153,14 @@
           ${element ? '<div class="hint-arrow"></div>' : ''}
         </div>
       `;
+      
+      // Add close button event listener
+      const closeBtn = hint.querySelector('.hint-close');
+      closeBtn.addEventListener('click', () => {
+        if (hint.parentNode) {
+          hint.remove();
+        }
+      });
       
       if (element && element.getBoundingClientRect) {
         // Position hint near the target element
@@ -135,10 +184,17 @@
       
       document.body.appendChild(hint);
       
-      // Auto-remove after 15 seconds
-      setTimeout(() => {
-        if (hint.parentNode) hint.remove();
-      }, 15000);
+      // Auto-remove after 6 seconds
+      const autoRemoveTimeout = setTimeout(() => {
+        if (hint.parentNode) {
+          hint.remove();
+        }
+      }, 6000);
+      
+      // Clear timeout if manually closed
+      closeBtn.addEventListener('click', () => {
+        clearTimeout(autoRemoveTimeout);
+      });
       
       return hint;
     }
@@ -675,7 +731,9 @@
       }
   
       // Store original text for highlighting (will be updated from server response for file uploads)
-      state.originalText = text || '[File content will be processed...]';
+      const inputText = elements.textInput?.value?.trim() || '';
+      state.originalText = inputText || text || '[File content will be processed...]';
+      console.log('💾 Stored original text:', state.originalText ? `${state.originalText.length} characters` : 'None');
       
       // Reset UI
       elements.streamOutput.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Аналізую...</div>';
@@ -750,7 +808,9 @@
                   updateBarometer(obj);
                   outputHtml += `<div class="stream-item barometer">Barometer: ${obj.score} - ${obj.label}</div>`;
                 } else if (obj.type === 'summary') {
-                  outputHtml += `<div class="stream-item summary">${escapeHtml(JSON.stringify(obj))}</div>`;
+                  // Store summary for later display
+                  state.currentSummary = obj;
+                  outputHtml += `<div class="stream-item summary">✅ Підсумок аналізу готовий</div>`;
                 } else if (obj.type === 'analysis_saved') {
                   // Update original text from server response
                   if (obj.original_text) {
@@ -807,14 +867,9 @@
         updateBarometer(analysis.barometer);
       }
   
-      // Display summary
+      // Display summary using the new summary display function
       if (analysis.summary) {
-        elements.streamOutput.innerHTML = `
-          <div class="summary-display">
-            <h4>Підсумок аналізу</h4>
-            <pre>${JSON.stringify(analysis.summary, null, 2)}</pre>
-          </div>
-        `;
+        displaySummary(analysis.summary);
       }
 
       // Activate right sidebar with analysis results
@@ -1007,6 +1062,97 @@
       showNotification('Фрагмент додано', 'success');
     }
   
+    // ===== Summary Display =====
+    function displaySummary(summary) {
+      console.log('📊 Displaying summary:', summary);
+      const streamOutputEl = $('#stream-output');
+      if (!streamOutputEl) {
+        console.warn('⚠️ Stream output element not found');
+        return;
+      }
+      
+      if (!summary) {
+        streamOutputEl.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-chart-line"></i>
+            <p>Детальний звіт буде доступний після завершення аналізу</p>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = `
+        <div class="analysis-summary">
+          <div class="summary-header">
+            <h3><i class="fas fa-chart-line"></i> Детальний звіт аналізу</h3>
+          </div>
+          <div class="summary-content">
+      `;
+      
+      // Display overall observations
+      if (summary.overall_observations) {
+        html += `
+          <div class="summary-section">
+            <h4><i class="fas fa-eye"></i> Загальні спостереження</h4>
+            <div class="summary-text">
+              ${escapeHtml(summary.overall_observations)}
+            </div>
+          </div>
+        `;
+      }
+      
+      // Display top patterns
+      if (summary.top_patterns && summary.top_patterns.length > 0) {
+        html += `
+          <div class="summary-section">
+            <h4><i class="fas fa-list-ul"></i> Головні патерни проблем</h4>
+            <ul class="summary-list patterns-list">
+              ${summary.top_patterns.map(pattern => `<li>${escapeHtml(pattern)}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+      
+      // Display category counts  
+      if (summary.counts_by_category) {
+        const counts = summary.counts_by_category;
+        html += `
+          <div class="summary-section">
+            <h4><i class="fas fa-chart-bar"></i> Статистика за категоріями</h4>
+            <div class="counts-grid">
+              <div class="count-item manipulation">
+                <div class="count-number">${counts.manipulation || 0}</div>
+                <div class="count-label">Маніпуляції</div>
+              </div>
+              <div class="count-item cognitive">
+                <div class="count-number">${counts.cognitive_bias || 0}</div>
+                <div class="count-label">Когнітивні викривлення</div>
+              </div>
+              <div class="count-item fallacy">
+                <div class="count-number">${counts.rhetological_fallacy || 0}</div>
+                <div class="count-label">Логічні помилки</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Add empty state message if no content
+      if (!summary.overall_observations && (!summary.top_patterns || summary.top_patterns.length === 0) && !summary.counts_by_category) {
+        html += `
+          <div class="summary-section">
+            <div class="empty-state">
+              <i class="fas fa-info-circle"></i>
+              <p>Детальний звіт буде сформовано після завершення аналізу</p>
+            </div>
+          </div>
+        `;
+      }
+      
+      html += `</div></div>`;
+      streamOutputEl.innerHTML = html;
+    }
+
     // ===== Barometer =====
     function resetBarometer() {
       elements.barometerScore.textContent = '—';
@@ -1016,19 +1162,52 @@
     }
   
     function updateBarometer(data) {
+      console.log('🌡️ Updating barometer:', data);
       const score = Math.round(data.score || 0);
-      elements.barometerScore.textContent = score;
-      elements.barometerLabel.textContent = data.label || '';
+      
+      // Update score and label elements
+      if (elements.barometerScore) {
+        elements.barometerScore.textContent = score;
+      }
+      if (elements.barometerLabel) {
+        elements.barometerLabel.textContent = data.label || '';
+      }
+      
+      // Update gauge visual
       updateGauge(score);
       updateFactors(data.factors || {});
+      
+      // Also update any other barometer displays on page
+      const allScoreElements = $$('#barometer-score, .barometer-score');
+      const allLabelElements = $$('#barometer-label, .barometer-label');
+      
+      allScoreElements.forEach(el => el.textContent = score);
+      allLabelElements.forEach(el => el.textContent = data.label || '');
     }
   
     function updateGauge(score) {
-      const angle = -90 + (score / 100) * 180;
-      elements.gaugeNeedle.setAttribute('x2', 100 + 70 * Math.cos((angle * Math.PI) / 180));
-      elements.gaugeNeedle.setAttribute('y2', 100 + 70 * Math.sin((angle * Math.PI) / 180));
-      const arcPath = describeArc(100, 100, 80, -90, -90 + (score / 100) * 180);
-      elements.gaugeFill.setAttribute('d', arcPath);
+      console.log('🎯 Updating gauge to score:', score);
+      
+      // Update circular progress gauge
+      const gaugeProgress = $('#gauge-progress');
+      const gaugeFill = $('#gauge-fill');
+      const gaugeNeedle = $('#gauge-needle');
+      
+      if (gaugeProgress) {
+        const circumference = 2 * Math.PI * 45; // radius = 45
+        const offset = circumference - (score / 100) * circumference;
+        gaugeProgress.style.strokeDasharray = `${circumference} ${circumference}`;
+        gaugeProgress.style.strokeDashoffset = offset;
+      }
+      
+      // Legacy gauge support
+      if (gaugeNeedle && gaugeFill) {
+        const angle = -90 + (score / 100) * 180;
+        gaugeNeedle.setAttribute('x2', 100 + 70 * Math.cos((angle * Math.PI) / 180));
+        gaugeNeedle.setAttribute('y2', 100 + 70 * Math.sin((angle * Math.PI) / 180));
+        const arcPath = describeArc(100, 100, 80, -90, -90 + (score / 100) * 180);
+        gaugeFill.setAttribute('d', arcPath);
+      }
     }
   
     function describeArc(x, y, radius, startAngle, endAngle) {
@@ -2080,7 +2259,7 @@
         
         // Update barometer
         if (results.barometer) {
-          updateBarometerNew(results.barometer);
+          updateBarometer(results.barometer);
         }
         
         // Update highlights
@@ -2090,7 +2269,7 @@
         
         // Update summary
         if (results.summary) {
-          displaySummaryNew(results.summary);
+          displaySummary(results.summary);
         }
         
         // Remove analyzing state from workspace panel
@@ -2129,34 +2308,6 @@
         });
       }
 
-      function updateBarometerNew(barometer) {
-        const scoreEl = $('#barometer-score');
-        const labelEl = $('#barometer-label');
-        const needleEl = $('#gauge-needle');
-        const fillEl = $('#gauge-fill');
-        
-        if (scoreEl) scoreEl.textContent = Math.round(barometer.score || 0);
-        if (labelEl) labelEl.textContent = barometer.label || 'Невідомо';
-        
-        // Update gauge needle and fill
-        const score = barometer.score || 0;
-        const angle = -90 + (score / 100) * 180;
-        
-        if (needleEl) {
-          const x2 = 100 + 70 * Math.cos((angle * Math.PI) / 180);
-          const y2 = 100 + 70 * Math.sin((angle * Math.PI) / 180);
-          needleEl.setAttribute('x2', x2);
-          needleEl.setAttribute('y2', y2);
-        }
-        
-        if (fillEl) {
-          const largeArc = score > 50 ? 1 : 0;
-          const x = 100 + 80 * Math.cos((angle * Math.PI) / 180);
-          const y = 100 + 80 * Math.sin((angle * Math.PI) / 180);
-          const pathData = `M 20 100 A 80 80 0 ${largeArc} 1 ${x} ${y}`;
-          fillEl.setAttribute('d', pathData);
-        }
-      }
 
       function displayHighlightsNew(highlights) {
         const highlightedTextEl = $('#highlighted-text');
@@ -2248,7 +2399,8 @@
         });
         
         // Setup view toggle functionality
-        setupHighlightsViewToggle(highlights, analysisResults?.originalText);
+        console.log('🔄 Setting up view toggle with original text:', analysisResults?.originalText ? 'Available' : 'Missing');
+        setupHighlightsViewToggle(highlights, analysisResults?.originalText || state.originalText);
         
         // Initialize workspace drop zone
         setupWorkspaceDropZone();
@@ -2260,151 +2412,128 @@
         const highlightedTextEl = $('#highlighted-text');
         const fulltextContentEl = $('#fulltext-content');
         
-        if (!highlightsViewBtn || !fulltextViewBtn) return;
+        if (!highlightsViewBtn || !fulltextViewBtn) {
+          console.warn('⚠️ View toggle buttons not found');
+          return;
+        }
         
         // Initialize full text view with highlights
         if (originalText) {
+          console.log('📄 Generating full text view with', highlights.length, 'highlights');
           generateFullTextView(originalText, highlights);
+          fulltextViewBtn.disabled = false;
+          fulltextViewBtn.style.opacity = '1';
+        } else {
+          console.warn('⚠️ No original text available for fulltext view');
+          fulltextViewBtn.disabled = true;
+          fulltextViewBtn.style.opacity = '0.5';
         }
         
-        highlightsViewBtn.addEventListener('click', () => {
-          highlightsViewBtn.classList.add('active');
-          fulltextViewBtn.classList.remove('active');
-          highlightedTextEl.style.display = 'block';
-          fulltextContentEl.style.display = 'none';
+        // Remove existing listeners to prevent duplicates
+        const newHighlightsBtn = highlightsViewBtn.cloneNode(true);
+        const newFulltextBtn = fulltextViewBtn.cloneNode(true);
+        highlightsViewBtn.parentNode.replaceChild(newHighlightsBtn, highlightsViewBtn);
+        fulltextViewBtn.parentNode.replaceChild(newFulltextBtn, fulltextViewBtn);
+        
+        newHighlightsBtn.addEventListener('click', () => {
+          console.log('👁️ Switching to highlights view');
+          newHighlightsBtn.classList.add('active');
+          newFulltextBtn.classList.remove('active');
+          if (highlightedTextEl) highlightedTextEl.style.display = 'block';
+          if (fulltextContentEl) fulltextContentEl.style.display = 'none';
         });
         
-        fulltextViewBtn.addEventListener('click', () => {
-          fulltextViewBtn.classList.add('active');
-          highlightsViewBtn.classList.remove('active');
-          highlightedTextEl.style.display = 'none';
-          fulltextContentEl.style.display = 'block';
+        newFulltextBtn.addEventListener('click', () => {
+          console.log('📖 Switching to fulltext view');
+          if (!originalText) {
+            showNotification('Повний текст недоступний', 'warning');
+            return;
+          }
+          newFulltextBtn.classList.add('active');
+          newHighlightsBtn.classList.remove('active');
+          if (highlightedTextEl) highlightedTextEl.style.display = 'none';
+          if (fulltextContentEl) fulltextContentEl.style.display = 'block';
         });
       }
       
       function generateFullTextView(originalText, highlights) {
+        console.log('🎨 Generating fulltext view with', highlights?.length || 0, 'highlights');
         const fulltextContentEl = $('#fulltext-content');
-        if (!fulltextContentEl || !originalText || !highlights) return;
+        
+        if (!fulltextContentEl || !originalText) {
+          console.warn('⚠️ Cannot generate fulltext view - missing container or text');
+          return;
+        }
+        
+        if (!highlights || highlights.length === 0) {
+          fulltextContentEl.innerHTML = `
+            <div class="fulltext-container">
+              <div class="fulltext-paragraphs">
+                ${originalText.split(/\n\s*\n/).filter(p => p.trim())
+                  .map(p => `<p class="paragraph">${escapeHtml(p)}</p>`).join('')}
+              </div>
+            </div>
+          `;
+          console.log('📄 Generated fulltext view without highlights');
+          return;
+        }
         
         // Sort highlights by position
         const sortedHighlights = [...highlights].sort((a, b) => {
-          const aStart = a.paragraph_index * 10000 + (a.char_start || 0);
-          const bStart = b.paragraph_index * 10000 + (b.char_start || 0);
+          const aStart = (a.paragraph_index || 0) * 10000 + (a.char_start || 0);
+          const bStart = (b.paragraph_index || 0) * 10000 + (b.char_start || 0);
           return aStart - bStart;
         });
         
         // Split text into paragraphs
         const paragraphs = originalText.split(/\n\s*\n/).filter(p => p.trim());
-        let html = '<div class="fulltext-paragraphs">';
+        let html = '<div class="fulltext-container"><div class="fulltext-paragraphs">';
         
         paragraphs.forEach((paragraph, paraIndex) => {
-          const paraHighlights = sortedHighlights.filter(h => h.paragraph_index === paraIndex);
+          const paraHighlights = sortedHighlights.filter(h => (h.paragraph_index || 0) === paraIndex);
           
           if (paraHighlights.length === 0) {
             html += `<p class="paragraph">${escapeHtml(paragraph)}</p>`;
           } else {
             // Apply highlights to paragraph
-            let highlightedPara = paragraph;
-            let offset = 0;
+            let result = escapeHtml(paragraph);
+            let totalOffset = 0;
             
-            paraHighlights.forEach(highlight => {
-              const start = (highlight.char_start || 0) + offset;
-              const end = (highlight.char_end || highlight.char_start || 0) + offset;
+            // Process highlights in reverse order to maintain positions
+            paraHighlights.reverse().forEach(highlight => {
+              const start = Math.max(0, (highlight.char_start || 0));
+              const end = Math.min(paragraph.length, (highlight.char_end || start + 10));
               const category = highlight.category || 'manipulation';
               const className = category === 'manipulation' ? 'highlight-manip' :
                                category === 'cognitive_bias' ? 'highlight-cognitive' : 'highlight-fallacy';
               
-              const before = highlightedPara.slice(0, start);
-              const text = highlightedPara.slice(start, end);
-              const after = highlightedPara.slice(end);
+              // Work with original unescaped text for positioning
+              const textSegment = paragraph.slice(start, end);
+              const escapedSegment = escapeHtml(textSegment);
+              
+              // Find position in escaped string
+              const escapedBefore = escapeHtml(paragraph.slice(0, start));
+              const beforePos = escapedBefore.length;
+              const afterPos = beforePos + escapedSegment.length;
+              
+              const before = result.slice(0, beforePos);
+              const after = result.slice(afterPos);
               
               const highlightHtml = `<span class="${className} fulltext-highlight" 
-                                      title="${escapeHtml(highlight.explanation || '')}">${escapeHtml(text)}</span>`;
+                                      title="${escapeHtml(highlight.explanation || highlight.label || '')}">${escapedSegment}</span>`;
               
-              highlightedPara = before + highlightHtml + after;
-              offset += highlightHtml.length - text.length;
+              result = before + highlightHtml + after;
             });
             
-            html += `<p class="paragraph">${highlightedPara}</p>`;
+            html += `<p class="paragraph">${result}</p>`;
           }
         });
         
-        html += '</div>';
+        html += '</div></div>';
         fulltextContentEl.innerHTML = html;
+        console.log('✅ Fulltext view generated successfully');
       }
 
-      function displaySummaryNew(summary) {
-        const streamOutputEl = $('#stream-output');
-        if (!streamOutputEl) return;
-        
-        let html = `
-          <div class="analysis-summary">
-            <h3><i class="fas fa-chart-line"></i> Детальний звіт</h3>
-        `;
-        
-        // Display overall observations
-        if (summary.overall_observations) {
-          html += `
-            <div class="summary-section">
-              <h4><i class="fas fa-eye"></i> Загальні спостереження</h4>
-              <div class="summary-content">
-                ${escapeHtml(summary.overall_observations)}
-              </div>
-            </div>
-          `;
-        }
-        
-        // Display top patterns
-        if (summary.top_patterns && summary.top_patterns.length > 0) {
-          html += `
-            <div class="summary-section">
-              <h4><i class="fas fa-list-ul"></i> Головні патерни проблем</h4>
-              <ul class="summary-list patterns-list">
-                ${summary.top_patterns.map(pattern => `<li>${escapeHtml(pattern)}</li>`).join('')}
-              </ul>
-            </div>
-          `;
-        }
-        
-        // Display category counts  
-        if (summary.counts_by_category) {
-          const counts = summary.counts_by_category;
-          html += `
-            <div class="summary-section">
-              <h4><i class="fas fa-chart-bar"></i> Статистика за категоріями</h4>
-              <div class="counts-grid">
-                <div class="count-item manipulation">
-                  <div class="count-number">${counts.manipulation || 0}</div>
-                  <div class="count-label">Маніпуляції</div>
-                </div>
-                <div class="count-item cognitive">
-                  <div class="count-number">${counts.cognitive_bias || 0}</div>
-                  <div class="count-label">Когнітивні викривлення</div>
-                </div>
-                <div class="count-item fallacy">
-                  <div class="count-number">${counts.rhetological_fallacy || 0}</div>
-                  <div class="count-label">Логічні помилки</div>
-                </div>
-              </div>
-            </div>
-          `;
-        }
-        
-        // Add empty state message if no content
-        if (!summary.overall_observations && (!summary.top_patterns || summary.top_patterns.length === 0) && !summary.counts_by_category) {
-          html += `
-            <div class="summary-section">
-              <div class="empty-state">
-                <i class="fas fa-info-circle"></i>
-                <p>Детальний звіт буде сформовано після завершення аналізу</p>
-              </div>
-            </div>
-          `;
-        }
-        
-        html += `</div>`;
-        streamOutputEl.innerHTML = html;
-      }
 
       function getHighlightTypeLabel(classification) {
         const labels = {
@@ -3129,7 +3258,7 @@
       // Help button functionality
       const helpButton = $('#help-toggle');
       if (helpButton) {
-        helpButton.addEventListener('click', showHelpModal);
+        helpButton.addEventListener('click', showClientHistorySidebar);
         logger.debug('Help button initialized');
       } else {
         logger.warn('Help button not found');
@@ -3211,8 +3340,14 @@
     // Add text input listener with guidance
     elements.textInput?.addEventListener('input', (e) => {
       updateTextStats();
-      if (e.target.value.trim().length > 20) {
+      const text = e.target.value.trim();
+      
+      // Show workspace panel when user adds meaningful text
+      if (text.length > 20) {
+        showWorkspacePanel();
         updateUserGuidance(); // Update guidance when sufficient text is entered
+      } else if (text.length === 0) {
+        hideWorkspacePanel(); // Hide when text is cleared
       }
     });
     
@@ -3280,6 +3415,191 @@
     updateWorkspace();
     
     
+    function showClientHistorySidebar() {
+      console.log('📚 Opening client history sidebar');
+      
+      if (!state.currentClient) {
+        showNotification('Оберіть клієнта для перегляду історії аналізів', 'info');
+        return;
+      }
+      
+      const sidebarOverlay = document.createElement('div');
+      sidebarOverlay.className = 'sidebar-overlay';
+      sidebarOverlay.innerHTML = `
+        <div class="history-sidebar">
+          <div class="sidebar-header">
+            <h2><i class="fas fa-history"></i> Історія аналізів</h2>
+            <div class="client-info-mini">
+              <i class="fas fa-building"></i>
+              <span>${escapeHtml(state.currentClient.company)}</span>
+            </div>
+            <button class="sidebar-close" onclick="this.closest('.sidebar-overlay').remove()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="sidebar-body">
+            <div class="history-stats">
+              <div class="stat-item">
+                <div class="stat-number">${state.analyses.length}</div>
+                <div class="stat-label">Всього аналізів</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">${getAverageScore()}</div>
+                <div class="stat-label">Середня складність</div>
+              </div>
+            </div>
+            <div class="history-timeline">
+              <h4><i class="fas fa-clock"></i> Останні аналізи</h4>
+              <div class="timeline-content" id="timeline-content">
+                ${renderAnalysisTimeline()}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(sidebarOverlay);
+      
+      // Close on overlay click
+      sidebarOverlay.addEventListener('click', (e) => {
+        if (e.target === sidebarOverlay) {
+          sidebarOverlay.remove();
+        }
+      });
+      
+      // Close on escape key
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+          sidebarOverlay.remove();
+          document.removeEventListener('keydown', handleEscape);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+    }
+    
+    function getAverageScore() {
+      if (!state.analyses || state.analyses.length === 0) return '—';
+      
+      const scores = state.analyses
+        .map(a => {
+          try {
+            const barometer = JSON.parse(a.barometer_json || '{}');
+            return barometer.score;
+          } catch {
+            return null;
+          }
+        })
+        .filter(s => s !== null && s !== undefined);
+      
+      if (scores.length === 0) return '—';
+      
+      const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+      return Math.round(avg);
+    }
+    
+    function renderAnalysisTimeline() {
+      if (!state.analyses || state.analyses.length === 0) {
+        return `
+          <div class="empty-timeline">
+            <i class="fas fa-inbox"></i>
+            <p>Поки що немає аналізів для цього клієнта</p>
+          </div>
+        `;
+      }
+      
+      return state.analyses.slice(0, 10).map(analysis => {
+        let barometer = {};
+        try {
+          barometer = JSON.parse(analysis.barometer_json || '{}');
+        } catch {}
+        
+        const score = barometer.score ? Math.round(barometer.score) : '—';
+        const label = barometer.label || 'Невідомо';
+        const date = new Date(analysis.created_at).toLocaleDateString('uk-UA');
+        const time = new Date(analysis.created_at).toLocaleTimeString('uk-UA', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        
+        return `
+          <div class="timeline-item" data-id="${analysis.id}">
+            <div class="timeline-marker">
+              <div class="timeline-score ${getScoreClass(barometer.score)}">${score}</div>
+            </div>
+            <div class="timeline-content-item">
+              <div class="timeline-header">
+                <h5>${escapeHtml(analysis.title || 'Аналіз')}</h5>
+                <span class="timeline-date">${date} о ${time}</span>
+              </div>
+              <div class="timeline-details">
+                <div class="timeline-label">${escapeHtml(label)}</div>
+                <div class="timeline-source">${analysis.source === 'file' ? '📄 Файл' : '📝 Текст'}</div>
+              </div>
+              <div class="timeline-actions">
+                <button class="btn-mini" onclick="loadAnalysis(${analysis.id})" title="Завантажити">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-mini" onclick="exportAnalysis(${analysis.id})" title="Експорт">
+                  <i class="fas fa-download"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function getScoreClass(score) {
+      if (!score) return 'neutral';
+      if (score < 30) return 'low';
+      if (score < 60) return 'medium';
+      if (score < 80) return 'high';
+      return 'critical';
+    }
+    
+    function exportAnalysis(analysisId) {
+      console.log('📤 Exporting analysis:', analysisId);
+      const analysis = state.analyses.find(a => a.id === analysisId);
+      if (!analysis) {
+        showNotification('Аналіз не знайдено', 'error');
+        return;
+      }
+      
+      try {
+        const exportData = {
+          title: analysis.title,
+          client: state.currentClient?.company,
+          date: analysis.created_at,
+          source: analysis.source,
+          originalText: analysis.original_text?.substring(0, 500) + '...',
+          highlights: JSON.parse(analysis.highlights_json || '[]'),
+          summary: JSON.parse(analysis.summary_json || '{}'),
+          barometer: JSON.parse(analysis.barometer_json || '{}')
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+          type: 'application/json'
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analysis_${analysisId}_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showNotification('Аналіз експортовано', 'success');
+      } catch (error) {
+        console.error('Export error:', error);
+        showNotification('Помилка експорту', 'error');
+      }
+    }
+    
+    // Make exportAnalysis globally available
+    window.exportAnalysis = exportAnalysis;
+
     function showHelpModal() {
       const modalOverlay = document.createElement('div');
       modalOverlay.className = 'modal-overlay';
