@@ -288,12 +288,30 @@ body::before {
 }
 
 /* Adjust margins when sidebars are collapsed */
+.sidebar-left.collapsed {
+    transform: translateX(-100%);
+}
+
 .sidebar-left.collapsed ~ .main-content {
     margin-left: 0;
 }
 
+.sidebar-right.collapsed {
+    transform: translateX(100%);
+}
+
+.sidebar-right.collapsed ~ .main-content,
 .main-content.right-collapsed {
     margin-right: 0;
+}
+
+/* Toggle button rotation when collapsed */
+.sidebar-left.collapsed .sidebar-toggle {
+    transform: rotate(180deg);
+}
+
+.sidebar-right.collapsed .sidebar-toggle {
+    transform: rotate(0deg);
 }
 
 /* ===== Top Navigation ===== */

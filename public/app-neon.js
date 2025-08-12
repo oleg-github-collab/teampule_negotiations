@@ -1015,6 +1015,87 @@
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
+    // ===== Sidebar Management =====
+    function toggleSidebar(side) {
+        if (side === 'left') {
+            state.ui.leftSidebarCollapsed = !state.ui.leftSidebarCollapsed;
+            if (elements.sidebarLeft) {
+                elements.sidebarLeft.classList.toggle('collapsed', state.ui.leftSidebarCollapsed);
+            }
+        } else if (side === 'right') {
+            state.ui.rightSidebarCollapsed = !state.ui.rightSidebarCollapsed;
+            if (elements.sidebarRight) {
+                elements.sidebarRight.classList.toggle('collapsed', state.ui.rightSidebarCollapsed);
+            }
+        }
+    }
+
+    function showOnboarding() {
+        if (elements.onboardingModal) {
+            elements.onboardingModal.style.display = 'flex';
+        }
+    }
+
+    function completeOnboarding() {
+        state.onboardingCompleted = true;
+        if (elements.onboardingModal) {
+            elements.onboardingModal.style.display = 'none';
+        }
+        
+        // Load initial data
+        loadClients();
+        loadTokenUsage();
+        
+        // Auto-refresh token usage
+        setInterval(loadTokenUsage, 30000);
+    }
+
+    function nextOnboardingStep() {
+        if (state.onboardingStep < 4) {
+            state.onboardingStep++;
+            updateOnboardingStep();
+        } else {
+            completeOnboarding();
+        }
+    }
+
+    function prevOnboardingStep() {
+        if (state.onboardingStep > 1) {
+            state.onboardingStep--;
+            updateOnboardingStep();
+        }
+    }
+
+    function updateOnboardingStep() {
+        // Hide all steps
+        $$('.onboarding-step').forEach(step => step.classList.remove('active'));
+        
+        // Show current step
+        const currentStep = $(`#onboarding-step-${state.onboardingStep}`);
+        if (currentStep) {
+            currentStep.classList.add('active');
+        }
+        
+        // Update progress
+        const progress = (state.onboardingStep / 4) * 100;
+        if (elements.onboardingProgress) {
+            elements.onboardingProgress.style.width = `${progress}%`;
+        }
+        if (elements.progressText) {
+            elements.progressText.textContent = `Крок ${state.onboardingStep} з 4`;
+        }
+        
+        // Update buttons
+        if (elements.prevStep) {
+            elements.prevStep.style.display = state.onboardingStep > 1 ? 'block' : 'none';
+        }
+        if (elements.nextStep) {
+            elements.nextStep.innerHTML = state.onboardingStep < 4 ? 
+                'Далі <i class="fas fa-arrow-right"></i>' : 
+                'Завершити <i class="fas fa-check"></i>';
+        }
+    }
+
     // ===== Event Handlers =====
     function bindEvents() {
         // Sidebar toggles
@@ -1032,9 +1113,14 @@
         elements.saveClientBtn?.addEventListener('click', saveClient);
         elements.cancelClientBtn?.addEventListener('click', () => showSection('welcome-screen'));
 
+        // Navigation actions
+        $('#help-toggle')?.addEventListener('click', showOnboarding);
+        $('#settings-toggle')?.addEventListener('click', () => {
+            showNotification('Налаштування будуть додані в наступній версії', 'info');
+        });
+
         // Onboarding
         elements.welcomeHelp?.addEventListener('click', showOnboarding);
-        elements.onboardingClose?.addEventListener('click', completeOnboarding);
         elements.skipOnboarding?.addEventListener('click', completeOnboarding);
         elements.nextStep?.addEventListener('click', nextOnboardingStep);
         elements.prevStep?.addEventListener('click', prevOnboardingStep);

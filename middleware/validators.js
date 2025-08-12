@@ -90,6 +90,31 @@ export const validateClient = [
     .withMessage('Обмеження не можуть перевищувати 1000 символів')
     .escape(),
   
+  // New fields validation
+  body('company_size')
+    .optional()
+    .isIn(['startup', 'small', 'medium', 'large'])
+    .withMessage('Розмір компанії має бути одним з: startup, small, medium, large'),
+  
+  body('negotiation_type')
+    .optional()
+    .isIn(['sales', 'partnership', 'contract', 'investment', 'acquisition', 'licensing', 'other'])
+    .withMessage('Тип переговорів має бути одним з: sales, partnership, contract, investment, acquisition, licensing, other'),
+  
+  body('deal_value')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Вартість угоди не може перевищувати 50 символів')
+    .escape(),
+  
+  body('goals')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Цілі не можуть перевищувати 1000 символів')
+    .escape(),
+  
   handleValidationErrors
 ];
 
