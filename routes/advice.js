@@ -10,13 +10,13 @@ const r = Router();
 const MODEL = process.env.OPENAI_MODEL || 'gpt-5';
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
 
-// Daily limit helpers
+// Daily limit helpers - FIXED: using sync DB calls like analyze.js
 async function getUsageRow() {
   const day = new Date().toISOString().slice(0, 10);
-  let row = await get(`SELECT * FROM usage_daily WHERE day=?`, [day]);
+  let row = get(`SELECT * FROM usage_daily WHERE day=?`, [day]); // Fixed: removed await
   if (!row) {
-    await run(`INSERT INTO usage_daily(day, tokens_used) VALUES(?,0)`, [day]);
-    row = await get(`SELECT * FROM usage_daily WHERE day=?`, [day]);
+    run(`INSERT INTO usage_daily(day, tokens_used) VALUES(?,0)`, [day]); // Fixed: removed await
+    row = get(`SELECT * FROM usage_daily WHERE day=?`, [day]); // Fixed: removed await
   }
   return { row, day };
 }
@@ -31,13 +31,13 @@ async function addTokensAndCheck(tokensToAdd) {
   const newTotal = (row.tokens_used || 0) + tokensToAdd;
   if (newTotal >= DAILY_TOKEN_LIMIT) {
     const lock = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    await run(
+    run( // Fixed: removed await
       `UPDATE usage_daily SET tokens_used=?, locked_until=? WHERE day=?`,
       [newTotal, lock, day]
     );
-    throw new Error(`Досягнуто 512k токенів. Блокування до ${lock}`);
+    throw new Error(`Досягнуто денний ліміт токенів. Блокування до ${lock}`);
   } else {
-    await run(`UPDATE usage_daily SET tokens_used=? WHERE day=?`, [
+    run(`UPDATE usage_daily SET tokens_used=? WHERE day=?`, [ // Fixed: removed await
       newTotal,
       day,
     ]);
@@ -71,7 +71,7 @@ r.post('/', validateAdviceRequest, async (req, res) => {
     totalTokensUsed += approxIn;
     await addTokensAndCheck(approxIn);
 
-    // Production mode requires OpenAI API
+    // Production mode requires OpenAI API - Enhanced error handling
     if (!openaiClient) {
       logError(new Error('OpenAI client not configured for advice'), {
         context: 'Advice request without API key',
@@ -80,8 +80,11 @@ r.post('/', validateAdviceRequest, async (req, res) => {
       });
       
       return res.status(503).json({
-        error: 'Сервіс порад тимчасово недоступний',
-        code: 'AI_SERVICE_UNAVAILABLE'
+        error: 'AI сервіс тимчасово недоступний. Перевірте налаштування API.',
+        code: 'AI_SERVICE_UNAVAILABLE',
+        details: 'OpenAI API key not configured',
+        timestamp: new Date().toISOString(),
+        retry_after: 60 // seconds
       });
     }
 
@@ -143,21 +146,74 @@ ${JSON.stringify(
       reqPayload.temperature = 0.2;
     }
 
+    // Enhanced API call with retry logic and timeout
     let resp;
-    try {
-      resp = await openaiClient.chat.completions.create(reqPayload);
-    } catch (apiError) {
-      logError(apiError, {
-        context: 'OpenAI advice API call failed',
-        model: MODEL,
-        itemsCount: items.length,
-        ip: req.ip
-      });
-      
-      return res.status(503).json({
-        error: 'Помилка AI сервісу. Спробуйте пізніше.',
-        code: 'AI_API_ERROR'
-      });
+    let retryCount = 0;
+    const maxRetries = process.env.NODE_ENV === 'production' ? 3 : 1;
+    const API_TIMEOUT = 45000; // 45 seconds
+    
+    while (retryCount <= maxRetries) {
+      try {
+        // Add retry delay for subsequent attempts
+        if (retryCount > 0) {
+          await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, retryCount), 5000)));
+        }
+        
+        // Create request with timeout
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+          controller.abort(new Error('API request timeout'));
+        }, API_TIMEOUT);
+        
+        try {
+          resp = await openaiClient.chat.completions.create({
+            ...reqPayload,
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
+          break; // Success, exit retry loop
+          
+        } catch (timeoutError) {
+          clearTimeout(timeout);
+          throw timeoutError;
+        }
+        
+      } catch (apiError) {
+        retryCount++;
+        
+        // Check if it's a retryable error
+        const isRetryable = apiError.status >= 500 || 
+                          apiError.status === 429 || 
+                          apiError.code === 'ECONNRESET' ||
+                          apiError.code === 'ETIMEDOUT' ||
+                          apiError.name === 'AbortError';
+                          
+        if (retryCount > maxRetries || !isRetryable) {
+          logError(apiError, {
+            context: 'OpenAI advice API call failed after retries',
+            model: MODEL,
+            itemsCount: items.length,
+            retries: retryCount - 1,
+            isRetryable,
+            ip: req.ip
+          });
+          
+          return res.status(503).json({
+            error: 'Помилка AI сервісу після кількох спроб. Спробуйте пізніше.',
+            code: 'AI_API_ERROR',
+            retries: retryCount - 1,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        logError(apiError, {
+          context: `OpenAI advice API retry ${retryCount}/${maxRetries}`,
+          model: MODEL,
+          itemsCount: items.length,
+          isRetryable,
+          ip: req.ip
+        });
+      }
     }
     
     const content = resp.choices?.[0]?.message?.content || '{}';
@@ -174,19 +230,57 @@ ${JSON.stringify(
       tokensUsed: totalTokensUsed
     });
     
+    // Enhanced response validation and parsing
+    if (!resp || !resp.choices || !resp.choices[0]?.message?.content) {
+      logError(new Error('Invalid API response structure'), {
+        context: 'AI advice API returned invalid response',
+        response: JSON.stringify(resp).substring(0, 500)
+      });
+      
+      return res.status(503).json({
+        error: 'Некоректна відповідь від AI сервісу',
+        code: 'AI_INVALID_RESPONSE',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     let parsedAdvice;
     try {
       parsedAdvice = JSON.parse(content);
+      
+      // Validate response structure
+      if (!parsedAdvice || typeof parsedAdvice !== 'object') {
+        throw new Error('Response is not a valid object');
+      }
+      
+      // Ensure required fields are present with defaults
+      parsedAdvice = {
+        recommended_replies: parsedAdvice.recommended_replies || [],
+        risks: parsedAdvice.risks || [],
+        notes: parsedAdvice.notes || 'Рекомендації не згенеровано'
+      };
+      
     } catch (parseError) {
       logError(parseError, {
         context: 'Failed to parse AI advice response',
-        content: content.substring(0, 500)
+        content: content.substring(0, 500),
+        contentLength: content.length
       });
       
-      return res.status(500).json({
-        error: 'Помилка обробки відповіді AI',
-        code: 'AI_RESPONSE_PARSE_ERROR'
-      });
+      // Fallback advice if parsing fails
+      parsedAdvice = {
+        recommended_replies: [
+          'Дякую за детальну пропозицію. Дайте нам час її розглянути.',
+          'Це цікава ідея, але нам потрібно обговорити деталі з командою.',
+          'Ми цінуємо вашу пропозицію і повернемося з відповіддю найближчим часом.'
+        ],
+        risks: [
+          'Можлива спроба тиску з боку контрагента',
+          'Недостатньо інформації для прийняття рішення',
+          'Потреба в додатковому аналізі умов'
+        ],
+        notes: 'Автоматично згенерована порада через помилку парсингу AI відповіді. Рекомендується детальний аналіз вручну.'
+      };
     }
 
     return res.json({ 
@@ -195,7 +289,10 @@ ${JSON.stringify(
       meta: {
         itemsProcessed: items.length,
         tokensUsed: totalTokensUsed,
-        responseTime: Math.round(adviceDuration)
+        responseTime: Math.round(adviceDuration),
+        model: MODEL,
+        retries: resp ? (retryCount || 0) : maxRetries,
+        timestamp: new Date().toISOString()
       }
     });
   } catch (e) {

@@ -311,55 +311,27 @@ r.post('/', validateFileUpload, async (req, res) => {
     let summaryObj = null;
     let barometerObj = null;
 
-    // Check if OpenAI client is available, provide fallback if not
+    // Enhanced OpenAI client availability check with recovery
     if (!openaiClient) {
-      console.warn('OpenAI client not configured, using fallback mode');
+      // Log the issue for monitoring
+      logError(new Error('OpenAI client not configured'), {
+        context: 'Analysis request without API key',
+        textLength: text.length,
+        clientId: finalClientId,
+        ip: req.ip
+      });
       
-      // Provide fallback demo analysis
-      const firstLen = Math.min(paragraphs[0]?.text.length || 0, 60);
-      if (firstLen > 0) {
-        const demo = {
-          type: 'highlight',
-          id: 'hl_demo',
-          paragraph_index: 0,
-          char_start: 0,
-          char_end: firstLen,
-          category: 'manipulation',
-          label: 'Appeal to Fear',
-          explanation: 'Демонстраційний режим - налаштуйте OPENAI_API_KEY для повного функціоналу',
-          severity: 2,
-        };
-        rawHighlights.push(demo);
-        sendLine(demo);
-      }
-      
-      summaryObj = {
-        type: 'summary',
-        counts_by_category: {
-          manipulation: rawHighlights.length,
-          cognitive_bias: 0,
-          rhetological_fallacy: 0,
-        },
-        top_patterns: ['Appeal to Fear'],
-        overall_observations: 'Демонстраційний аналіз. Налаштуйте OPENAI_API_KEY для повного функціоналу.',
-      };
-      
-      barometerObj = {
-        type: 'barometer',
-        score: 50,
-        label: 'Demo Mode',
-        rationale: 'Демонстраційний режим - налаштуйте OPENAI_API_KEY',
-        factors: {
-          goal_alignment: 0.5,
-          manipulation_density: 0.5,
-          scope_clarity: 0.5,
-          time_pressure: 0.5,
-          resource_demand: 0.5,
-        },
-      };
-    } else {
+      // Return structured error instead of fallback
+      clearInterval(heartbeat);
+      return res.status(503).json({
+        error: 'AI сервіс тимчасово недоступний. Перевірте налаштування.',
+        code: 'AI_SERVICE_UNAVAILABLE',
+        details: 'OpenAI API key not configured',
+        timestamp: new Date().toISOString(),
+        retry_after: 60 // seconds
+      });
+    }
 
-    const aiStartTime = performance.now();
     const system = buildSystemPrompt();
     const user = JSON.stringify(
       buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
@@ -381,25 +353,72 @@ r.post('/', validateFileUpload, async (req, res) => {
       reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.2);
     }
 
-    // Enhanced request handling with timeout
+    // Enhanced request handling with progressive timeout
     const controller = new AbortController();
+    const REQUEST_TIMEOUT = process.env.NODE_ENV === 'production' ? 180000 : 120000; // 3min prod, 2min dev
+    
     const timeout = setTimeout(() => {
-      controller.abort('Request timeout');
-    }, 120000); // 2 minute timeout
+      controller.abort(new Error('Request timeout after ' + (REQUEST_TIMEOUT/1000) + 's'));
+    }, REQUEST_TIMEOUT);
     
     req.on('close', () => {
       clearTimeout(timeout);
-      controller.abort('Request closed by client');
+      controller.abort(new Error('Request closed by client'));
     });
     
+    // Connection heartbeat with early termination detection
+    const connectionCheck = setInterval(() => {
+      if (req.destroyed || req.closed) {
+        clearTimeout(timeout);
+        controller.abort(new Error('Connection lost'));
+        clearInterval(connectionCheck);
+      }
+    }, 5000);
+    
     let stream;
-    try {
-      stream = await openaiClient.chat.completions.create({
-        ...reqPayload,
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeout);
+    let retryCount = 0;
+    const maxRetries = process.env.NODE_ENV === 'production' ? 3 : 1;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        // Add retry delay for subsequent attempts
+        if (retryCount > 0) {
+          await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, retryCount), 10000)));
+        }
+        
+        stream = await openaiClient.chat.completions.create({
+          ...reqPayload,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeout);
+        clearInterval(connectionCheck);
+        break; // Success, exit retry loop
+        
+      } catch (apiError) {
+        retryCount++;
+        
+        // Check if it's a retryable error
+        const isRetryable = apiError.status >= 500 || 
+                          apiError.status === 429 || 
+                          apiError.code === 'ECONNRESET' ||
+                          apiError.code === 'ETIMEDOUT';
+                          
+        if (retryCount > maxRetries || !isRetryable) {
+          clearTimeout(timeout);
+          clearInterval(connectionCheck);
+          throw apiError;
+        }
+        
+        logError(apiError, {
+          context: `OpenAI API retry ${retryCount}/${maxRetries}`,
+          model: MODEL,
+          textLength: text.length,
+          isRetryable,
+          ip: req.ip
+        });
+      }
+    }
 
       // Фільтрація та видобування JSON-об'єктів
       const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
@@ -483,37 +502,128 @@ r.post('/', validateFileUpload, async (req, res) => {
           }
         }
       }
-    } catch (error) {
-      clearTimeout(timeout);
-      
-      if (error.name === 'AbortError') {
-        logPerformance('AI Analysis Aborted', Date.now() - aiStartTime, {
-          reason: error.message,
-          clientId: finalClientId,
-          textLength: text.length
-        });
-        return; // Exit gracefully
+    if (!stream) {
+      clearInterval(heartbeat);
+      return res.status(503).json({
+        error: 'Не вдалося встановити зʼєднання з AI сервісом після кількох спроб',
+        code: 'AI_CONNECTION_FAILED',
+        retries: maxRetries,
+        timestamp: new Date().toISOString()
+      });
+    }
+    // Stream processing with enhanced error handling
+    try {
+      // Фільтрація та видобування JSON-об'єктів
+      const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
+
+      // Дістає з буфера всі повні JSON-об'єкти (brace-matching), повертає [objs, rest]
+      function extractJsonObjects(buffer) {
+        const out = [];
+        let i = 0;
+        const n = buffer.length;
+        let depth = 0;
+        let start = -1;
+        let inStr = false;
+        let esc = false;
+
+        while (i < n) {
+          const ch = buffer[i];
+
+          if (inStr) {
+            if (esc) { esc = false; }
+            else if (ch === '\\') { esc = true; }
+            else if (ch === '"') { inStr = false; }
+            i++; continue;
+          }
+
+          if (ch === '"') { inStr = true; i++; continue; }
+
+          if (ch === '{') {
+            if (depth === 0) start = i;
+            depth++;
+          } else if (ch === '}') {
+            depth--;
+            if (depth === 0 && start >= 0) {
+              const raw = buffer.slice(start, i + 1);
+              out.push(raw);
+              start = -1;
+            }
+          }
+
+          i++;
+        }
+
+        const rest = depth === 0 ? '' : buffer.slice(start >= 0 ? start : n);
+        return [out, rest];
       }
+
+      // Санітизація: прибрати бектики, мітки ```json та керівні символи (крім \n\t)
+      const sanitizeChunk = (s) =>
+        s
+          .replace(/```(?:json)?/gi, '')
+          .replace(/<\/?artifact[^>]*>/gi, '')
+          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+
+      let buffer = '';
+      let chunkCount = 0;
+      const maxChunks = 2000; // Prevent infinite processing
       
-      // Log AI API errors
-      logError(error, {
-        context: 'OpenAI API call failed',
-        model: MODEL,
-        textLength: text.length,
-        tokensEstimated: approxTokensIn,
+      for await (const part of stream) {
+        if (++chunkCount > maxChunks) {
+          logError(new Error('Too many chunks received from AI stream'), {
+            chunkCount,
+            bufferLength: buffer.length
+          });
+          break;
+        }
+        
+        const delta = part.choices?.[0]?.delta?.content || '';
+        if (!delta) continue;
+
+        buffer += sanitizeChunk(delta);
+
+        // Витягуємо всі завершені JSON-об'єкти з буфера
+        const [rawObjs, rest] = extractJsonObjects(buffer);
+        buffer = rest;
+
+        for (const raw of rawObjs) {
+          try {
+            const obj = JSON.parse(raw);
+
+            // Пропускаємо тільки очікувані типи
+            if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
+
+            if (obj.type === 'highlight') {
+              rawHighlights.push(obj);
+              sendLine(obj);
+            } else if (obj.type === 'summary') {
+              summaryObj = obj;
+            } else if (obj.type === 'barometer') {
+              barometerObj = obj;
+            }
+          } catch (e) {
+            // Тихо ігноруємо биті об'єкти
+          }
+        }
+      }
+    } catch (streamError) {
+      clearInterval(heartbeat);
+      
+      logError(streamError, {
+        context: 'Stream processing failed',
         clientId: finalClientId,
-        ip: req.ip
+        textLength: text.length
       });
       
       if (!res.headersSent) {
         return res.status(503).json({
-          error: 'Помилка AI сервісу. Спробуйте пізніше.',
-          code: 'AI_API_ERROR'
+          error: 'Помилка обробки відповіді AI сервісу',
+          code: 'AI_STREAM_ERROR',
+          timestamp: new Date().toISOString()
         });
       }
       return;
     }
-    } // Close the else block for OpenAI client availability
 
     const words = text.split(/\s+/).filter(Boolean).length || 1;
     const maxAllowed = Math.max(

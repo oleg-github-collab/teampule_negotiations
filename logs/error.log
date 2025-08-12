@@ -132,3 +132,37 @@
   message: 'Application Error',
   timestamp: '2025-08-12 02:31:14'
 }
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: 'Unsupported content type: application/json',
+    stack: 'Error: Unsupported content type: application/json\n' +
+      '    at getInstance (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/busboy/lib/index.js:36:9)\n' +
+      '    at module.exports (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/busboy/lib/index.js:56:10)\n' +
+      '    at file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/analyze.js:108:20\n' +
+      '    at new Promise (<anonymous>)\n' +
+      '    at parseMultipart (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/analyze.js:107:10)\n' +
+      '    at file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/analyze.js:197:66\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:149:13)\n' +
+      '    at validateFileUpload (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/middleware/validators.js:194:3)\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:149:13)\n' +
+      '    at Route.dispatch (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:119:3)\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at /Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/index.js:284:15\n' +
+      '    at Function.process_params (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/index.js:346:12)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/index.js:280:10)',
+    name: 'Error'
+  },
+  context: {
+    context: 'Analysis route error',
+    duration: 0.6931470000126865,
+    tokensUsed: 0,
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1'
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-12 11:27:29'
+}

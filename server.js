@@ -278,10 +278,85 @@ app.use('/api/analyze', authMiddleware, analysisLimiter, analyzeRoutes);
 app.use('/api/clients', authMiddleware, clientsRoutes);
 app.use('/api/advice', authMiddleware, adviceRoutes);
 
-// Health check
-app.get('/health', (_req, res) =>
-  res.json({ ok: true, ts: new Date().toISOString() })
-);
+// Enhanced health check for Railway
+app.get('/health', async (req, res) => {
+  const startTime = Date.now();
+  const healthStatus = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: '3.0',
+    environment: process.env.NODE_ENV || 'development',
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    checks: {}
+  };
+
+  // Check database connectivity
+  try {
+    const { get } = await import('./utils/db.js');
+    get('SELECT 1 as test');
+    healthStatus.checks.database = 'healthy';
+  } catch (dbError) {
+    healthStatus.checks.database = 'unhealthy';
+    healthStatus.status = 'degraded';
+    logError(dbError, { context: 'Health check database test' });
+  }
+
+  // Check OpenAI client availability and circuit breaker status
+  try {
+    const { client, getCircuitBreakerStatus } = await import('./utils/openAIClient.js');
+    const cbStatus = getCircuitBreakerStatus();
+    
+    healthStatus.checks.ai_service = {
+      available: client ? true : false,
+      circuit_breaker: cbStatus.state,
+      failures: cbStatus.failures,
+      retry_in_seconds: Math.ceil(cbStatus.timeUntilRetry / 1000)
+    };
+    
+    if (!client || cbStatus.state === 'OPEN') {
+      healthStatus.status = 'degraded';
+    }
+  } catch (aiError) {
+    healthStatus.checks.ai_service = {
+      available: false,
+      error: 'Failed to check AI service status'
+    };
+    healthStatus.status = 'degraded';
+  }
+
+  // Check file system (logs directory)
+  try {
+    const fs = await import('fs');
+    fs.default.accessSync('./logs', fs.default.constants.W_OK);
+    healthStatus.checks.filesystem = 'healthy';
+  } catch (fsError) {
+    healthStatus.checks.filesystem = 'unhealthy';
+    healthStatus.status = 'degraded';
+  }
+
+  healthStatus.response_time_ms = Date.now() - startTime;
+
+  // Set appropriate status code
+  const statusCode = healthStatus.status === 'healthy' ? 200 : 503;
+  
+  res.status(statusCode).json(healthStatus);
+});
+
+// Simplified health check for load balancers
+app.get('/ping', (_req, res) => res.send('pong'));
+
+// Ready check for Kubernetes/Railway
+app.get('/ready', async (_req, res) => {
+  try {
+    // Basic functionality test
+    const { get } = await import('./utils/db.js');
+    get('SELECT 1');
+    res.status(200).json({ ready: true, timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(503).json({ ready: false, error: 'Database not ready' });
+  }
+});
 
 // App routes
 app.get('/login', (_req, res) =>
@@ -297,29 +372,87 @@ app.get('/', (req, res) => {
   }
 });
 
-// Enhanced global error handler
+// Enhanced global error handler with recovery mechanisms
 app.use((err, req, res, next) => {
+  const errorId = Math.random().toString(36).substring(2, 15);
+  
   logError(err, {
+    errorId,
     ip: req.ip,
     method: req.method,
     url: req.url,
     userAgent: req.get('User-Agent'),
-    body: req.body
+    body: req.path?.startsWith('/api/') ? '[REDACTED]' : req.body,
+    headers: {
+      'content-type': req.get('Content-Type'),
+      'user-agent': req.get('User-Agent'),
+      'referer': req.get('Referer')
+    },
+    stack: err.stack
   });
   
-  // Security: Don't leak error details in production
-  const errorResponse = {
-    error: 'Internal server error',
-    timestamp: new Date().toISOString(),
-    requestId: req.id || 'unknown'
-  };
-  
-  if (!isProduction) {
-    errorResponse.message = err.message;
-    errorResponse.stack = err.stack;
+  // Prevent hanging requests
+  if (res.headersSent) {
+    return next(err);
   }
   
-  res.status(err.status || 500).json(errorResponse);
+  // Set security headers
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block'
+  });
+  
+  // Determine error type and status
+  let statusCode = err.status || err.statusCode || 500;
+  let errorCode = 'INTERNAL_SERVER_ERROR';
+  let userMessage = 'Внутрішня помилка сервера';
+  
+  // Handle specific error types
+  if (err.code === 'ECONNREFUSED') {
+    statusCode = 503;
+    errorCode = 'SERVICE_UNAVAILABLE';
+    userMessage = 'Сервіс тимчасово недоступний';
+  } else if (err.code === 'ETIMEDOUT') {
+    statusCode = 504;
+    errorCode = 'REQUEST_TIMEOUT';
+    userMessage = 'Тайм-аут запиту. Спробуйте пізніше';
+  } else if (err.name === 'ValidationError') {
+    statusCode = 400;
+    errorCode = 'VALIDATION_ERROR';
+    userMessage = 'Некоректні дані запиту';
+  } else if (err.name === 'CastError') {
+    statusCode = 400;
+    errorCode = 'INVALID_DATA_FORMAT';
+    userMessage = 'Неправильний формат даних';
+  } else if (err.message?.includes('ENOTFOUND')) {
+    statusCode = 503;
+    errorCode = 'EXTERNAL_SERVICE_ERROR';
+    userMessage = 'Помилка зовнішнього сервісу';
+  }
+  
+  const errorResponse = {
+    error: userMessage,
+    code: errorCode,
+    timestamp: new Date().toISOString(),
+    requestId: errorId
+  };
+  
+  // Add debug info for development
+  if (!isProduction) {
+    errorResponse.debug = {
+      message: err.message,
+      stack: err.stack?.split('\n').slice(0, 10), // Limit stack trace
+      originalError: err.name
+    };
+  }
+  
+  // Add retry information for specific errors
+  if ([503, 504, 429].includes(statusCode)) {
+    errorResponse.retry_after = statusCode === 429 ? 60 : 30; // seconds
+  }
+  
+  res.status(statusCode).json(errorResponse);
 });
 
 // Enhanced 404 handler with logging
@@ -362,20 +495,80 @@ const gracefulShutdown = (signal) => {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-// Enhanced error handling
+// Enhanced error handling with recovery attempts
 process.on('uncaughtException', (err) => {
-  logError(err, { type: 'uncaughtException' });
-  logger.error('💥 Uncaught exception - shutting down');
-  process.exit(1);
+  const errorId = Math.random().toString(36).substring(2, 15);
+  
+  logError(err, { 
+    type: 'uncaughtException',
+    errorId,
+    pid: process.pid,
+    memory: process.memoryUsage(),
+    uptime: process.uptime()
+  });
+  
+  logger.error(`💥 Uncaught exception [${errorId}] - ${err.message}`);
+  
+  // Try to close server gracefully
+  if (server) {
+    server.close((closeErr) => {
+      if (closeErr) {
+        logger.error('Error during emergency server shutdown:', closeErr.message);
+      }
+      process.exit(1);
+    });
+    
+    // Force exit after 10 seconds if graceful shutdown fails
+    setTimeout(() => {
+      logger.error('⚠️ Forced exit after uncaught exception');
+      process.exit(1);
+    }, 10000);
+  } else {
+    process.exit(1);
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
+  const errorId = Math.random().toString(36).substring(2, 15);
+  
   logError(new Error(`Unhandled rejection: ${reason}`), { 
     type: 'unhandledRejection',
-    promise: promise.toString()
+    errorId,
+    promise: promise.toString().substring(0, 500), // Limit promise string length
+    stack: reason?.stack || 'No stack available'
   });
-  logger.error('💥 Unhandled rejection - shutting down');
-  process.exit(1);
+  
+  logger.error(`💥 Unhandled rejection [${errorId}] - ${reason}`);
+  
+  // For unhandled rejections, try to continue running but monitor
+  logger.warn('⚠️ Attempting to continue after unhandled rejection - monitoring stability');
+  
+  // If too many unhandled rejections occur quickly, shut down
+  if (!global._rejectionCount) global._rejectionCount = 0;
+  global._rejectionCount++;
+  
+  setTimeout(() => {
+    if (global._rejectionCount > 0) global._rejectionCount--;
+  }, 60000); // Reset count after 1 minute
+  
+  if (global._rejectionCount > 5) {
+    logger.error('💥 Too many unhandled rejections - shutting down for stability');
+    process.exit(1);
+  }
+});
+
+// Handle SIGPIPE errors (broken pipes)
+process.on('SIGPIPE', () => {
+  logger.warn('SIGPIPE received - client disconnected');
+});
+
+// Monitor for high memory usage
+process.on('warning', (warning) => {
+  logger.warn('Node.js warning:', {
+    name: warning.name,
+    message: warning.message,
+    stack: warning.stack
+  });
 });
 
 // Memory usage monitoring

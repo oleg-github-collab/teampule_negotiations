@@ -1,0 +1,24 @@
+# Railway Configuration for TeamPulse Turbo
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[env]
+NODE_ENV = "production"
+PORT = { default = 3000 }
+HOST = { default = "0.0.0.0" }
+
+# Deployment settings
+checkImage = false
+numReplicas = 1
+
+[services.web]
+healthcheckPath = "/ready"
+healthcheckInterval = 30
+healthcheckTimeout = 10
+healthcheckRetries = 3
