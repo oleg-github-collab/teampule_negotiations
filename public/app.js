@@ -465,14 +465,21 @@
   
         let data;
         
+        // Clone the response first to avoid "body stream already read" error
+        const responseClone = res.clone();
+        
         try {
           // Try to parse as JSON first, regardless of content-type header
           // This handles cases where the server returns JSON but with incorrect/missing headers
           data = await res.json();
         } catch (parseError) {
-          // If JSON parsing fails, get the response as text for better error reporting
-          const text = await res.text();
-          throw new Error(`Сервер повернув невалідну відповідь: ${text.substring(0, 100)}`);
+          // If JSON parsing fails, use the cloned response for text
+          try {
+            const text = await responseClone.text();
+            throw new Error(`Сервер повернув невалідну відповідь: ${text.substring(0, 100)}`);
+          } catch (textError) {
+            throw new Error(`Сервер повернув невалідну відповідь (не можна прочитати): ${res.status}`);
+          }
         }
         
         if (!res.ok || !data.success) {
