@@ -221,6 +221,58 @@ app.post('/api/log-error', (req, res) => {
   res.status(200).json({ logged: true });
 });
 
+// Database cleanup endpoint (for removing test data)
+app.post('/api/admin/cleanup-database', authMiddleware, async (req, res) => {
+  try {
+    const { confirmCode } = req.body;
+    
+    // Require confirmation code for safety
+    if (confirmCode !== 'CLEANUP_TEST_DATA_2024') {
+      return res.status(400).json({ 
+        error: 'Invalid confirmation code',
+        required: 'CLEANUP_TEST_DATA_2024'
+      });
+    }
+
+    // Import database functions
+    const { run } = await import('./utils/db.js');
+    
+    // Delete all analyses first (due to foreign key constraints)
+    const analysesDeleted = run('DELETE FROM analyses');
+    
+    // Delete all clients
+    const clientsDeleted = run('DELETE FROM clients');
+    
+    // Reset auto-increment counters
+    run('DELETE FROM sqlite_sequence WHERE name IN ("clients", "analyses")');
+    
+    // Log the cleanup
+    logSecurity('Database cleanup performed', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      analysesDeleted: analysesDeleted.changes,
+      clientsDeleted: clientsDeleted.changes,
+      timestamp: new Date().toISOString()
+    });
+    
+    res.json({
+      success: true,
+      message: 'База даних очищена успішно',
+      deleted: {
+        clients: clientsDeleted.changes,
+        analyses: analysesDeleted.changes
+      }
+    });
+    
+  } catch (error) {
+    logError(error, { endpoint: 'POST /api/admin/cleanup-database', ip: req.ip });
+    res.status(500).json({
+      error: 'Помилка очищення бази даних',
+      details: error.message
+    });
+  }
+});
+
 // API routes (protected) with specific rate limiting
 app.use('/api/analyze', authMiddleware, analysisLimiter, analyzeRoutes);
 app.use('/api/clients', authMiddleware, clientsRoutes);

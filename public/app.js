@@ -39,10 +39,10 @@
       welcomeScreen: $('#welcome-screen'),
   
       // Analysis
-      dropzone: $('#dropzone'),
-      fileInput: $('#file-input'),
-      textInput: $('#text-input'),
-      analyzeBtn: $('#analyze-btn'),
+      dropzone: $('#main-dropzone'),
+      fileInput: $('#file-input-hidden'),
+      textInput: $('#negotiation-text'),
+      analyzeBtn: $('#start-analysis-btn'),
       clearBtn: $('#clear-btn'),
       exportBtn: $('#export-btn'),
       streamOutput: $('#stream-output'),
@@ -261,17 +261,27 @@
         state.analyses = data.analyses || [];
   
         // Update UI
-        elements.currentClientSpan.textContent = state.currentClient.company;
-        elements.analyzeBtn.disabled = false;
-        elements.welcomeScreen.style.display = 'none';
-        elements.clientForm.style.display = 'none';
-        elements.analysisSection.style.display = 'block';
+        if (elements.currentClientSpan) {
+          elements.currentClientSpan.textContent = state.currentClient.company;
+        }
+        if (elements.analyzeBtn) {
+          elements.analyzeBtn.disabled = false;
+        }
+        if (elements.welcomeScreen) {
+          elements.welcomeScreen.style.display = 'none';
+        }
+        if (elements.clientForm) {
+          elements.clientForm.style.display = 'none';
+        }
+        if (elements.analysisSection) {
+          elements.analysisSection.style.display = 'block';
+        }
   
         // Show analysis history
-        if (state.analyses.length > 0) {
+        if (state.analyses.length > 0 && elements.analysisHistory) {
           elements.analysisHistory.style.display = 'block';
           renderAnalysisHistory();
-        } else {
+        } else if (elements.analysisHistory) {
           elements.analysisHistory.style.display = 'none';
         }
   
@@ -401,10 +411,18 @@
   
         if (state.currentClient?.id === id) {
           state.currentClient = null;
-          elements.currentClientSpan.textContent = 'Оберіть клієнта';
-          elements.analyzeBtn.disabled = true;
-          elements.analysisSection.style.display = 'none';
-          elements.welcomeScreen.style.display = 'block';
+          if (elements.currentClientSpan) {
+            elements.currentClientSpan.textContent = 'Оберіть клієнта';
+          }
+          if (elements.analyzeBtn) {
+            elements.analyzeBtn.disabled = true;
+          }
+          if (elements.analysisSection) {
+            elements.analysisSection.style.display = 'none';
+          }
+          if (elements.welcomeScreen) {
+            elements.welcomeScreen.style.display = 'block';
+          }
         }
   
         await loadClients();
@@ -465,25 +483,45 @@
   
         let data;
         
+        // Check if the response is OK first
+        if (!res.ok) {
+          let errorMessage;
+          try {
+            const errorText = await res.text();
+            errorMessage = errorText || `HTTP Error: ${res.status}`;
+          } catch {
+            errorMessage = `HTTP Error: ${res.status}`;
+          }
+          throw new Error(errorMessage);
+        }
+        
         // Clone the response first to avoid "body stream already read" error
         const responseClone = res.clone();
         
         try {
-          // Try to parse as JSON first, regardless of content-type header
-          // This handles cases where the server returns JSON but with incorrect/missing headers
+          // Check content type
+          const contentType = res.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await res.text();
+            throw new Error(`Сервер повернув не-JSON відповідь (${contentType}): ${text.substring(0, 100)}`);
+          }
+          
+          // Try to parse as JSON
           data = await res.json();
         } catch (parseError) {
-          // If JSON parsing fails, use the cloned response for text
+          console.error('JSON parse error:', parseError);
+          // If JSON parsing fails, try to get the raw text for debugging
           try {
             const text = await responseClone.text();
-            throw new Error(`Сервер повернув невалідну відповідь: ${text.substring(0, 100)}`);
+            throw new Error(`Помилка парсингу JSON: ${text.substring(0, 200)}`);
           } catch (textError) {
-            throw new Error(`Сервер повернув невалідну відповідь (не можна прочитати): ${res.status}`);
+            console.error('Text reading error:', textError);
+            throw new Error(`Не вдалося прочитати відповідь сервера (статус: ${res.status})`);
           }
         }
         
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || `HTTP Error: ${res.status}`);
+        if (!data.success) {
+          throw new Error(data.error || 'Server error');
         }
         
         logger.info('Client saved successfully', { clientId: data.id, isUpdate });
@@ -554,13 +592,17 @@
   
       // Toggle analyze button
       currentAbortController = new AbortController();
-      elements.analyzeBtn.innerHTML = '<i class="fas fa-stop"></i> Зупинити';
-      elements.analyzeBtn.onclick = () => {
-        currentAbortController?.abort();
-        currentAbortController = null;
-        elements.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Аналізувати';
-        elements.analyzeBtn.onclick = runAnalysis;
-      };
+      if (elements.analyzeBtn) {
+        elements.analyzeBtn.innerHTML = '<i class="fas fa-stop"></i> Зупинити';
+        elements.analyzeBtn.onclick = () => {
+          currentAbortController?.abort();
+          currentAbortController = null;
+          if (elements.analyzeBtn) {
+            elements.analyzeBtn.innerHTML = '<i class="fas fa-brain"></i> Розпочати аналіз';
+            elements.analyzeBtn.onclick = runAnalysis;
+          }
+        };
+      }
   
       try {
         const res = await fetch('/api/analyze', {
@@ -644,8 +686,10 @@
         elements.streamOutput.innerHTML = `<div class="error">Помилка: ${err.message}</div>`;
       } finally {
         currentAbortController = null;
-        elements.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Аналізувати';
-        elements.analyzeBtn.onclick = runAnalysis;
+        if (elements.analyzeBtn) {
+          elements.analyzeBtn.innerHTML = '<i class="fas fa-brain"></i> Розпочати аналіз';
+          elements.analyzeBtn.onclick = runAnalysis;
+        }
       }
     }
   
@@ -1071,7 +1115,7 @@
       `;
     }
   
-    elements.analyzeBtn?.addEventListener('click', runAnalysis);
+    // Note: analyzeBtn event is now handled in setupInputInterface()
     elements.clearBtn?.addEventListener('click', () => {
       elements.textInput.value = '';
       elements.fileInput.value = '';
@@ -1333,29 +1377,8 @@
         });
       });
 
-      // Upload method selection
-      const uploadMethods = $$('.upload-method');
-      uploadMethods.forEach(method => {
-        method.addEventListener('click', () => {
-          uploadMethods.forEach(m => m.classList.remove('active'));
-          method.classList.add('active');
-          selectedUploadMethod = method.dataset.method;
-          
-          // Show appropriate input area
-          const fileArea = $('.upload-zone');
-          const textArea = $('.text-input-area');
-          
-          if (selectedUploadMethod === 'file') {
-            fileArea.style.display = 'block';
-            textArea.style.display = 'none';
-          } else {
-            fileArea.style.display = 'none';
-            textArea.style.display = 'block';
-          }
-          
-          updateStepNavigation();
-        });
-      });
+      // New Input Method Tabs
+      setupInputInterface();
 
       // Step navigation buttons
       const prevBtn = $('#step-prev');
@@ -1378,14 +1401,8 @@
         analyzeBtn.addEventListener('click', startStepAnalysis);
       }
 
-      // Text input stats
-      const textInput = $('.text-input-area textarea');
-      if (textInput) {
-        textInput.addEventListener('input', updateTextStats);
-      }
-
-      // File upload handling
-      setupFileUpload();
+      // Initialize analysis step
+      initializeAnalysisStep();
     }
 
     function goToStep(step) {
@@ -1437,80 +1454,885 @@
       }
       
       if (nextBtn) {
-        if (currentStep === 1) {
-          // Enable next if upload method is selected and has content
-          const canProceed = selectedUploadMethod && (
-            (selectedUploadMethod === 'file' && $('.upload-zone input')?.files?.length > 0) ||
-            (selectedUploadMethod === 'text' && $('.text-input-area textarea')?.value?.trim())
-          );
-          nextBtn.disabled = !canProceed;
-        } else {
-          nextBtn.disabled = currentStep >= 3;
-        }
+        nextBtn.disabled = currentStep >= 3;
       }
       
       if (analyzeBtn) {
-        analyzeBtn.style.display = currentStep === 1 ? 'inline-flex' : 'none';
-        const canAnalyze = selectedUploadMethod && (
-          (selectedUploadMethod === 'file' && $('.upload-zone input')?.files?.length > 0) ||
-          (selectedUploadMethod === 'text' && $('.text-input-area textarea')?.value?.trim())
-        );
-        analyzeBtn.disabled = !canAnalyze;
+        analyzeBtn.style.display = 'none'; // Hidden since we use the new start-analysis-btn
       }
     }
 
-    function updateTextStats() {
-      const textarea = $('.text-input-area textarea');
-      const stats = $('.text-stats');
-      
-      if (!textarea || !stats) return;
-      
-      const text = textarea.value;
-      const charCount = text.length;
-      const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-      const lineCount = text.split('\n').length;
-      
-      stats.innerHTML = `
-        <span><i class="fas fa-font"></i> ${charCount.toLocaleString()} символів</span>
-        <span><i class="fas fa-file-word"></i> ${wordCount.toLocaleString()} слів</span>
-        <span><i class="fas fa-list-ol"></i> ${lineCount} рядків</span>
-      `;
-      
-      updateStepNavigation();
-    }
+    // ===== NEW INPUT INTERFACE =====
+    function setupInputInterface() {
+      const textTab = $('#text-tab');
+      const fileTab = $('#file-tab');
+      const textContent = $('#text-input-content');
+      const fileContent = $('#file-input-content');
+      const negotiationText = $('#negotiation-text');
+      const startAnalysisBtn = $('#start-analysis-btn');
+      const charCount = $('#char-count');
+      const wordCount = $('#word-count');
 
-    function setupFileUpload() {
-      const dropzone = $('.upload-zone');
-      const fileInput = $('.upload-zone input[type="file"]');
-      
-      if (!dropzone || !fileInput) return;
-      
-      // Drag and drop
-      dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropzone.classList.add('dragover');
+      let currentInputMethod = 'text';
+      let selectedFile = null;
+
+      // Tab switching
+      textTab?.addEventListener('click', () => switchInputMethod('text'));
+      fileTab?.addEventListener('click', () => switchInputMethod('file'));
+
+      // Text input handling
+      negotiationText?.addEventListener('input', updateTextStats);
+      negotiationText?.addEventListener('paste', (e) => {
+        setTimeout(updateTextStats, 10); // Allow paste to complete
       });
-      
-      dropzone.addEventListener('dragleave', () => {
-        dropzone.classList.remove('dragover');
-      });
-      
-      dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('dragover');
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-          fileInput.files = files;
-          updateFileDisplay();
+
+      // Text action buttons
+      $('#clear-text-btn')?.addEventListener('click', () => {
+        if (negotiationText) {
+          negotiationText.value = '';
+          updateTextStats();
         }
       });
-      
-      dropzone.addEventListener('click', () => {
-        fileInput.click();
+
+      $('#paste-btn')?.addEventListener('click', async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (negotiationText) {
+            negotiationText.value = text;
+            updateTextStats();
+          }
+        } catch (err) {
+          showNotification('Не вдалося вставити текст з буфера', 'warning');
+        }
       });
+
+      // File upload handling
+      setupFileUpload();
+
+      // Analysis button
+      startAnalysisBtn?.addEventListener('click', startAnalysis);
+
+      function switchInputMethod(method) {
+        currentInputMethod = method;
+        
+        // Update tabs
+        textTab?.classList.toggle('active', method === 'text');
+        fileTab?.classList.toggle('active', method === 'file');
+        
+        // Update content areas
+        textContent?.classList.toggle('active', method === 'text');
+        fileContent?.classList.toggle('active', method === 'file');
+        
+        updateAnalysisButton();
+      }
+
+      function updateTextStats() {
+        if (!negotiationText || !charCount || !wordCount) return;
+        
+        const text = negotiationText.value;
+        const chars = text.length;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        
+        charCount.textContent = `${chars.toLocaleString()} символів`;
+        wordCount.textContent = `${words.toLocaleString()} слів`;
+        
+        updateAnalysisButton();
+      }
+
+      function updateAnalysisButton() {
+        if (!startAnalysisBtn) return;
+        
+        let canAnalyze = false;
+        
+        if (currentInputMethod === 'text') {
+          canAnalyze = negotiationText?.value?.trim().length > 0;
+        } else if (currentInputMethod === 'file') {
+          canAnalyze = selectedFile !== null;
+        }
+        
+        startAnalysisBtn.disabled = !canAnalyze;
+        
+        // Update button text based on state
+        const icon = startAnalysisBtn.querySelector('i');
+        const span = startAnalysisBtn.querySelector('span');
+        
+        if (canAnalyze) {
+          if (icon) icon.className = 'fas fa-brain';
+          if (span) span.textContent = 'Розпочати аналіз';
+        } else {
+          if (icon) icon.className = 'fas fa-exclamation-circle';
+          if (span) span.textContent = currentInputMethod === 'text' ? 'Введіть текст' : 'Оберіть файл';
+        }
+      }
+
+      function setupFileUpload() {
+        const dropzone = $('#main-dropzone');
+        const fileInput = $('#file-input-hidden');
+        const chooseFileBtn = $('#choose-file-btn');
+        const filePreview = $('#file-preview');
+        const removeFileBtn = $('#remove-file-btn');
+
+        if (!dropzone || !fileInput) return;
+
+        // Drag and drop handlers
+        dropzone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          dropzone.classList.add('drag-over');
+        });
+
+        dropzone.addEventListener('dragleave', (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('drag-over');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('drag-over');
+          
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            handleFileSelection(files[0]);
+          }
+        });
+
+        // Click to select file
+        dropzone.addEventListener('click', () => fileInput.click());
+        chooseFileBtn?.addEventListener('click', () => fileInput.click());
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+          if (e.target.files.length > 0) {
+            handleFileSelection(e.target.files[0]);
+          }
+        });
+
+        // Remove file
+        removeFileBtn?.addEventListener('click', () => {
+          selectedFile = null;
+          fileInput.value = '';
+          if (filePreview) filePreview.style.display = 'none';
+          updateAnalysisButton();
+        });
+
+        function handleFileSelection(file) {
+          // Validate file type
+          const validTypes = ['.txt', '.doc', '.docx', '.pdf'];
+          const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+          
+          if (!validTypes.includes(fileExtension)) {
+            showNotification('Підтримуються тільки файли: TXT, DOC, DOCX, PDF', 'warning');
+            return;
+          }
+
+          // Validate file size (50MB limit)
+          if (file.size > 50 * 1024 * 1024) {
+            showNotification('Файл занадто великий. Максимальний розмір: 50MB', 'warning');
+            return;
+          }
+
+          selectedFile = file;
+          
+          // Show file preview
+          if (filePreview) {
+            const fileName = $('#selected-file-name');
+            const fileSize = $('#selected-file-size');
+            
+            if (fileName) fileName.textContent = file.name;
+            if (fileSize) fileSize.textContent = formatFileSize(file.size);
+            
+            filePreview.style.display = 'block';
+          }
+
+          updateAnalysisButton();
+        }
+
+        function formatFileSize(bytes) {
+          if (bytes === 0) return '0 Bytes';
+          const k = 1024;
+          const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+      }
+
+      async function startAnalysis() {
+        if (!state.currentClient) {
+          showNotification('Спочатку оберіть клієнта', 'warning');
+          return;
+        }
+
+        try {
+          const formData = new FormData();
+          formData.append('client_id', state.currentClient.id);
+
+          let textToAnalyze = '';
+
+          if (currentInputMethod === 'text') {
+            const text = negotiationText?.value?.trim();
+            if (!text) {
+              showNotification('Введіть текст для аналізу', 'warning');
+              return;
+            }
+            textToAnalyze = text;
+            formData.append('text', text);
+          } else if (currentInputMethod === 'file') {
+            if (!selectedFile) {
+              showNotification('Оберіть файл для аналізу', 'warning');
+              return;
+            }
+            formData.append('file', selectedFile);
+            textToAnalyze = `Файл: ${selectedFile.name}`;
+          }
+
+          console.log('🚀 Starting analysis for:', state.currentClient.company);
+          console.log('📝 Text length:', textToAnalyze.length);
+          
+          // Show immediate feedback
+          showNotification('Розпочинаю аналіз...', 'info');
+          
+          // Switch to analysis progress with animation
+          switchToAnalysisStep();
+          
+          // Disable the button
+          startAnalysisBtn.disabled = true;
+          startAnalysisBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Аналізую...</span>';
+
+          // Start analysis
+          const response = await fetch('/api/analyze', {
+            method: 'POST',
+            body: formData
+          });
+
+          console.log('📡 Response status:', response.status);
+
+          if (!response.ok) {
+            throw new Error(`Помилка сервера: ${response.status}`);
+          }
+
+          console.log('🔄 Processing streaming response...');
+          
+          // Process streaming response
+          const results = await processAnalysisStreamNew(response);
+          
+          console.log('✅ Analysis complete!', results);
+          
+          // Show results
+          displayAnalysisResultsNew(results);
+          
+          showNotification('Аналіз завершено успішно!', 'success');
+
+        } catch (error) {
+          console.error('❌ Analysis error:', error);
+          showNotification(`Помилка аналізу: ${error.message}`, 'error');
+          
+          // Reset UI
+          resetAnalysisUI();
+        }
+      }
+
+      function switchToAnalysisStep() {
+        // Hide step 1, show step 2
+        const step1 = $('#step-1-content');
+        const step2 = $('#step-2-content');
+        const step3 = $('#step-3-content');
+        
+        if (step1) step1.style.display = 'none';
+        if (step2) step2.style.display = 'block';
+        if (step3) step3.style.display = 'none';
+        
+        // Update step indicators
+        goToStep(2);
+        
+        // Start progress animation
+        startProgressAnimation();
+      }
+
+      function startProgressAnimation() {
+        const statusEl = $('#analysis-status');
+        const substatusEl = $('#analysis-substatus');
+        const progressBar = $('#analysis-progress');
+        
+        if (statusEl) statusEl.textContent = 'Аналізую переговори...';
+        if (substatusEl) substatusEl.textContent = 'Виявляю маніпуляції та когнітивні викривлення';
+        
+        // Animate progress bar
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+          progress += Math.random() * 15 + 5; // 5-20% increments
+          if (progress > 90) progress = 90; // Don't complete until real results
+          
+          if (progressBar) {
+            progressBar.style.width = `${progress}%`;
+          }
+          
+          // Stop at 90% and wait for real completion
+          if (progress >= 90) {
+            clearInterval(progressInterval);
+          }
+        }, 300);
+        
+        // Store interval for cleanup
+        window.currentProgressInterval = progressInterval;
+      }
+
+      async function processAnalysisStreamNew(response) {
+        return new Promise(async (resolve, reject) => {
+          try {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            const results = {
+              highlights: [],
+              summary: null,
+              barometer: null,
+              analysisId: null
+            };
+
+            console.log('📖 Reading stream...');
+
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) {
+                console.log('✅ Stream reading complete');
+                break;
+              }
+
+              const chunk = decoder.decode(value);
+              console.log('📦 Received chunk:', chunk.substring(0, 100) + '...');
+              
+              const lines = chunk.split('\n');
+              
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const data = JSON.parse(line.substring(6));
+                    console.log('📊 Parsed data:', data.type);
+                    
+                    switch (data.type) {
+                      case 'highlight':
+                        results.highlights.push(data);
+                        updateProgressText(`Знайдено ${results.highlights.length} проблемних моментів`);
+                        break;
+                      case 'summary':
+                        results.summary = data.analysis;
+                        updateProgressText('Генерую рекомендації...');
+                        break;
+                      case 'barometer':
+                        results.barometer = data;
+                        updateProgressText('Розраховую складність...');
+                        break;
+                      case 'complete':
+                        results.analysisId = data.analysis_id;
+                        completeProgress();
+                        resolve(results);
+                        return;
+                    }
+                  } catch (e) {
+                    console.warn('⚠️ Failed to parse line:', line);
+                  }
+                }
+              }
+            }
+            
+            // If we reach here without 'complete' message
+            resolve(results);
+            
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }
+
+      function updateProgressText(text) {
+        const substatusEl = $('#analysis-substatus');
+        if (substatusEl) {
+          substatusEl.textContent = text;
+        }
+      }
+
+      function completeProgress() {
+        const progressBar = $('#analysis-progress');
+        const statusEl = $('#analysis-status');
+        
+        if (window.currentProgressInterval) {
+          clearInterval(window.currentProgressInterval);
+        }
+        
+        if (progressBar) {
+          progressBar.style.width = '100%';
+        }
+        if (statusEl) {
+          statusEl.textContent = 'Аналіз завершено!';
+        }
+        
+        // Short delay then show results
+        setTimeout(() => {
+          showResultsStep();
+        }, 1000);
+      }
+
+      function showResultsStep() {
+        const step2 = $('#step-2-content');
+        const step3 = $('#step-3-content');
+        
+        if (step2) step2.style.display = 'none';
+        if (step3) step3.style.display = 'block';
+        
+        goToStep(3);
+      }
+
+      function displayAnalysisResultsNew(results) {
+        console.log('🎯 Displaying results:', results);
+        
+        // Update barometer
+        if (results.barometer) {
+          updateBarometerNew(results.barometer);
+        }
+        
+        // Update highlights
+        if (results.highlights && results.highlights.length > 0) {
+          displayHighlightsNew(results.highlights);
+        }
+        
+        // Update summary
+        if (results.summary) {
+          displaySummaryNew(results.summary);
+        }
+        
+        // Enable export
+        const exportBtn = $('#export-btn');
+        if (exportBtn) exportBtn.disabled = false;
+      }
+
+      function updateBarometerNew(barometer) {
+        const scoreEl = $('#barometer-score');
+        const labelEl = $('#barometer-label');
+        const needleEl = $('#gauge-needle');
+        const fillEl = $('#gauge-fill');
+        
+        if (scoreEl) scoreEl.textContent = Math.round(barometer.score || 0);
+        if (labelEl) labelEl.textContent = barometer.label || 'Невідомо';
+        
+        // Update gauge needle and fill
+        const score = barometer.score || 0;
+        const angle = -90 + (score / 100) * 180;
+        
+        if (needleEl) {
+          const x2 = 100 + 70 * Math.cos((angle * Math.PI) / 180);
+          const y2 = 100 + 70 * Math.sin((angle * Math.PI) / 180);
+          needleEl.setAttribute('x2', x2);
+          needleEl.setAttribute('y2', y2);
+        }
+        
+        if (fillEl) {
+          const largeArc = score > 50 ? 1 : 0;
+          const x = 100 + 80 * Math.cos((angle * Math.PI) / 180);
+          const y = 100 + 80 * Math.sin((angle * Math.PI) / 180);
+          const pathData = `M 20 100 A 80 80 0 ${largeArc} 1 ${x} ${y}`;
+          fillEl.setAttribute('d', pathData);
+        }
+      }
+
+      function displayHighlightsNew(highlights) {
+        const highlightedTextEl = $('#highlighted-text');
+        if (!highlightedTextEl) return;
+        
+        if (highlights.length === 0) {
+          highlightedTextEl.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-check-circle"></i>
+              <p>Проблемних моментів не виявлено</p>
+            </div>
+          `;
+          updateAnalysisStats(0, 0, 0, 0);
+          return;
+        }
+        
+        // Count different types
+        const counts = {
+          manipulations: 0,
+          biases: 0,
+          fallacies: 0
+        };
+        
+        let html = '';
+        highlights.forEach((highlight, index) => {
+          const classMap = {
+            'manipulation': 'highlight-manipulation',
+            'cognitive_bias': 'highlight-cognitive', 
+            'fallacy': 'highlight-fallacy'
+          };
+          
+          // Count by type
+          if (highlight.classification === 'manipulation') counts.manipulations++;
+          else if (highlight.classification === 'cognitive_bias') counts.biases++;
+          else if (highlight.classification === 'fallacy') counts.fallacies++;
+          
+          const className = classMap[highlight.classification] || 'highlight-manipulation';
+          
+          html += `
+            <div class="highlight-item ${className}" data-index="${index}" draggable="true">
+              <div class="highlight-header">
+                <span class="highlight-type">${getHighlightTypeLabel(highlight.classification)}</span>
+                <div class="highlight-actions">
+                  <button class="btn-icon add-to-workspace" title="Додати до робочої області" data-index="${index}">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                  <button class="btn-icon highlight-copy" title="Копіювати" data-index="${index}">
+                    <i class="fas fa-copy"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="highlight-text">"${escapeHtml(highlight.text || '')}"</div>
+              <div class="highlight-explanation">${escapeHtml(highlight.explanation || '')}</div>
+            </div>
+          `;
+        });
+        
+        highlightedTextEl.innerHTML = html;
+        updateAnalysisStats(counts.manipulations, counts.biases, counts.fallacies, 0);
+        
+        // Add event handlers
+        highlights.forEach((highlight, index) => {
+          // Copy functionality
+          const copyBtn = highlightedTextEl.querySelector(`[data-index="${index}"].highlight-copy`);
+          if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+              const text = `${highlight.text}\n\nПояснення: ${highlight.explanation}`;
+              navigator.clipboard.writeText(text).then(() => {
+                showNotification('Скопійовано в буфер обміну', 'success');
+              });
+            });
+          }
+          
+          // Add to workspace functionality
+          const addBtn = highlightedTextEl.querySelector(`[data-index="${index}"].add-to-workspace`);
+          if (addBtn) {
+            addBtn.addEventListener('click', () => {
+              addToWorkspace(highlight);
+            });
+          }
+        });
+      }
+
+      function displaySummaryNew(summary) {
+        const streamOutputEl = $('#stream-output');
+        if (!streamOutputEl) return;
+        
+        let html = `
+          <div class="analysis-summary">
+            <h3><i class="fas fa-chart-line"></i> Детальний звіт</h3>
+        `;
+        
+        if (summary.manipulations && summary.manipulations.length > 0) {
+          html += `
+            <div class="summary-section">
+              <h4><i class="fas fa-exclamation-triangle"></i> Виявлені маніпуляції</h4>
+              <ul class="summary-list manipulation-list">
+                ${summary.manipulations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+        
+        if (summary.cognitive_biases && summary.cognitive_biases.length > 0) {
+          html += `
+            <div class="summary-section">
+              <h4><i class="fas fa-brain"></i> Когнітивні викривлення</h4>
+              <ul class="summary-list cognitive-list">
+                ${summary.cognitive_biases.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+        
+        if (summary.fallacies && summary.fallacies.length > 0) {
+          html += `
+            <div class="summary-section">
+              <h4><i class="fas fa-balance-scale"></i> Логічні помилки</h4>
+              <ul class="summary-list fallacy-list">
+                ${summary.fallacies.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+        
+        if (summary.recommendations && summary.recommendations.length > 0) {
+          html += `
+            <div class="summary-section recommendations-section">
+              <h4><i class="fas fa-lightbulb"></i> Рекомендації</h4>
+              <ul class="summary-list recommendations-list">
+                ${summary.recommendations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+        
+        html += `</div>`;
+        streamOutputEl.innerHTML = html;
+      }
+
+      function getHighlightTypeLabel(classification) {
+        const labels = {
+          'manipulation': 'Маніпуляція',
+          'cognitive_bias': 'Когнітивне викривлення',
+          'fallacy': 'Логічна помилка'
+        };
+        return labels[classification] || 'Проблема';
+      }
+
+      // ===== WORKSPACE FUNCTIONALITY =====
       
-      fileInput.addEventListener('change', updateFileDisplay);
+      let selectedFragments = [];
+
+      function updateAnalysisStats(manipulations, biases, fallacies, recommendations) {
+        const manipCountEl = $('#manipulations-count');
+        const biasesCountEl = $('#biases-count');
+        const fallaciesCountEl = $('#fallacies-count');
+        const recommendationsCountEl = $('#recommendations-count');
+        
+        if (manipCountEl) manipCountEl.textContent = manipulations;
+        if (biasesCountEl) biasesCountEl.textContent = biases;
+        if (fallaciesCountEl) fallaciesCountEl.textContent = fallacies;
+        if (recommendationsCountEl) recommendationsCountEl.textContent = recommendations;
+      }
+
+      function addToWorkspace(highlight) {
+        // Check if already added
+        if (selectedFragments.find(f => f.text === highlight.text)) {
+          showNotification('Фрагмент вже додано до робочої області', 'warning');
+          return;
+        }
+        
+        selectedFragments.push({
+          ...highlight,
+          id: Date.now() + Math.random(),
+          addedAt: new Date()
+        });
+        
+        updateWorkspace();
+        showNotification('Фрагмент додано до робочої області', 'success');
+      }
+
+      function updateWorkspace() {
+        const fragmentsList = $('#selected-fragments-list');
+        const fragmentCount = $('#fragment-count');
+        const dropZone = $('#fragments-drop-zone');
+        
+        if (fragmentCount) {
+          fragmentCount.textContent = selectedFragments.length;
+        }
+        
+        if (selectedFragments.length === 0) {
+          if (dropZone) {
+            dropZone.querySelector('.drop-zone-content').style.display = 'block';
+          }
+          if (fragmentsList) {
+            fragmentsList.innerHTML = '';
+          }
+          updateWorkspaceButtons(false);
+          return;
+        }
+        
+        if (dropZone) {
+          dropZone.querySelector('.drop-zone-content').style.display = 'none';
+        }
+        
+        let html = '';
+        selectedFragments.forEach((fragment, index) => {
+          const className = fragment.classification === 'manipulation' ? 'manip' :
+                           fragment.classification === 'cognitive_bias' ? 'cognitive' : 'fallacy';
+          
+          html += `
+            <div class="workspace-fragment ${className}" data-id="${fragment.id}">
+              <div class="fragment-header">
+                <span class="fragment-type">${getHighlightTypeLabel(fragment.classification)}</span>
+                <button class="btn-icon remove-fragment" data-id="${fragment.id}">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div class="fragment-text">"${escapeHtml(fragment.text || '')}"</div>
+              <div class="fragment-explanation">${escapeHtml(fragment.explanation || '')}</div>
+            </div>
+          `;
+        });
+        
+        if (fragmentsList) {
+          fragmentsList.innerHTML = html;
+          
+          // Add remove handlers
+          fragmentsList.querySelectorAll('.remove-fragment').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const id = btn.getAttribute('data-id');
+              removeFromWorkspace(id);
+            });
+          });
+        }
+        
+        updateWorkspaceButtons(true);
+      }
+
+      function removeFromWorkspace(id) {
+        selectedFragments = selectedFragments.filter(f => f.id != id);
+        updateWorkspace();
+        showNotification('Фрагмент видалено з робочої області', 'info');
+      }
+
+      function updateWorkspaceButtons(hasFragments) {
+        const personalizedAdviceBtn = $('#get-personalized-advice-btn');
+        const exportSelectedBtn = $('#export-selected-btn');
+        const clearWorkspaceBtn = $('#clear-workspace');
+        
+        if (personalizedAdviceBtn) personalizedAdviceBtn.disabled = !hasFragments;
+        if (exportSelectedBtn) exportSelectedBtn.disabled = !hasFragments;
+        if (clearWorkspaceBtn) clearWorkspaceBtn.disabled = !hasFragments;
+      }
+
+      function clearWorkspace() {
+        selectedFragments = [];
+        updateWorkspace();
+        
+        // Hide strategic advice
+        const strategicAdviceSection = $('#strategic-advice-section');
+        if (strategicAdviceSection) {
+          strategicAdviceSection.style.display = 'none';
+        }
+        
+        showNotification('Робочу область очищено', 'info');
+      }
+
+      // ===== TOKEN USAGE =====
+      
+      function updateTokenUsage(used, total) {
+        const usedEl = $('#tokens-used-display');
+        const totalEl = $('#tokens-limit-display');
+        const progressEl = $('#token-progress-bar');
+        const percentageEl = $('#token-percentage');
+        const headerUsedEl = $('#used-tokens');
+        const headerTotalEl = $('#total-tokens');
+        const headerProgressEl = $('#token-progress-fill');
+        
+        const percentage = Math.round((used / total) * 100);
+        
+        if (usedEl) usedEl.textContent = used.toLocaleString();
+        if (totalEl) totalEl.textContent = total.toLocaleString();
+        if (progressEl) progressEl.style.width = `${Math.min(percentage, 100)}%`;
+        if (percentageEl) percentageEl.textContent = `${percentage}%`;
+        if (headerUsedEl) headerUsedEl.textContent = used.toLocaleString();
+        if (headerTotalEl) headerTotalEl.textContent = total.toLocaleString();
+        
+        // Update header progress bar
+        if (headerProgressEl) {
+          headerProgressEl.style.width = `${Math.min(percentage, 100)}%`;
+          const color = percentage >= 90 ? '#ff0066' : 
+                       percentage >= 75 ? '#ffaa00' : '#00ff88';
+          headerProgressEl.style.background = color;
+        }
+      }
+      
+      // Load token usage from server
+      async function loadTokenUsage() {
+        try {
+          const response = await fetch('/api/usage');
+          if (response.ok) {
+            const usage = await response.json();
+            updateTokenUsage(usage.used_tokens, usage.total_tokens);
+          }
+        } catch (error) {
+          console.error('Failed to load token usage:', error);
+        }
+      }
+
+      // ===== PRODUCTION HELP =====
+      
+      window.showProductionHelp = function() {
+        showNotification('Відкриваю довідку...', 'info');
+        // Add production help modal here
+        console.log('Production help system activated');
+      };
+
+      function resetAnalysisUI() {
+        // Reset button
+        if (startAnalysisBtn) {
+          startAnalysisBtn.disabled = false;
+          startAnalysisBtn.innerHTML = '<i class="fas fa-brain"></i> <span>Розпочати аналіз</span>';
+        }
+        
+        // Clear progress
+        if (window.currentProgressInterval) {
+          clearInterval(window.currentProgressInterval);
+        }
+        
+        // Return to step 1
+        goToStep(1);
+        const step1 = $('#step-1-content');
+        const step2 = $('#step-2-content');
+        const step3 = $('#step-3-content');
+        
+        if (step1) step1.style.display = 'block';
+        if (step2) step2.style.display = 'none';
+        if (step3) step3.style.display = 'none';
+      }
+
+      // Global function for "New Analysis" button
+      window.startNewAnalysis = function() {
+        console.log('🔄 Starting new analysis...');
+        
+        // Clear input
+        if (negotiationText) {
+          negotiationText.value = '';
+          updateTextStats();
+        }
+        
+        // Reset file selection
+        selectedFile = null;
+        const filePreview = $('#file-preview');
+        if (filePreview) filePreview.style.display = 'none';
+        
+        // Reset to text input method
+        switchInputMethod('text');
+        
+        // Clear results areas
+        const highlightedText = $('#highlighted-text');
+        const streamOutput = $('#stream-output');
+        const barometerScore = $('#barometer-score');
+        const barometerLabel = $('#barometer-label');
+        
+        if (highlightedText) {
+          highlightedText.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-search"></i>
+              <p>Результати аналізу з'являться тут</p>
+            </div>
+          `;
+        }
+        
+        if (streamOutput) {
+          streamOutput.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-file-alt"></i>
+              <p>Звіт буде згенеровано автоматично</p>
+            </div>
+          `;
+        }
+        
+        if (barometerScore) barometerScore.textContent = '—';
+        if (barometerLabel) barometerLabel.textContent = 'Аналіз...';
+        
+        // Reset UI state
+        resetAnalysisUI();
+        
+        showNotification('Готовий до нового аналізу', 'info');
+      };
+
+      // Initialize
+      updateTextStats();
+      updateAnalysisButton();
     }
+
+    function initializeAnalysisStep() {
+      setupInputInterface();
+    }
+
 
     function updateFileDisplay() {
       const fileInput = $('.upload-zone input[type="file"]');
@@ -1945,11 +2767,352 @@
       });
     }
 
+    // Initialize workspace state
+    if (!state.workspaceFragments) {
+      state.workspaceFragments = [];
+    }
+    
+    // Initialize token usage
+    loadTokenUsage();
+    setInterval(loadTokenUsage, 30000); // Update every 30 seconds
+    
+    // Initialize workspace
+    updateWorkspace();
+    
+    // Help button functionality
+    const helpButton = document.getElementById('help-toggle');
+    if (helpButton) {
+      helpButton.addEventListener('click', showHelpModal);
+    }
+    
+    function showHelpModal() {
+      const modalOverlay = document.createElement('div');
+      modalOverlay.className = 'modal-overlay';
+      modalOverlay.innerHTML = `
+        <div class=\"modal-content help-modal\">
+          <div class=\"modal-header\">
+            <h2><i class=\"fas fa-question-circle\"></i> Довідка TeamPulse Turbo</h2>
+            <button class=\"modal-close\" onclick=\"this.closest('.modal-overlay').remove()\">
+              <i class=\"fas fa-times\"></i>
+            </button>
+          </div>
+          <div class=\"modal-body\">
+            <div class=\"help-section\">
+              <h3><i class=\"fas fa-play-circle\"></i> Як почати</h3>
+              <ul>
+                <li>Створіть нового клієнта або виберіть існуючого</li>
+                <li>Введіть текст переговорів або завантажте файл</li>
+                <li>Натисніть "Розпочати аналіз" для AI-обробки</li>
+              </ul>
+            </div>
+            <div class=\"help-section\">
+              <h3><i class=\"fas fa-chart-line\"></i> Розуміння результатів</h3>
+              <ul>
+                <li><span class=\"help-highlight manip\">Червоні</span> виділення - маніпулятивні техніки</li>
+                <li><span class=\"help-highlight cog\">Сині</span> виділення - когнітивні викривлення</li>
+                <li><span class=\"help-highlight fallacy\">Жовті</span> виділення - логічні помилки</li>
+                <li>Барометр показує загальний рівень маніпулятивності (0-100)</li>
+              </ul>
+            </div>
+            <div class=\"help-section\">
+              <h3><i class=\"fas fa-tools\"></i> Робочий простір</h3>
+              <ul>
+                <li>Додавайте важливі фрагменти до робочого простору</li>
+                <li>Отримуйте персоналізовані поради для кожного фрагменту</li>
+                <li>Перетягуйте елементи для зручної організації</li>
+              </ul>
+            </div>
+            <div class=\"help-section\">
+              <h3><i class=\"fas fa-shield-alt\"></i> Конфіденційність</h3>
+              <p>Всі дані обробляються локально та безпечно зберігаються. AI-аналіз виконується через захищені канали з OpenAI.</p>
+            </div>
+          </div>
+          <div class=\"modal-footer\">
+            <button class=\"btn btn-primary\" onclick=\"this.closest('.modal-overlay').remove()\">
+              Зрозуміло
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modalOverlay);
+      
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+          modalOverlay.remove();
+        }
+      });
+    }
+    
+    // Tools button functionality
+    const toolsButton = document.getElementById('tools-toggle');
+    if (toolsButton) {
+      toolsButton.addEventListener('click', showToolsModal);
+    }
+    
+    function showToolsModal() {
+      const modalOverlay = document.createElement('div');
+      modalOverlay.className = 'modal-overlay';
+      modalOverlay.innerHTML = `
+        <div class=\"modal-content tools-modal\">
+          <div class=\"modal-header\">
+            <h2><i class=\"fas fa-sliders-h\"></i> Інструменти розробника</h2>
+            <button class=\"modal-close\" onclick=\"this.closest('.modal-overlay').remove()\">
+              <i class=\"fas fa-times\"></i>
+            </button>
+          </div>
+          <div class=\"modal-body\">
+            <div class=\"tools-section\">
+              <h3><i class=\"fas fa-database\"></i> Управління базою даних</h3>
+              <p class=\"tools-warning\">
+                <i class=\"fas fa-exclamation-triangle\"></i>
+                Увага! Ця дія видалить всі тестові дані безповоротно.
+              </p>
+              <div class=\"cleanup-controls\">
+                <input type=\"text\" id=\"cleanup-code\" placeholder=\"Введіть код підтвердження\" 
+                       class=\"form-input\" style=\"margin-bottom: 1rem;\" />
+                <button class=\"btn btn-danger\" onclick=\"performDatabaseCleanup()\">
+                  <i class=\"fas fa-trash\"></i> Очистити тестові дані
+                </button>
+              </div>
+              <p class=\"cleanup-hint\">Код підтвердження: <code>CLEANUP_TEST_DATA_2024</code></p>
+            </div>
+            <div class=\"tools-section\">
+              <h3><i class=\"fas fa-chart-bar\"></i> Статистика</h3>
+              <div class=\"stats-grid\">
+                <div class=\"stat-card\">
+                  <div class=\"stat-value\" id=\"total-clients\">—</div>
+                  <div class=\"stat-label\">Клієнтів</div>
+                </div>
+                <div class=\"stat-card\">
+                  <div class=\"stat-value\" id=\"total-analyses\">—</div>
+                  <div class=\"stat-label\">Аналізів</div>
+                </div>
+                <div class=\"stat-card\">
+                  <div class=\"stat-value\" id=\"avg-score\">—</div>
+                  <div class=\"stat-label\">Середній бал</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class=\"modal-footer\">
+            <button class=\"btn btn-secondary\" onclick=\"this.closest('.modal-overlay').remove()\">
+              Закрити
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modalOverlay);
+      
+      loadDeveloperStats();
+      
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+          modalOverlay.remove();
+        }
+      });
+    }
+    
+    async function loadDeveloperStats() {
+      try {
+        const totalClientsEl = document.getElementById('total-clients');
+        const totalAnalysesEl = document.getElementById('total-analyses');
+        const avgScoreEl = document.getElementById('avg-score');
+        
+        if (totalClientsEl) totalClientsEl.textContent = state.clients?.length || '0';
+        if (totalAnalysesEl) totalAnalysesEl.textContent = '—';
+        if (avgScoreEl) avgScoreEl.textContent = '—';
+        
+      } catch (error) {
+        console.error('Failed to load developer stats:', error);
+      }
+    }
+    
+    window.performDatabaseCleanup = async function() {
+      const codeInput = document.getElementById('cleanup-code');
+      const confirmCode = codeInput?.value;
+      
+      if (!confirmCode) {
+        showNotification('Введіть код підтвердження', 'warning');
+        return;
+      }
+      
+      if (confirmCode !== 'CLEANUP_TEST_DATA_2024') {
+        showNotification('Невірний код підтвердження', 'error');
+        return;
+      }
+      
+      if (!confirm('Ви дійсно хочете видалити всі тестові дані? Цю дію неможливо скасувати.')) {
+        return;
+      }
+      
+      try {
+        showNotification('Очищення бази даних...', 'info');
+        
+        const response = await fetch('/api/admin/cleanup-database', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmCode })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          showNotification(`Успішно видалено: ${result.deleted?.clients || 0} клієнтів, ${result.deleted?.analyses || 0} аналізів`, 'success');
+          
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+          
+        } else {
+          showNotification(result.error || 'Помилка очищення бази даних', 'error');
+        }
+        
+      } catch (error) {
+        console.error('Database cleanup failed:', error);
+        showNotification('Помилка очищення бази даних', 'error');
+      }
+    };
+
     logger.info('⚡ TeamPulse Turbo v3.0 initialized', { 
       version: '3.0.0',
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
       viewport: `${window.innerWidth}x${window.innerHeight}`
     });
+    
+    // Workspace functionality
+    window.addToWorkspace = function(highlightId) {
+      const highlightElement = document.getElementById(highlightId);
+      if (!highlightElement) return;
+      
+      try {
+        const highlightData = JSON.parse(highlightElement.getAttribute('data-highlight'));
+        const fragment = {
+          ...highlightData,
+          text: highlightElement.textContent.trim()
+        };
+        
+        // Check if already added
+        const alreadyAdded = state.workspaceFragments.some(f => 
+          f.text === fragment.text && f.category === fragment.category
+        );
+        
+        if (alreadyAdded) {
+          showNotification('Фрагмент вже додано до робочого простору', 'warning');
+          return;
+        }
+        
+        state.workspaceFragments.push(fragment);
+        updateWorkspace();
+        
+        // Mark button as added
+        const addBtn = highlightElement.querySelector('.highlight-btn');
+        if (addBtn) {
+          addBtn.classList.add('added');
+          addBtn.innerHTML = '<i class="fas fa-check"></i>';
+        }
+        
+        showNotification('Фрагмент додано до робочого простору', 'success');
+        
+      } catch (error) {
+        console.error('Error adding to workspace:', error);
+        showNotification('Помилка додавання фрагменту', 'error');
+      }
+    };
+    
+    window.removeFromWorkspace = function(index) {
+      if (index >= 0 && index < state.workspaceFragments.length) {
+        state.workspaceFragments.splice(index, 1);
+        updateWorkspace();
+        showNotification('Фрагмент видалено з робочого простору', 'info');
+      }
+    };
+    
+    function updateWorkspace() {
+      const workspaceContent = document.getElementById('workspace-content');
+      if (!workspaceContent) return;
+      
+      if (state.workspaceFragments.length === 0) {
+        workspaceContent.innerHTML = `
+          <div class="workspace-empty">
+            <div class="workspace-empty-icon">📋</div>
+            <h3>Робочий простір порожній</h3>
+            <p>Додайте фрагменти з аналізу для подальшої роботи</p>
+          </div>
+        `;
+        return;
+      }
+      
+      workspaceContent.innerHTML = state.workspaceFragments.map((fragment, index) => {
+        const categoryClass = fragment.category === 'manipulation' ? 'manip' : 
+                             fragment.category === 'cognitive_bias' ? 'cog' : 'fallacy';
+        const categoryName = fragment.category === 'manipulation' ? 'Маніпуляція' :
+                            fragment.category === 'cognitive_bias' ? 'Когнітивне викривлення' : 'Логічна помилка';
+        
+        return `
+          <div class="workspace-fragment" draggable="true" data-index="${index}">
+            <div class="fragment-content">${escapeHtml(fragment.text || '')}</div>
+            <div class="fragment-meta">
+              <span class="fragment-type ${categoryClass}">${categoryName}</span>
+              <button class="fragment-remove" onclick="removeFromWorkspace(${index})" title="Видалити">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // Add drag and drop functionality
+      const fragments = workspaceContent.querySelectorAll('.workspace-fragment');
+      fragments.forEach(fragment => {
+        fragment.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', e.target.getAttribute('data-index'));
+          e.target.classList.add('dragging');
+        });
+        
+        fragment.addEventListener('dragend', (e) => {
+          e.target.classList.remove('dragging');
+        });
+      });
+      
+      // Update workspace badge
+      const workspaceBadge = document.querySelector('.workspace-badge');
+      if (workspaceBadge) {
+        workspaceBadge.textContent = state.workspaceFragments.length;
+        workspaceBadge.style.display = state.workspaceFragments.length > 0 ? 'block' : 'none';
+      }
+    }
+    
+    window.getAdviceForFragment = function(highlightId) {
+      const highlightElement = document.getElementById(highlightId);
+      if (!highlightElement) return;
+      
+      try {
+        const highlightData = JSON.parse(highlightElement.getAttribute('data-highlight'));
+        const fragment = {
+          ...highlightData,
+          text: highlightElement.textContent.trim()
+        };
+        
+        // Add to selected fragments if not already there
+        const alreadySelected = state.selectedFragments.some(f => 
+          f.text === fragment.text && f.category === fragment.category
+        );
+        
+        if (!alreadySelected) {
+          state.selectedFragments.push(fragment);
+        }
+        
+        // Trigger advice generation
+        generateAdvice();
+        
+      } catch (error) {
+        console.error('Error getting advice for fragment:', error);
+        showNotification('Помилка отримання поради', 'error');
+      }
+    };
+    
   })();
   

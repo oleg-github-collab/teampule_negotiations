@@ -1,12 +1,9 @@
-// routes/analyze.js - Production analysis engine
+// routes/analyze.js - Оновлений аналізатор
 import { Router } from 'express';
 import { run as dbRun, get as dbGet } from '../utils/db.js';
 import { client as openaiClient, estimateTokens } from '../utils/openAIClient.js';
-import { validateFileUpload } from '../middleware/validators.js';
-import { logError, logAIUsage, logPerformance } from '../utils/logger.js';
 import Busboy from 'busboy';
 import mammoth from 'mammoth';
-import { performance } from 'perf_hooks';
 
 const r = Router();
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
@@ -14,8 +11,6 @@ const MAX_HIGHLIGHTS_PER_1000_WORDS = Number(
   process.env.MAX_HIGHLIGHTS_PER_1000_WORDS || 12
 );
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
-const MAX_TEXT_LENGTH = 100000; // 100k characters max
-const MIN_TEXT_LENGTH = 20; // Minimum text length
 
 // ===== Helpers =====
 function normalizeText(s) {
@@ -72,10 +67,10 @@ function mergeOverlaps(highlights) {
 
 async function getUsageRow() {
   const day = new Date().toISOString().slice(0, 10);
-  let row = dbGet(`SELECT * FROM usage_daily WHERE day=?`, [day]);
+  let row = await dbGet(`SELECT * FROM usage_daily WHERE day=?`, [day]);
   if (!row) {
-    dbRun(`INSERT INTO usage_daily(day, tokens_used) VALUES(?,0)`, [day]);
-    row = dbGet(`SELECT * FROM usage_daily WHERE day=?`, [day]);
+    await dbRun(`INSERT INTO usage_daily(day, tokens_used) VALUES(?,0)`, [day]);
+    row = await dbGet(`SELECT * FROM usage_daily WHERE day=?`, [day]);
   }
   return { row, day };
 }
@@ -90,13 +85,13 @@ async function addTokensAndCheck(tokensToAdd) {
   const newTotal = (row.tokens_used || 0) + tokensToAdd;
   if (newTotal >= DAILY_TOKEN_LIMIT) {
     const lock = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    dbRun(
+    await dbRun(
       `UPDATE usage_daily SET tokens_used=?, locked_until=? WHERE day=?`,
       [newTotal, lock, day]
     );
     throw new Error(`Досягнуто денний ліміт токенів. Блокування до ${lock}`);
   } else {
-    dbRun(`UPDATE usage_daily SET tokens_used=? WHERE day=?`, [
+    await dbRun(`UPDATE usage_daily SET tokens_used=? WHERE day=?`, [
       newTotal,
       day,
     ]);
@@ -188,89 +183,62 @@ function supportsTemperature(model) {
   return !/^gpt-5($|[-:])/i.test(model);
 }
 
-// ===== Main Analysis Route =====
-r.post('/', validateFileUpload, async (req, res) => {
-  const analysisStartTime = performance.now();
-  let totalTokensUsed = 0;
-  
+// ===== Route =====
+r.post('/', async (req, res) => {
   try {
-    const { text: rawText, fileName, profile, clientId } = await parseMultipart(req);
+    const { text: rawText, fileName, profile, clientId } = await parseMultipart(
+      req
+    );
     const text = normalizeText(rawText);
-    
-    // Enhanced text validation
-    if (!text || text.length < MIN_TEXT_LENGTH) {
-      return res.status(400).json({ 
-        error: `Текст занадто короткий. Мінімальна довжина: ${MIN_TEXT_LENGTH} символів`,
-        minLength: MIN_TEXT_LENGTH,
-        currentLength: text.length
-      });
-    }
-    
-    if (text.length > MAX_TEXT_LENGTH) {
-      return res.status(400).json({ 
-        error: `Текст занадто довгий. Максимальна довжина: ${MAX_TEXT_LENGTH.toLocaleString()} символів`,
-        maxLength: MAX_TEXT_LENGTH,
-        currentLength: text.length
-      });
-    }
+    if (!text || text.length < 20)
+      return res.status(400).json({ error: 'Текст занадто короткий' });
 
-    // Enhanced client validation and creation
+    // Check if client exists
     let finalClientId = clientId;
     if (!finalClientId && profile?.company) {
-      const existingClient = dbGet(
-        `SELECT id, company FROM clients WHERE company = ? LIMIT 1`,
+      const existingClient = await dbGet(
+        `SELECT id FROM clients WHERE company = ?`,
         [profile.company]
       );
       if (existingClient) {
         finalClientId = existingClient.id;
-      } else if (profile.company && profile.company.trim().length > 0) {
-        // Auto-create client with validation
-        try {
-          const info = dbRun(
-            `
-            INSERT INTO clients(
-              company, negotiator, sector, goal, decision_criteria, constraints,
-              user_goals, client_goals, weekly_hours, offered_services, deadlines, notes,
-              created_at, updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            `,
-            [
-              profile.company.trim(),
-              profile.negotiator?.trim() || null,
-              profile.sector?.trim() || null,
-              profile.goal?.trim() || null,
-              profile.criteria?.trim() || null,
-              profile.constraints?.trim() || null,
-              profile.user_goals?.trim() || null,
-              profile.client_goals?.trim() || null,
-              Number(profile.weekly_hours) || 0,
-              profile.offered_services?.trim() || null,
-              profile.deadlines?.trim() || null,
-              profile.notes?.trim() || null,
-              new Date().toISOString(),
-              new Date().toISOString(),
-            ]
-          );
-          finalClientId = info.lastID;
-        } catch (dbError) {
-          logError(dbError, { context: 'Auto-creating client', profile, ip: req.ip });
-          return res.status(500).json({ error: 'Помилка створення клієнта' });
-        }
+      } else {
+        // Create new client
+        const info = await dbRun(
+          `
+          INSERT INTO clients(
+            company, negotiator, sector, goal, decision_criteria, constraints,
+            user_goals, client_goals, weekly_hours, offered_services, deadlines, notes,
+            created_at, updated_at
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          `,
+          [
+            profile.company,
+            profile.negotiator || null,
+            profile.sector || null,
+            profile.goal || null,
+            profile.criteria || null,
+            profile.constraints || null,
+            profile.user_goals || null,
+            profile.client_goals || null,
+            Number(profile.weekly_hours) || 0,
+            profile.offered_services || null,
+            profile.deadlines || null,
+            profile.notes || null,
+            new Date().toISOString(),
+            new Date().toISOString(),
+          ]
+        );
+        finalClientId = info.lastID;
       }
     }
 
     if (!finalClientId) {
-      return res.status(400).json({ 
-        error: 'Потрібно вказати клієнта або компанію',
-        required: 'client_id або profile.company'
-      });
+      return res.status(400).json({ error: 'Потрібно вказати клієнта' });
     }
 
     const paragraphs = splitToParagraphs(text);
     const approxTokensIn = estimateTokens(text) + 1200;
-    totalTokensUsed += approxTokensIn;
-    
-    // Check token limits before processing
     await addTokensAndCheck(approxTokensIn);
 
     const clientCtx = {
@@ -311,61 +279,78 @@ r.post('/', validateFileUpload, async (req, res) => {
     let summaryObj = null;
     let barometerObj = null;
 
-    // Production requires OpenAI API
     if (!openaiClient) {
-      logError(new Error('OpenAI client not configured'), {
-        context: 'Analysis attempted without API key',
-        ip: req.ip,
-        clientId: finalClientId
+      // Fallback demo
+      const firstLen = Math.min(paragraphs[0]?.text.length || 0, 60);
+      if (firstLen > 0) {
+        const demo = {
+          type: 'highlight',
+          id: 'hl_demo',
+          paragraph_index: 0,
+          char_start: 0,
+          char_end: firstLen,
+          category: 'manipulation',
+          label: 'Appeal to Fear',
+          explanation: 'Демонстраційний режим',
+          severity: 2,
+        };
+        rawHighlights.push(demo);
+        sendLine(demo);
+      }
+      summaryObj = {
+        type: 'summary',
+        counts_by_category: {
+          manipulation: rawHighlights.length,
+          cognitive_bias: 0,
+          rhetological_fallacy: 0,
+        },
+        top_patterns: ['Appeal to Fear'],
+        overall_observations: 'Demo summary',
+      };
+      barometerObj = {
+        type: 'barometer',
+        score: 72,
+        label: 'High',
+        rationale: 'Demo rationale',
+        factors: {
+          goal_alignment: 0.5,
+          manipulation_density: 0.8,
+          scope_clarity: 0.5,
+          time_pressure: 0.6,
+          resource_demand: 0.7,
+        },
+      };
+    } else {
+      const system = buildSystemPrompt();
+      const user = JSON.stringify(
+        buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
+      );
+
+      const reqPayload = {
+        model: MODEL,
+        stream: true,
+        messages: [
+          { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
+          { role: 'user', content: user },
+        ],
+        stop: ['```','</artifacts>','</artifact>']
+      };
+
+      if (supportsTemperature(MODEL)) {
+        reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.2);
+      }
+
+      // Add AbortController for proper request handling
+      const controller = new AbortController();
+      
+      req.on('close', () => {
+        controller.abort('Request closed by client');
       });
       
-      return res.status(503).json({
-        error: 'Сервіс тимчасово недоступний. Налаштуйте OPENAI_API_KEY.',
-        code: 'AI_SERVICE_UNAVAILABLE'
-      });
-    }
-
-    const aiStartTime = performance.now();
-    const system = buildSystemPrompt();
-    const user = JSON.stringify(
-      buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
-    );
-
-    const reqPayload = {
-      model: MODEL,
-      stream: true,
-      messages: [
-        { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
-        { role: 'user', content: user },
-      ],
-      stop: ['```','</artifacts>','</artifact>'],
-      max_tokens: 4000,
-      top_p: 0.9
-    };
-
-    if (supportsTemperature(MODEL)) {
-      reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.2);
-    }
-
-    // Enhanced request handling with timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort('Request timeout');
-    }, 120000); // 2 minute timeout
-    
-    req.on('close', () => {
-      clearTimeout(timeout);
-      controller.abort('Request closed by client');
-    });
-    
-    let stream;
-    try {
-      stream = await openaiClient.chat.completions.create({
+      const stream = await openaiClient.chat.completions.create({
         ...reqPayload,
         signal: controller.signal
       });
-      
-      clearTimeout(timeout);
 
       // Фільтрація та видобування JSON-об'єктів
       const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
@@ -419,65 +404,45 @@ r.post('/', validateFileUpload, async (req, res) => {
           .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 
       let buffer = '';
-      for await (const part of stream) {
-        const delta = part.choices?.[0]?.delta?.content || '';
-        if (!delta) continue;
+      try {
+        for await (const part of stream) {
+          const delta = part.choices?.[0]?.delta?.content || '';
+          if (!delta) continue;
 
-        buffer += sanitizeChunk(delta);
+          buffer += sanitizeChunk(delta);
 
-        // Витягуємо всі завершені JSON-об'єкти з буфера
-        const [rawObjs, rest] = extractJsonObjects(buffer);
-        buffer = rest;
+          // Витягуємо всі завершені JSON-об'єкти з буфера
+          const [rawObjs, rest] = extractJsonObjects(buffer);
+          buffer = rest;
 
-        for (const raw of rawObjs) {
-          try {
-            const obj = JSON.parse(raw);
+          for (const raw of rawObjs) {
+            try {
+              const obj = JSON.parse(raw);
 
-            // Пропускаємо тільки очікувані типи
-            if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
+              // Пропускаємо тільки очікувані типи
+              if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
 
-            if (obj.type === 'highlight') {
-              rawHighlights.push(obj);
-              sendLine(obj);
-            } else if (obj.type === 'summary') {
-              summaryObj = obj;
-            } else if (obj.type === 'barometer') {
-              barometerObj = obj;
+              if (obj.type === 'highlight') {
+                rawHighlights.push(obj);
+                sendLine(obj);
+              } else if (obj.type === 'summary') {
+                summaryObj = obj;
+              } else if (obj.type === 'barometer') {
+                barometerObj = obj;
+              }
+            } catch (e) {
+              // Тихо ігноруємо биті об'єкти
+              // console.warn('[NDJSON:bad_obj]', raw);
             }
-          } catch (e) {
-            // Тихо ігноруємо биті об'єкти
           }
         }
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          console.log('Stream aborted by client');
+          return; // Exit gracefully
+        }
+        throw error; // Re-throw other errors
       }
-    } catch (error) {
-      clearTimeout(timeout);
-      
-      if (error.name === 'AbortError') {
-        logPerformance('AI Analysis Aborted', Date.now() - aiStartTime, {
-          reason: error.message,
-          clientId: finalClientId,
-          textLength: text.length
-        });
-        return; // Exit gracefully
-      }
-      
-      // Log AI API errors
-      logError(error, {
-        context: 'OpenAI API call failed',
-        model: MODEL,
-        textLength: text.length,
-        tokensEstimated: approxTokensIn,
-        clientId: finalClientId,
-        ip: req.ip
-      });
-      
-      if (!res.headersSent) {
-        return res.status(503).json({
-          error: 'Помилка AI сервісу. Спробуйте пізніше.',
-          code: 'AI_API_ERROR'
-        });
-      }
-      return;
     }
 
     const words = text.split(/\s+/).filter(Boolean).length || 1;
@@ -498,20 +463,7 @@ r.post('/', validateFileUpload, async (req, res) => {
     if (summaryObj) sendLine(summaryObj);
     if (barometerObj) sendLine(barometerObj);
 
-    const outputTokens = 1600;
-    totalTokensUsed += outputTokens;
-    await addTokensAndCheck(outputTokens);
-    
-    // Log AI usage for monitoring
-    logAIUsage(totalTokensUsed, MODEL, 'text_analysis');
-    
-    const analysisDuration = performance.now() - analysisStartTime;
-    logPerformance('Complete Analysis', analysisDuration, {
-      textLength: text.length,
-      tokensUsed: totalTokensUsed,
-      highlightsFound: merged.length,
-      clientId: finalClientId
-    });
+    await addTokensAndCheck(1600);
 
     // Generate title for analysis
     const title = fileName
@@ -519,7 +471,7 @@ r.post('/', validateFileUpload, async (req, res) => {
       : `Аналіз від ${new Date().toLocaleDateString('uk-UA')}`;
 
     // Save to DB with client_id
-    const result = dbRun(
+    const result = await dbRun(
       `
       INSERT INTO analyses(
         client_id, title, source, original_filename, original_text, tokens_estimated, 
@@ -532,7 +484,7 @@ r.post('/', validateFileUpload, async (req, res) => {
         fileName ? 'file' : 'text',
         fileName || null,
         text.substring(0, 1000), // Save first 1000 chars for preview
-        totalTokensUsed,
+        approxTokensIn + 1600,
         JSON.stringify(merged),
         JSON.stringify(summaryObj || null),
         JSON.stringify(barometerObj || null),
@@ -548,35 +500,16 @@ r.post('/', validateFileUpload, async (req, res) => {
     res.write('event: done\ndata: "ok"\n\n');
     res.end();
   } catch (err) {
-    const analysisDuration = performance.now() - analysisStartTime;
-    
-    logError(err, {
-      context: 'Analysis route error',
-      duration: analysisDuration,
-      tokensUsed: totalTokensUsed,
-      ip: req.ip,
-      userAgent: req.get('User-Agent')
-    });
-    
+    console.error('Analyze error:', err.message);
     try {
       if (!res.headersSent) {
-        const isRateLimit = err.message.includes('Ліміт');
-        const statusCode = isRateLimit ? 429 : 500;
-        
-        res.status(statusCode).json({ 
-          error: err.message || 'Помилка обробки аналізу',
-          code: isRateLimit ? 'RATE_LIMIT_EXCEEDED' : 'ANALYSIS_ERROR',
-          timestamp: new Date().toISOString()
-        });
+        res.status(400).json({ error: err.message });
       } else {
-        res.write(`event: error\ndata: ${JSON.stringify({
-          error: err.message,
-          timestamp: new Date().toISOString()
-        })}\n\n`);
+        res.write(`event: error\ndata: ${JSON.stringify(err.message)}\n\n`);
         res.end();
       }
-    } catch (finalError) {
-      logError(finalError, { context: 'Final error handler' });
+    } catch {
+      // no-op
     }
   }
 });
