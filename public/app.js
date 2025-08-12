@@ -1918,6 +1918,12 @@
         // Update step indicators
         goToStep(2);
         
+        // Disable workspace panel during analysis
+        const workspacePanel = $('#workspace-panel');
+        if (workspacePanel) {
+          workspacePanel.classList.add('analyzing');
+        }
+        
         // Start progress animation
         startProgressAnimation();
       }
@@ -2437,6 +2443,12 @@
           clearInterval(window.currentProgressInterval);
         }
         
+        // Re-enable workspace panel
+        const workspacePanel = $('#workspace-panel');
+        if (workspacePanel) {
+          workspacePanel.classList.remove('analyzing');
+        }
+        
         // Return to step 1
         goToStep(1);
         const step1 = $('#step-1-content');
@@ -2660,6 +2672,12 @@
 
     function showAnalysisResults(highlights, summary, barometer) {
       analysisResults = { highlights, summary, barometer };
+      
+      // Re-enable workspace panel
+      const workspacePanel = $('#workspace-panel');
+      if (workspacePanel) {
+        workspacePanel.classList.remove('analyzing');
+      }
       
       // Update summary stats
       const summaryStats = $('.summary-stats');
