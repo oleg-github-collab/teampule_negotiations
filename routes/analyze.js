@@ -613,6 +613,13 @@ r.post('/', validateFileUpload, async (req, res) => {
       client_id: finalClientId,
       original_text: text 
     });
+    
+    // Send complete signal to frontend
+    sendLine({ 
+      type: 'complete', 
+      analysis_id: result.lastID 
+    });
+    
     res.write('event: done\ndata: "ok"\n\n');
     res.end();
   } catch (err) {

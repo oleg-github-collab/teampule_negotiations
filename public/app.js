@@ -1527,6 +1527,11 @@
       $('#next-step')?.addEventListener('click', () => this.nextStep());
       $('#prev-step')?.addEventListener('click', () => this.prevStep());
       
+      // Add close button functionality
+      $('.onboarding-close')?.addEventListener('click', () => {
+        this.hide();
+      });
+      
       // Prevent closing on outside click
       this.modal?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2070,6 +2075,9 @@
       function displayAnalysisResultsNew(results) {
         console.log('🎯 Displaying results:', results);
         
+        // Switch to results step first
+        switchToResultsStep();
+        
         // Update barometer
         if (results.barometer) {
           updateBarometerNew(results.barometer);
@@ -2085,15 +2093,40 @@
           displaySummaryNew(results.summary);
         }
         
-        // Activate right sidebar with analysis results
-        if (elements.rightSidebar) {
-          elements.rightSidebar.classList.add('active');
-          console.log('✅ Right sidebar activated after analysis');
+        // Remove analyzing state from workspace panel
+        const workspacePanel = $('#workspace-panel');
+        if (workspacePanel) {
+          workspacePanel.classList.remove('analyzing');
         }
         
         // Enable export
         const exportBtn = $('#export-btn');
         if (exportBtn) exportBtn.disabled = false;
+      }
+      
+      function switchToResultsStep() {
+        // Hide step 1 and 2, show step 3 (results)
+        const step1 = $('#step-1-content');
+        const step2 = $('#step-2-content');
+        const step3 = $('#step-3-content');
+        
+        if (step1) step1.style.display = 'none';
+        if (step2) step2.style.display = 'none';
+        if (step3) step3.style.display = 'block';
+        
+        // Update step indicators
+        updateStepIndicators(3);
+        
+        console.log('📊 Switched to results step');
+      }
+      
+      function updateStepIndicators(currentStep) {
+        const steps = $$('.step[data-step]');
+        steps.forEach(step => {
+          const stepNum = parseInt(step.getAttribute('data-step'));
+          step.classList.toggle('active', stepNum === currentStep);
+          step.classList.toggle('completed', stepNum < currentStep);
+        });
       }
 
       function updateBarometerNew(barometer) {
@@ -2519,6 +2552,17 @@
         
         // Reset UI state
         resetAnalysisUI();
+        
+        // Go back to step 1
+        const step1 = $('#step-1-content');
+        const step2 = $('#step-2-content');
+        const step3 = $('#step-3-content');
+        
+        if (step1) step1.style.display = 'block';
+        if (step2) step2.style.display = 'none';
+        if (step3) step3.style.display = 'none';
+        
+        updateStepIndicators(1);
         
         showNotification('Готовий до нового аналізу', 'info');
       };
