@@ -4112,3 +4112,153 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-13 00:34:22'
 }
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:02'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:02'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:02'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:02'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:02'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:28'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:28'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:28'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:28'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:46:28'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:37'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:37'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:37'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:37'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:37'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:46'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:46'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:46'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:46'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:47:46'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:48:51'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:48:51'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:48:51'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:48:51'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 00:48:51'
+}

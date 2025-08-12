@@ -281,37 +281,37 @@
         const isCollapsed = sidebar.classList.contains('collapsed');
         
         if (side === 'left') {
-            state.ui.leftSidebarCollapsed = !isCollapsed;
-            sidebar.classList.toggle('collapsed');
+            state.ui.leftSidebarCollapsed = !state.ui.leftSidebarCollapsed;
+            sidebar.classList.toggle('collapsed', state.ui.leftSidebarCollapsed);
             
             // Show/hide the sidebar show button
             if (elements.sidebarShowBtn) {
-                elements.sidebarShowBtn.style.display = !isCollapsed ? 'none' : 'flex';
+                elements.sidebarShowBtn.style.display = state.ui.leftSidebarCollapsed ? 'flex' : 'none';
             }
             
             // Update main content margin
             if (window.innerWidth > 1024) {
-                elements.mainContent.style.marginLeft = isCollapsed ? '0' : `var(--sidebar-width)`;
+                elements.mainContent.style.marginLeft = state.ui.leftSidebarCollapsed ? '0' : 'var(--sidebar-width)';
             }
             
             // Update toggle icon
             const icon = elements.sidebarLeftToggle?.querySelector('i');
             if (icon) {
-                icon.className = isCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+                icon.className = state.ui.leftSidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
             }
         } else {
-            state.ui.rightSidebarCollapsed = !isCollapsed;
-            sidebar.classList.toggle('collapsed');
+            state.ui.rightSidebarCollapsed = !state.ui.rightSidebarCollapsed;
+            sidebar.classList.toggle('collapsed', state.ui.rightSidebarCollapsed);
             
             // Update main content margin
             if (window.innerWidth > 1024) {
-                elements.mainContent.style.marginRight = isCollapsed ? '0' : `var(--right-panel-width)`;
+                elements.mainContent.style.marginRight = state.ui.rightSidebarCollapsed ? '0' : 'var(--right-panel-width)';
             }
             
             // Update toggle icon
             const icon = elements.sidebarRightToggle?.querySelector('i');
             if (icon) {
-                icon.className = isCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
+                icon.className = state.ui.rightSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
             }
         }
         
@@ -808,6 +808,12 @@
                             } else if (data.type === 'analysis_saved') {
                                 state.currentAnalysis = { id: data.id, ...analysisData };
                                 await loadAnalysisHistory(state.currentClient.id);
+                                
+                                // Calculate and display custom barometer if none was provided
+                                if (!analysisData.barometer) {
+                                    const customBarometer = calculateComplexityBarometer(state.currentClient, analysisData);
+                                    updateBarometerDisplay(customBarometer);
+                                }
                             }
                         } catch (e) {
                             // Skip invalid JSON lines
@@ -955,16 +961,129 @@
         }
     }
 
+    // ===== Custom Barometer Logic =====
+    function calculateComplexityBarometer(clientData, analysisData) {
+        let complexityScore = 0;
+        let factors = {
+            client_profile: 0,
+            manipulation_density: 0,
+            negotiation_type: 0,
+            stakes_level: 0,
+            communication_complexity: 0
+        };
+        
+        // Factor 1: Client Profile Complexity (0-25 points)
+        if (clientData) {
+            // Company size impact
+            const sizeMap = { 'startup': 5, 'small': 10, 'medium': 15, 'large': 25 };
+            factors.client_profile += sizeMap[clientData.company_size] || 10;
+            
+            // Sector complexity
+            const sectorMap = { 
+                'IT': 10, 'Finance': 20, 'Healthcare': 15, 'Education': 5,
+                'Manufacturing': 12, 'Retail': 8, 'Real Estate': 18, 'Energy': 22,
+                'Consulting': 15, 'Other': 10
+            };
+            factors.client_profile += (sectorMap[clientData.sector] || 10) * 0.5;
+            
+            // Deal value complexity
+            if (clientData.deal_value) {
+                const dealStr = clientData.deal_value.toLowerCase();
+                if (dealStr.includes('m') || dealStr.includes('мільйон') || dealStr.includes('млн')) {
+                    factors.client_profile += 8;
+                } else if (dealStr.includes('k') || dealStr.includes('тисяч') || dealStr.includes('тис')) {
+                    factors.client_profile += 3;
+                }
+            }
+        }
+        
+        // Factor 2: Manipulation Density (0-30 points)
+        if (analysisData && analysisData.highlights) {
+            const totalHighlights = analysisData.highlights.length;
+            const textLength = state.originalText ? state.originalText.length : 1000;
+            const density = (totalHighlights / (textLength / 100)); // highlights per 100 chars
+            
+            factors.manipulation_density = Math.min(30, density * 5);
+            
+            // Severity bonus
+            const avgSeverity = analysisData.highlights.reduce((sum, h) => sum + (h.severity || 1), 0) / totalHighlights;
+            factors.manipulation_density += avgSeverity * 3;
+        }
+        
+        // Factor 3: Negotiation Type Complexity (0-20 points) 
+        if (clientData?.negotiation_type) {
+            const typeMap = {
+                'sales': 8, 'partnership': 12, 'contract': 10, 'investment': 18,
+                'acquisition': 20, 'licensing': 15, 'other': 10
+            };
+            factors.negotiation_type = typeMap[clientData.negotiation_type] || 10;
+        }
+        
+        // Factor 4: Stakes Level (0-15 points)
+        if (clientData?.goals || clientData?.user_goals) {
+            const goalsText = (clientData.goals || clientData.user_goals || '').toLowerCase();
+            if (goalsText.includes('критично') || goalsText.includes('важливо') || goalsText.includes('стратегічно')) {
+                factors.stakes_level += 8;
+            }
+            if (goalsText.includes('терміново') || goalsText.includes('швидко')) {
+                factors.stakes_level += 4;
+            }
+            factors.stakes_level += Math.min(3, goalsText.length / 50);
+        }
+        
+        // Factor 5: Communication Complexity (0-10 points)
+        if (analysisData?.highlights) {
+            const categories = analysisData.highlights.reduce((acc, h) => {
+                acc[h.category] = (acc[h.category] || 0) + 1;
+                return acc;
+            }, {});
+            
+            factors.communication_complexity = Math.min(10, Object.keys(categories).length * 2);
+        }
+        
+        // Calculate total complexity score
+        complexityScore = Object.values(factors).reduce((sum, val) => sum + val, 0);
+        
+        // Determine complexity label and normalize score to 100
+        let label, normalizedScore;
+        if (complexityScore <= 25) {
+            label = 'Easy Mode';
+            normalizedScore = Math.min(20, complexityScore);
+        } else if (complexityScore <= 45) {
+            label = 'Clear Client';
+            normalizedScore = 20 + Math.min(20, (complexityScore - 25) * 1.5);
+        } else if (complexityScore <= 65) {
+            label = 'Medium';
+            normalizedScore = 40 + Math.min(20, (complexityScore - 45) * 1.2);
+        } else if (complexityScore <= 85) {
+            label = 'High Stakes';
+            normalizedScore = 60 + Math.min(20, (complexityScore - 65) * 1.0);
+        } else if (complexityScore <= 95) {
+            label = 'Bloody Hell';
+            normalizedScore = 80 + Math.min(15, (complexityScore - 85) * 0.8);
+        } else {
+            label = 'Mission Impossible';
+            normalizedScore = 95 + Math.min(5, (complexityScore - 95) * 0.2);
+        }
+        
+        return {
+            score: Math.round(normalizedScore),
+            label,
+            factors,
+            rawScore: complexityScore
+        };
+    }
+
     function updateBarometerDisplay(barometer) {
+        // Use custom barometer if none provided by AI
         if (!barometer || typeof barometer.score === 'undefined') {
-            console.log('No barometer data received:', barometer);
-            return;
+            barometer = calculateComplexityBarometer(state.currentClient, state.currentAnalysis);
         }
         
         const score = Math.round(barometer.score);
         const label = barometer.label || 'Medium';
         
-        console.log('Updating barometer:', score, label);
+        console.log('Updating barometer:', score, label, barometer);
         
         // Update barometer display with animation
         if (elements.barometerScore) {
@@ -1680,7 +1799,7 @@
             <div class="advice-content">
                 <div class="advice-header">
                     <h3><i class="fas fa-lightbulb"></i> Персоналізовані поради</h3>
-                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
+                    <button class="btn-icon close-advice">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1688,8 +1807,8 @@
                     ${content}
                 </div>
                 <div class="advice-actions">
-                    <button class="btn-secondary" onclick="this.closest('.advice-modal').remove()">Закрити</button>
-                    <button class="btn-primary" onclick="copyAdviceToClipboard(${JSON.stringify(JSON.stringify(advice))})">
+                    <button class="btn-secondary close-advice-btn">Закрити</button>
+                    <button class="btn-primary copy-advice-btn">
                         <i class="fas fa-copy"></i> Копіювати
                     </button>
                 </div>
@@ -1697,6 +1816,28 @@
         `;
         
         document.body.appendChild(modal);
+        
+        // Add event listeners for close buttons
+        modal.querySelector('.close-advice').addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        modal.querySelector('.close-advice-btn').addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        // Add event listener for copy button
+        modal.querySelector('.copy-advice-btn').addEventListener('click', () => {
+            copyAdviceToClipboard(JSON.stringify(advice));
+        });
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
         showNotification('Поради згенеровано успішно! 💡', 'success');
     }
 
