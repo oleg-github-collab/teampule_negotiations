@@ -2706,3 +2706,239 @@
   message: 'API Request',
   timestamp: '2025-08-12 20:15:52'
 }
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/login',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 20:21:00'
+}
+{
+  service: 'teampulse-turbo',
+  event: 'Unauthorized access attempt',
+  details: {
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1',
+    path: '/api/usage',
+    method: 'GET'
+  },
+  timestamp: '2025-08-12 20:21:44',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 401,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 20:21:44'
+}
+{
+  service: 'teampulse-turbo',
+  event: 'Unauthorized access attempt',
+  details: {
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1',
+    path: '/api/usage',
+    method: 'GET'
+  },
+  timestamp: '2025-08-12 20:21:52',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 401,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 20:21:52'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/login',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 20:22:03'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 20:22:03'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 20:22:52'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 20:22:52'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 20:22:52'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 20:22:52'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 20:22:52'
+}
+{
+  service: 'teampulse-turbo',
+  tokens: 2133,
+  model: 'gpt-4o',
+  operation: 'text_analysis',
+  timestamp: '2025-08-12 20:24:03',
+  level: 'info',
+  message: 'AI Usage'
+}
+{
+  service: 'teampulse-turbo',
+  operation: 'Complete Analysis',
+  duration: 12816.804063999996,
+  details: {
+    textLength: 151,
+    tokensUsed: 2133,
+    highlightsFound: 2,
+    clientId: 16
+  },
+  level: 'info',
+  message: 'Performance Metric',
+  timestamp: '2025-08-12 20:24:03'
+}
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: "Expected property name or '}' in JSON at position 1",
+    stack: "SyntaxError: Expected property name or '}' in JSON at position 1\n" +
+      '    at JSON.parse (<anonymous>)\n' +
+      '    at parse (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/body-parser/lib/types/json.js:92:19)\n' +
+      '    at /Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/body-parser/lib/read.js:128:18\n' +
+      '    at AsyncResource.runInAsyncScope (node:async_hooks:206:9)\n' +
+      '    at invokeCallback (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/raw-body/index.js:238:16)\n' +
+      '    at done (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/raw-body/index.js:227:7)\n' +
+      '    at IncomingMessage.onEnd (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/raw-body/index.js:287:7)\n' +
+      '    at IncomingMessage.emit (node:events:524:28)\n' +
+      '    at endReadableNT (node:internal/streams/readable:1698:12)\n' +
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)',
+    name: 'SyntaxError',
+    code: undefined,
+    status: 400
+  },
+  request: {
+    method: 'POST',
+    url: '/api/clients',
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1',
+    headers: {
+      host: 'localhost:3001',
+      'user-agent': 'curl/8.7.1',
+      accept: '*/*',
+      cookie: 'auth=authorized',
+      'content-type': 'application/json',
+      'content-length': '29'
+    },
+    body: '{}'
+  },
+  system: {
+    timestamp: '2025-08-12T18:24:35.898Z',
+    nodeVersion: 'v20.19.2',
+    platform: 'darwin',
+    memory: {
+      rss: 84418560,
+      heapTotal: 23625728,
+      heapUsed: 21386128,
+      external: 2692630,
+      arrayBuffers: 66036
+    },
+    uptime: 104.428907114
+  },
+  errorId: 'w04ufqvsmd',
+  body: '[REDACTED]',
+  level: 'error',
+  message: 'Detailed Error Report',
+  timestamp: '2025-08-12 20:24:35'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/clients',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 4,
+  statusCode: 400,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 20:24:35'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 20:24:35'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/login',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 20:24:55'
+}

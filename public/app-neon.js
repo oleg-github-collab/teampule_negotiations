@@ -611,13 +611,13 @@
 
     async function saveClient() {
         try {
-            const formData = new FormData();
+            const clientData = {};
             const inputs = $$('#client-form input, #client-form select, #client-form textarea');
             
             let hasRequired = false;
             inputs.forEach(input => {
                 if (input.value.trim()) {
-                    formData.append(input.id, input.value.trim());
+                    clientData[input.id] = input.value.trim();
                     if (input.id === 'company') hasRequired = true;
                 }
             });
@@ -635,7 +635,10 @@
 
             const response = await fetch('/api/clients', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(clientData)
             });
 
             const data = await response.json();

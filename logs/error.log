@@ -336,3 +336,56 @@
   message: 'Detailed Error Report',
   timestamp: '2025-08-12 20:15:52'
 }
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: "Expected property name or '}' in JSON at position 1",
+    stack: "SyntaxError: Expected property name or '}' in JSON at position 1\n" +
+      '    at JSON.parse (<anonymous>)\n' +
+      '    at parse (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/body-parser/lib/types/json.js:92:19)\n' +
+      '    at /Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/body-parser/lib/read.js:128:18\n' +
+      '    at AsyncResource.runInAsyncScope (node:async_hooks:206:9)\n' +
+      '    at invokeCallback (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/raw-body/index.js:238:16)\n' +
+      '    at done (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/raw-body/index.js:227:7)\n' +
+      '    at IncomingMessage.onEnd (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/raw-body/index.js:287:7)\n' +
+      '    at IncomingMessage.emit (node:events:524:28)\n' +
+      '    at endReadableNT (node:internal/streams/readable:1698:12)\n' +
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)',
+    name: 'SyntaxError',
+    code: undefined,
+    status: 400
+  },
+  request: {
+    method: 'POST',
+    url: '/api/clients',
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1',
+    headers: {
+      host: 'localhost:3001',
+      'user-agent': 'curl/8.7.1',
+      accept: '*/*',
+      cookie: 'auth=authorized',
+      'content-type': 'application/json',
+      'content-length': '29'
+    },
+    body: '{}'
+  },
+  system: {
+    timestamp: '2025-08-12T18:24:35.898Z',
+    nodeVersion: 'v20.19.2',
+    platform: 'darwin',
+    memory: {
+      rss: 84418560,
+      heapTotal: 23625728,
+      heapUsed: 21386128,
+      external: 2692630,
+      arrayBuffers: 66036
+    },
+    uptime: 104.428907114
+  },
+  errorId: 'w04ufqvsmd',
+  body: '[REDACTED]',
+  level: 'error',
+  message: 'Detailed Error Report',
+  timestamp: '2025-08-12 20:24:35'
+}
