@@ -1,0 +1,203 @@
+/* Top Navigation */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: rgba(10, 10, 15, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 80;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-toggle {
+  display: none; /* Hide hamburger menu since sidebar is always visible */
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Current Client Display */
+.current-client {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.current-client i {
+  color: var(--primary);
+}
+
+/* Token Counter */
+.token-counter {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.token-counter:hover {
+  border-color: var(--border-active);
+  box-shadow: 0 2px 10px rgba(0, 255, 170, 0.1);
+}
+
+.token-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.token-usage {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.used-tokens {
+  color: var(--text-primary);
+}
+
+.token-separator {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.total-tokens {
+  color: var(--text-secondary);
+}
+
+.token-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.token-progress {
+  width: 40px;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.token-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+/* Navigation Actions */
+.nav-action {
+  padding: 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.nav-action:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+
+.nav-action:active {
+  transform: scale(0.95);
+}
+
+/* Navigation Breadcrumbs */
+.nav-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.nav-breadcrumbs .separator {
+  color: var(--text-muted);
+}
+
+.nav-breadcrumbs .active {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Mobile Navigation */
+@media (max-width: 768px) {
+  .top-nav {
+    padding: 1rem;
+  }
+  
+  .nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  
+  .nav-toggle:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-active);
+  }
+  
+  .nav-actions {
+    gap: 0.5rem;
+  }
+  
+  .token-counter {
+    padding: 0.4rem 0.8rem;
+  }
+  
+  .token-info {
+    font-size: 0.8rem;
+  }
+  
+  .nav-action {
+    padding: 0.4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-brand .current-client span {
+    display: none;
+  }
+  
+  .token-counter .token-info {
+    display: none;
+  }
+  
+  .nav-actions .nav-action:not(:last-child) {
+    display: none;
+  }
+}

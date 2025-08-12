@@ -1,0 +1,120 @@
+/* TeamPulse Turbo - Main Stylesheet */
+/* Modular CSS Architecture for Better Maintainability */
+
+/* 1. CSS Custom Properties & Variables */
+@import url('./variables.css');
+
+/* 2. Base Styles & Reset */
+@import url('./base.css');
+
+/* 3. Animations & Effects */
+@import url('./animations.css');
+
+/* 4. Layout Components */
+@import url('./layout.css');
+
+/* 5. Navigation */
+@import url('./navigation.css');
+
+/* 6. Sidebar */
+@import url('./sidebar.css');
+
+/* 7. Button Components */
+@import url('./buttons.css');
+
+/* 8. Form Components */
+@import url('./forms.css');
+
+/* 9. Reusable Components */
+@import url('./components.css');
+
+/* 10. Analysis-Specific Styles */
+@import url('./analysis.css');
+
+/* 11. Workspace Panel */
+@import url('./workspace.css');
+
+/* 12. Utility Classes */
+@import url('./utilities.css');
+
+/* 13. Notifications */
+@import url('./notifications.css');
+
+/* 14. Login Page Styles */
+@import url('./login.css');
+
+/* 15. Accessibility Enhancements */
+@import url('./accessibility.css');
+
+/* 16. Responsive Overrides */
+@import url('./responsive.css');
+
+/* Global Styles - Only essential styles that don't fit into other categories */
+html {
+  scroll-behavior: smooth;
+}
+
+body.loading {
+  overflow: hidden;
+}
+
+body.no-scroll {
+  overflow: hidden;
+}
+
+/* Print Styles */
+@media print {
+  .sidebar-left,
+  .top-nav,
+  .workspace-panel,
+  .particles {
+    display: none !important;
+  }
+  
+  .main-work-area {
+    padding: 0;
+  }
+  
+  .content-section {
+    max-width: none;
+  }
+  
+  * {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --border: rgba(255, 255, 255, 0.3);
+    --border-active: rgba(0, 255, 170, 0.6);
+    --text-muted: #b0b0b0;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .particles {
+    display: none;
+  }
+}
+
+/* Dark Color Scheme Support */
+@media (prefers-color-scheme: dark) {
+  /* Already using dark theme by default */
+}
+
+/* Light Color Scheme Support (for future use) */
+@media (prefers-color-scheme: light) {
+  /* Light theme variables would go here if implemented */
+}

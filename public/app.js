@@ -68,19 +68,91 @@
     };
   
     // ===== Utilities =====
-    function showNotification(message, type = 'info') {
+    function showNotification(message, type = 'info', duration = 5000, actions = []) {
       const container = $('#notifications');
+      if (!container) {
+        console.warn('Notification container not found');
+        return;
+      }
+  
       const notification = document.createElement('div');
       notification.className = `notification notification-${type}`;
+      notification.setAttribute('role', 'alert');
+      notification.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+      
+      const getIcon = (t) => {
+        switch(t) {
+          case 'success': return 'fa-check-circle';
+          case 'error': return 'fa-exclamation-circle';
+          case 'warning': return 'fa-exclamation-triangle';
+          default: return 'fa-info-circle';
+        }
+      };
+      
+      const actionsHtml = actions.length > 0 ? `
+        <div class="notification-actions">
+          ${actions.map(action => `
+            <button class="notification-action ${action.primary ? 'primary' : ''}" 
+                    data-action="${action.action}">${escapeHtml(action.label)}</button>
+          `).join('')}
+        </div>
+      ` : '';
+
       notification.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
+        <div class="notification-icon">
+          <i class="fas ${getIcon(type)}"></i>
+        </div>
+        <div class="notification-content">
+          <div class="notification-message">${escapeHtml(message)}</div>
+          ${actionsHtml}
+        </div>
+        <button class="notification-close" aria-label="Закрити повідомлення">
+          <i class="fas fa-times"></i>
+        </button>
+        ${duration > 0 ? `<div class="notification-progress" style="animation-duration: ${duration}ms"></div>` : ''}
       `;
+  
+      // Handle close button
+      const closeBtn = notification.querySelector('.notification-close');
+      closeBtn.addEventListener('click', () => {
+        removeNotification(notification);
+      });
+      
+      // Handle action buttons
+      const actionButtons = notification.querySelectorAll('[data-action]');
+      actionButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const actionName = e.target.getAttribute('data-action');
+          const action = actions.find(a => a.action === actionName);
+          if (action && action.handler) {
+            action.handler();
+          }
+          removeNotification(notification);
+        });
+      });
+
       container.appendChild(notification);
-      setTimeout(() => {
+  
+      // Auto-remove after duration
+      if (duration > 0) {
+        setTimeout(() => {
+          removeNotification(notification);
+        }, duration);
+      }
+      
+      // Return notification element for manual control
+      return notification;
+    }
+    
+    function removeNotification(notification) {
+      if (notification && notification.parentNode) {
         notification.classList.add('fade-out');
-        setTimeout(() => notification.remove(), 300);
-      }, 4000);
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 300);
+      }
     }
   
     function closeSidebar(which) {
@@ -1374,6 +1446,37 @@
     // ===== Event Listeners =====
     elements.navToggle?.addEventListener('click', toggleLeftSidebar);
     elements.toolsToggle?.addEventListener('click', toggleRightPanel);
+
+    // ===== Keyboard Navigation =====
+    document.addEventListener('keydown', (e) => {
+      // ESC key handling
+      if (e.key === 'Escape') {
+        // Close modals, dropdowns, etc.
+        const activeModal = $('.modal.active');
+        if (activeModal) {
+          activeModal.classList.remove('active');
+          return;
+        }
+        
+        const activeDropdown = $('.dropdown.active');
+        if (activeDropdown) {
+          activeDropdown.classList.remove('active');
+          return;
+        }
+      }
+      
+      // Ctrl/Cmd + K for quick search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        elements.clientSearch?.focus();
+      }
+      
+      // Ctrl/Cmd + N for new client
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        elements.newClientBtn?.click();
+      }
+    });
     
     // Right panel event listeners
     $('#refresh-panel')?.addEventListener('click', () => {
@@ -1391,6 +1494,9 @@
     });
     
     $('#get-advice-btn')?.addEventListener('click', getAdvice);
+    $('#get-personalized-advice-btn')?.addEventListener('click', getPersonalizedAdvice);
+    $('#export-selected-btn')?.addEventListener('click', exportSelectedFragments);
+    $('#clear-workspace')?.addEventListener('click', clearWorkspace);
     elements.clientSearch?.addEventListener('input', renderClientsList);
     elements.clearSearch?.addEventListener('click', () => {
       elements.clientSearch.value = '';
@@ -2711,6 +2817,95 @@
         }
         
         showNotification('Робочу область очищено', 'info');
+      }
+
+      // ===== WORKSPACE BUTTON HANDLERS =====
+      
+      function getPersonalizedAdvice() {
+        if (selectedFragments.length === 0) {
+          showNotification('Оберіть фрагменти для отримання персоналізованих порад', 'warning');
+          return;
+        }
+        
+        showNotification('Генерую персоналізовані поради...', 'info');
+        
+        // Use the existing getAdvice functionality with selected fragments
+        const fragmentsData = selectedFragments.map(fragment => ({
+          text: fragment.text,
+          category: fragment.category,
+          explanation: fragment.explanation
+        }));
+        
+        // Call the advice API with selected fragments
+        fetch('/api/advice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client_id: state.currentClient?.id,
+            items: fragmentsData
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          
+          displayStrategicAdvice(data.advice);
+          showNotification('Персоналізовані поради готові!', 'success');
+        })
+        .catch(error => {
+          console.error('Error getting personalized advice:', error);
+          showNotification('Помилка отримання порад: ' + error.message, 'error');
+        });
+      }
+
+      function exportSelectedFragments() {
+        if (selectedFragments.length === 0) {
+          showNotification('Немає фрагментів для експорту', 'warning');
+          return;
+        }
+        
+        const exportData = {
+          client: state.currentClient?.company || 'Невідомий клієнт',
+          date: new Date().toLocaleDateString('uk-UA'),
+          fragments: selectedFragments.map(fragment => ({
+            text: fragment.text,
+            category: fragment.category,
+            explanation: fragment.explanation,
+            severity: fragment.severity
+          }))
+        };
+        
+        // Create and download JSON file
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `teampulse-selected-fragments-${Date.now()}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        showNotification('Обрані фрагменти експортовано', 'success');
+      }
+
+      function displayStrategicAdvice(advice) {
+        const strategicAdviceSection = $('#strategic-advice-section');
+        const strategicAdviceContent = $('#strategic-advice-content');
+        
+        if (strategicAdviceSection && strategicAdviceContent) {
+          strategicAdviceContent.innerHTML = `
+            <div class="advice-content">
+              <div class="advice-text">${escapeHtml(advice).replace(/\n/g, '<br>')}</div>
+              <div class="advice-actions">
+                <button class="btn-secondary btn-sm" onclick="copyToClipboard('${advice.replace(/'/g, "\\'")}')">
+                  <i class="fas fa-copy"></i> Копіювати
+                </button>
+              </div>
+            </div>
+          `;
+          strategicAdviceSection.style.display = 'block';
+        }
       }
 
       // ===== TOKEN USAGE =====

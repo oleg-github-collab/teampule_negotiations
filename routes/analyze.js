@@ -292,17 +292,6 @@ r.post('/', validateFileUpload, async (req, res) => {
 
     const paragraphs = splitToParagraphs(text);
     
-    // More accurate input token calculation
-    const textTokens = estimateTokens(text);
-    const systemPromptTokens = estimateTokens(buildSystemPrompt());
-    const userPayloadTokens = estimateTokens(JSON.stringify(buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)));
-    const approxTokensIn = textTokens + systemPromptTokens + userPayloadTokens + 200; // buffer
-    
-    totalTokensUsed += approxTokensIn;
-    
-    // Check token limits before processing
-    await addTokensAndCheck(approxTokensIn);
-
     const clientCtx = {
       about_client: {
         company: profile?.company || '',
@@ -318,6 +307,17 @@ r.post('/', validateFileUpload, async (req, res) => {
       deadlines: profile?.deadlines || '',
       notes: profile?.notes || '',
     };
+
+    // More accurate input token calculation
+    const textTokens = estimateTokens(text);
+    const systemPromptTokens = estimateTokens(buildSystemPrompt());
+    const userPayloadTokens = estimateTokens(JSON.stringify(buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)));
+    const approxTokensIn = textTokens + systemPromptTokens + userPayloadTokens + 200; // buffer
+    
+    totalTokensUsed += approxTokensIn;
+    
+    // Check token limits before processing
+    await addTokensAndCheck(approxTokensIn);
 
     // Check if OpenAI client is available
     if (!openaiClient) {
