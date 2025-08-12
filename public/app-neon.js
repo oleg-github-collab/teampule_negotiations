@@ -133,6 +133,7 @@
         // Analysis History
         analysisHistory: $('#analysis-history'),
         analysisCount: $('#analysis-count'),
+        newAnalysisBtn: $('#new-analysis-btn'),
         
         // Notifications
         notifications: $('#notifications')
@@ -649,9 +650,12 @@
 
             showNotification('Клієнта збережено успішно! 🎉', 'success');
             
-            // Reload clients and return to welcome
+            // Set the new client as current and show analysis dashboard
+            state.currentClient = data.client;
             await loadClients();
-            showSection('welcome-screen');
+            updateNavClientInfo(state.currentClient);
+            updateWorkspaceClientInfo(state.currentClient);
+            showSection('analysis-dashboard');
 
         } catch (error) {
             console.error('Save client error:', error);
@@ -708,6 +712,9 @@
             return;
         }
 
+        // Store original text for highlighting
+        state.originalText = text;
+
         try {
             // Show results section and update steps
             if (elements.resultsSection) elements.resultsSection.style.display = 'block';
@@ -719,32 +726,69 @@
                 elements.startAnalysisBtn.disabled = true;
             }
 
-            // Start analysis
+            // Prepare form data for streaming analysis
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('client_id', state.currentClient.id);
+
+            // Start streaming analysis
             const response = await fetch('/api/analyze', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    clientId: state.currentClient.id,
-                    text: text
-                })
+                body: formData
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
+                const data = await response.json();
                 throw new Error(data.error || 'Помилка аналізу');
+            }
+
+            // Process streaming response
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let analysisData = {
+                highlights: [],
+                summary: {},
+                barometer: {}
+            };
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            
+                            if (data.type === 'highlight') {
+                                analysisData.highlights.push(data);
+                                updateHighlightsDisplay(analysisData.highlights);
+                            } else if (data.type === 'merged_highlights') {
+                                analysisData.highlights = data.items;
+                                updateHighlightsDisplay(analysisData.highlights);
+                            } else if (data.type === 'summary') {
+                                analysisData.summary = data;
+                                updateSummaryDisplay(data);
+                            } else if (data.type === 'barometer') {
+                                analysisData.barometer = data;
+                                updateBarometerDisplay(data);
+                            } else if (data.type === 'analysis_saved') {
+                                state.currentAnalysis = { id: data.id, ...analysisData };
+                                await loadAnalysisHistory(state.currentClient.id);
+                            }
+                        } catch (e) {
+                            // Skip invalid JSON lines
+                        }
+                    }
+                }
             }
 
             // Update token usage
             await loadTokenUsage();
-            
-            // Display results
-            state.currentAnalysis = data.analysis;
-            displayAnalysisResults(data.analysis);
             updateAnalysisSteps('completed');
-            
             showNotification('Аналіз завершено успішно! ✨', 'success');
 
         } catch (error) {
@@ -788,6 +832,77 @@
         });
     }
 
+    // Streaming update functions
+    function updateHighlightsDisplay(highlights) {
+        if (!elements.highlightsList) return;
+        
+        if (!highlights || highlights.length === 0) {
+            elements.highlightsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-search"></i></div>
+                    <p>Проблемні моменти з'являться тут після аналізу</p>
+                </div>
+            `;
+            return;
+        }
+        
+        elements.highlightsList.innerHTML = highlights.map((highlight, index) => `
+            <div class="highlight-item" data-highlight-id="${index}" draggable="true">
+                <div class="highlight-header">
+                    <div class="highlight-type ${highlight.category || 'manipulation'}">${highlight.label || 'Проблема'}</div>
+                    <div class="highlight-severity">Рівень: ${highlight.severity || 1}</div>
+                </div>
+                <div class="highlight-text">"${highlight.text}"</div>
+                <div class="highlight-explanation">${highlight.explanation || ''}</div>
+                <div class="highlight-actions">
+                    <button class="btn-icon" onclick="addToWorkspace(${index})" title="Додати до робочої області">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Enable drag functionality
+        enableHighlightDrag();
+    }
+
+    function updateSummaryDisplay(summary) {
+        // Update counts from summary
+        const counts = summary.counts_by_category || {};
+        
+        if (elements.manipulationsCount) elements.manipulationsCount.textContent = counts.manipulation || 0;
+        if (elements.biasesCount) elements.biasesCount.textContent = counts.cognitive_bias || 0;
+        if (elements.fallaciesCount) elements.fallaciesCount.textContent = counts.rhetological_fallacy || 0;
+        
+        // Show patterns
+        if (summary.top_patterns) {
+            state.currentPatterns = summary.top_patterns;
+        }
+    }
+
+    function updateBarometerDisplay(barometer) {
+        if (!barometer.score) return;
+        
+        const score = barometer.score;
+        const label = barometer.label || 'Medium';
+        
+        // Update barometer display
+        if (elements.barometerScore) {
+            elements.barometerScore.textContent = score;
+        }
+        if (elements.barometerLabel) {
+            elements.barometerLabel.textContent = label;
+        }
+        
+        // Update gauge
+        const gaugeCircle = $('#gauge-circle');
+        if (gaugeCircle) {
+            const circumference = 2 * Math.PI * 45; // radius = 45
+            const progress = (score / 100) * circumference;
+            gaugeCircle.style.strokeDasharray = `${progress} ${circumference}`;
+        }
+    }
+
     function displayAnalysisResults(analysis) {
         if (!analysis) return;
 
@@ -813,7 +928,7 @@
 
         // Update highlights
         if (analysis.highlights) {
-            displayHighlights(analysis.highlights);
+            updateHighlightsDisplay(analysis.highlights);
         }
 
         // Update full text view
@@ -895,12 +1010,66 @@
 
     function updateFullTextView(highlightedText) {
         if (elements.fulltextContent) {
-            elements.fulltextContent.innerHTML = `
-                <div class="fulltext-container">
-                    ${highlightedText || escapeHtml(elements.negotiationText?.value || '')}
-                </div>
-            `;
+            if (highlightedText) {
+                elements.fulltextContent.innerHTML = `
+                    <div class="fulltext-container">
+                        ${highlightedText}
+                    </div>
+                `;
+            } else if (state.currentAnalysis?.highlights && state.originalText) {
+                // Generate highlighted text from highlights and original text
+                const highlighted = generateHighlightedText(state.originalText, state.currentAnalysis.highlights);
+                elements.fulltextContent.innerHTML = `
+                    <div class="fulltext-container">
+                        ${highlighted}
+                    </div>
+                `;
+            } else {
+                elements.fulltextContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fas fa-file-text"></i></div>
+                        <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                    </div>
+                `;
+            }
         }
+    }
+
+    function generateHighlightedText(originalText, highlights) {
+        if (!originalText || !highlights || highlights.length === 0) {
+            return escapeHtml(originalText || '');
+        }
+
+        let highlightedText = originalText;
+        const sortedHighlights = [...highlights].sort((a, b) => {
+            const aStart = originalText.indexOf(a.text);
+            const bStart = originalText.indexOf(b.text);
+            return bStart - aStart; // Sort in reverse order to avoid index shifting
+        });
+
+        for (const highlight of sortedHighlights) {
+            const regex = new RegExp(escapeRegExp(highlight.text), 'gi');
+            const categoryClass = getCategoryClass(highlight.category);
+            highlightedText = highlightedText.replace(regex, 
+                `<span class="text-highlight ${categoryClass}" data-tooltip="${escapeHtml(highlight.explanation || highlight.label)}">${highlight.text}</span>`
+            );
+        }
+
+        return highlightedText;
+    }
+
+    function getCategoryClass(category) {
+        const categoryMap = {
+            'manipulation': 'manipulation',
+            'cognitive_bias': 'cognitive_bias', 
+            'rhetological_fallacy': 'fallacy',
+            'logical_fallacy': 'fallacy'
+        };
+        return categoryMap[category] || 'manipulation';
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     // ===== View Controls =====
@@ -918,6 +1087,11 @@
         }
         if (elements.fulltextContent) {
             elements.fulltextContent.style.display = view === 'text' ? 'block' : 'none';
+            
+            // Update full text view when switching to text view
+            if (view === 'text') {
+                updateFullTextView();
+            }
         }
     }
 
@@ -1099,6 +1273,239 @@
         }
     }
 
+    // ===== Drag & Drop Functions =====
+    function enableHighlightDrag() {
+        $$('.highlight-item[draggable="true"]').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                const highlightId = e.target.dataset.highlightId;
+                e.dataTransfer.setData('text/plain', highlightId);
+                e.target.classList.add('dragging');
+            });
+
+            item.addEventListener('dragend', (e) => {
+                e.target.classList.remove('dragging');
+            });
+        });
+    }
+
+    function setupWorkspaceDrop() {
+        const dropZone = elements.fragmentsDropZone;
+        if (!dropZone) return;
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            if (!dropZone.contains(e.relatedTarget)) {
+                dropZone.classList.remove('dragover');
+            }
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            
+            const highlightId = e.dataTransfer.getData('text/plain');
+            if (highlightId !== '') {
+                addToWorkspace(parseInt(highlightId));
+            }
+        });
+    }
+
+    function addToWorkspace(highlightIndex) {
+        if (!state.currentAnalysis?.highlights?.[highlightIndex]) return;
+        
+        const highlight = state.currentAnalysis.highlights[highlightIndex];
+        
+        // Avoid duplicates
+        const exists = state.selectedFragments.some(f => f.id === highlight.id);
+        if (exists) {
+            showNotification('Цей фрагмент вже додано до робочої області', 'warning');
+            return;
+        }
+        
+        state.selectedFragments.push({
+            id: highlight.id,
+            text: highlight.text,
+            category: highlight.category,
+            label: highlight.label,
+            explanation: highlight.explanation
+        });
+        
+        updateWorkspaceFragments();
+        updateWorkspaceActions();
+        showNotification('Фрагмент додано до робочої області', 'success');
+    }
+
+    function updateWorkspaceFragments() {
+        const selectedFragments = elements.selectedFragments;
+        if (!selectedFragments) return;
+        
+        if (elements.fragmentsCount) {
+            elements.fragmentsCount.textContent = state.selectedFragments.length;
+        }
+        
+        if (state.selectedFragments.length === 0) {
+            selectedFragments.innerHTML = '';
+            return;
+        }
+        
+        selectedFragments.innerHTML = state.selectedFragments.map((fragment, index) => `
+            <div class="fragment-item">
+                <div class="highlight-type ${fragment.category}">${fragment.label}</div>
+                <div class="fragment-text">"${fragment.text}"</div>
+                <button class="fragment-remove" onclick="removeFromWorkspace(${index})" title="Видалити">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    function removeFromWorkspace(index) {
+        state.selectedFragments.splice(index, 1);
+        updateWorkspaceFragments();
+        updateWorkspaceActions();
+    }
+
+    function updateWorkspaceActions() {
+        const hasFragments = state.selectedFragments.length > 0;
+        
+        if (elements.getAdviceBtn) {
+            elements.getAdviceBtn.disabled = !hasFragments;
+        }
+        if (elements.exportSelectedBtn) {
+            elements.exportSelectedBtn.disabled = !hasFragments;
+        }
+        if (elements.clearWorkspaceBtn) {
+            elements.clearWorkspaceBtn.disabled = !hasFragments;
+        }
+    }
+
+    async function getPersonalizedAdvice() {
+        if (state.selectedFragments.length === 0) {
+            showNotification('Спочатку оберіть фрагменти для аналізу', 'warning');
+            return;
+        }
+
+        if (!state.currentClient) {
+            showNotification('Клієнт не обраний', 'warning');
+            return;
+        }
+
+        try {
+            elements.getAdviceBtn.classList.add('btn-loading');
+            elements.getAdviceBtn.disabled = true;
+
+            const response = await fetch('/api/advice', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    client_id: state.currentClient.id,
+                    fragments: state.selectedFragments
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Помилка отримання порад');
+            }
+
+            // Show advice in a modal or notification
+            showAdviceModal(data.advice);
+            await loadTokenUsage();
+
+        } catch (error) {
+            console.error('Advice error:', error);
+            showNotification(error.message || 'Помилка при отриманні порад', 'error');
+        } finally {
+            elements.getAdviceBtn.classList.remove('btn-loading');
+            elements.getAdviceBtn.disabled = state.selectedFragments.length === 0;
+        }
+    }
+
+    function showAdviceModal(advice) {
+        // Create and show advice modal
+        const modal = document.createElement('div');
+        modal.className = 'advice-modal';
+        modal.innerHTML = `
+            <div class="advice-content">
+                <div class="advice-header">
+                    <h3><i class="fas fa-lightbulb"></i> Персоналізовані поради</h3>
+                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="advice-body">
+                    <div class="advice-text">${advice}</div>
+                </div>
+                <div class="advice-actions">
+                    <button class="btn-secondary" onclick="this.closest('.advice-modal').remove()">Закрити</button>
+                    <button class="btn-primary" onclick="copyAdviceToClipboard('${advice.replace(/'/g, "\\'")}')">
+                        <i class="fas fa-copy"></i> Копіювати
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        showNotification('Поради згенеровано успішно! 💡', 'success');
+    }
+
+    function copyAdviceToClipboard(advice) {
+        navigator.clipboard.writeText(advice).then(() => {
+            showNotification('Поради скопійовано в буфер обміну', 'success');
+        }).catch(() => {
+            showNotification('Не вдалося скопіювати', 'error');
+        });
+    }
+
+    function exportSelectedFragments() {
+        if (state.selectedFragments.length === 0) {
+            showNotification('Немає фрагментів для експорту', 'warning');
+            return;
+        }
+
+        const exportData = {
+            client: state.currentClient,
+            fragments: state.selectedFragments,
+            analysis_date: new Date().toISOString(),
+            export_date: new Date().toISOString()
+        };
+
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = `teampulse_analysis_${state.currentClient?.company || 'client'}_${new Date().toISOString().split('T')[0]}.json`;
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+        
+        showNotification('Дані експортовано успішно! 📁', 'success');
+    }
+
+    function clearWorkspace() {
+        if (state.selectedFragments.length === 0) return;
+
+        if (confirm('Очистити робочу область? Всі обрані фрагменти будуть видалені.')) {
+            state.selectedFragments = [];
+            updateWorkspaceFragments();
+            updateWorkspaceActions();
+            showNotification('Робочу область очищено', 'info');
+        }
+    }
+
+    // Make functions globally accessible
+    window.addToWorkspace = addToWorkspace;
+    window.removeFromWorkspace = removeFromWorkspace;
+    window.copyAdviceToClipboard = copyAdviceToClipboard;
+
     // ===== Event Handlers =====
     function bindEvents() {
         // Sidebar toggles
@@ -1135,6 +1542,7 @@
         // Text analysis
         elements.negotiationText?.addEventListener('input', debouncedUpdateTextStats);
         elements.startAnalysisBtn?.addEventListener('click', startAnalysis);
+        elements.newAnalysisBtn?.addEventListener('click', createNewAnalysis);
         elements.clearTextBtn?.addEventListener('click', () => {
             if (elements.negotiationText) {
                 elements.negotiationText.value = '';
@@ -1158,6 +1566,11 @@
         elements.listView?.addEventListener('click', () => switchHighlightsView('list'));
         elements.textView?.addEventListener('click', () => switchHighlightsView('text'));
         elements.filterView?.addEventListener('click', () => switchHighlightsView('filter'));
+
+        // Workspace actions
+        elements.getAdviceBtn?.addEventListener('click', getPersonalizedAdvice);
+        elements.exportSelectedBtn?.addEventListener('click', exportSelectedFragments);
+        elements.clearWorkspaceBtn?.addEventListener('click', clearWorkspace);
 
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -1206,7 +1619,7 @@
     // ===== Analysis History =====
     async function loadAnalysisHistory(clientId) {
         try {
-            const response = await fetch(`/api/clients/${clientId}/analyses`);
+            const response = await fetch(`/api/clients/${clientId}`);
             const data = await response.json();
             
             if (data.success && data.analyses) {
@@ -1258,6 +1671,100 @@
         });
     }
 
+    // ===== Analysis Loading =====
+    async function loadAnalysis(analysisId) {
+        try {
+            const response = await fetch(`/api/analyses/${analysisId}`);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Помилка завантаження аналізу');
+            }
+            
+            // Set the loaded analysis as current
+            state.currentAnalysis = data.analysis;
+            state.originalText = data.analysis.original_text || '';
+            
+            // Clear current text and show the analysis text
+            if (elements.negotiationText) {
+                elements.negotiationText.value = state.originalText;
+                updateTextStats();
+            }
+            
+            // Show results section
+            if (elements.resultsSection) {
+                elements.resultsSection.style.display = 'block';
+            }
+            
+            // Update displays with loaded analysis
+            if (data.analysis.highlights) {
+                updateHighlightsDisplay(data.analysis.highlights);
+            }
+            if (data.analysis.summary) {
+                updateSummaryDisplay(data.analysis.summary);
+            }
+            if (data.analysis.barometer) {
+                updateBarometerDisplay(data.analysis.barometer);
+            }
+            
+            // Update analysis steps to show completed
+            updateAnalysisSteps('completed');
+            
+            // Clear workspace if switching analyses
+            state.selectedFragments = [];
+            updateWorkspaceFragments();
+            updateWorkspaceActions();
+            
+            showNotification(`Аналіз від ${formatDate(data.analysis.created_at)} завантажено`, 'success');
+            
+        } catch (error) {
+            console.error('Load analysis error:', error);
+            showNotification(error.message || 'Помилка завантаження аналізу', 'error');
+        }
+    }
+
+    async function createNewAnalysis() {
+        if (!state.currentClient) {
+            showNotification('Спочатку оберіть клієнта', 'warning');
+            return;
+        }
+        
+        // Clear current analysis state
+        state.currentAnalysis = null;
+        state.originalText = null;
+        state.selectedFragments = [];
+        
+        // Clear UI
+        if (elements.negotiationText) {
+            elements.negotiationText.value = '';
+            updateTextStats();
+        }
+        if (elements.resultsSection) {
+            elements.resultsSection.style.display = 'none';
+        }
+        if (elements.highlightsList) {
+            elements.highlightsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-search"></i></div>
+                    <p>Проблемні моменти з'являться тут після аналізу</p>
+                </div>
+            `;
+        }
+        if (elements.fulltextContent) {
+            elements.fulltextContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-file-text"></i></div>
+                    <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                </div>
+            `;
+        }
+        
+        updateWorkspaceFragments();
+        updateWorkspaceActions();
+        
+        showNotification('Новий аналіз створено. Введіть текст для початку.', 'info');
+    }
+
     // ===== Global Functions =====
     window.showClientForm = showClientForm;
     window.selectClient = selectClient;
@@ -1265,7 +1772,8 @@
     window.deleteClient = (id) => console.log('Delete client:', id);
     window.addToWorkspace = (id) => console.log('Add to workspace:', id);
     window.shareHighlight = (id) => console.log('Share highlight:', id);
-    window.loadAnalysis = (id) => console.log('Load analysis:', id);
+    window.loadAnalysis = loadAnalysis;
+    window.createNewAnalysis = createNewAnalysis;
 
     // ===== Initialization =====
     function init() {
@@ -1286,6 +1794,9 @@
         
         // Setup file handling
         setupFileHandling();
+        
+        // Setup drag & drop workspace
+        setupWorkspaceDrop();
         
         // Bind events
         bindEvents();

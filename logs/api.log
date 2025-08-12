@@ -311,3 +311,73 @@
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":4,"service":"teampulse-turbo","statusCode":400,"timestamp":"2025-08-12 20:24:35","url":"/api/clients","userAgent":"curl/8.7.1"}
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":2,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-12 20:24:35","url":"/api/usage","userAgent":"curl/8.7.1"}
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-12 20:24:55","url":"/api/login","userAgent":"curl/8.7.1"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-12 20:32:46"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-12 20:32:46"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-12 20:32:46"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-12 20:32:46"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-12 20:32:46"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-12 20:33:24"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-12 20:33:24"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-12 20:33:24"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-12 20:33:24"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-12 20:33:24"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:14"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:14"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:14"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:14"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:14"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:40"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:40"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:40"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:40"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-12 20:36:40"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-12 20:37:06"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-12 20:37:06"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-12 20:37:06"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-12 20:37:06"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-12 20:37:06"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:11"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:11"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:11"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:11"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:11"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:35"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:35"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:35"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:35"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:35"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:40"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:40"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:40"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:40"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:01:40"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:39"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:39"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:39"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:39"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:39"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:45"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:45"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:45"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:45"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:45"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:55"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:55"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:55"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:55"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:02:55"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:03:40"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:03:40"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:03:40"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:03:40"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:03:40"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:04"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:04"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:04"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:04"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:04"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:11"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:11"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:11"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:11"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 00:04:11"}
