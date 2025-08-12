@@ -22,7 +22,16 @@
             rightSidebarCollapsed: false,
             currentView: 'welcome',
             analysisStep: 1,
-            highlightsView: 'list' // list, text, filter
+            highlightsView: 'list', // list, text, filter
+            filters: {
+                showManipulation: true,
+                showCognitiveBias: true,
+                showRhetoricalFallacy: true,
+                minSeverity: 1,
+                maxSeverity: 3,
+                searchText: ''
+            },
+            filtersVisible: false
         }
     };
 
@@ -39,6 +48,7 @@
         sidebarRightToggle: $('#sidebar-right-toggle'),
         mobileMenuToggle: $('#mobile-menu-toggle'),
         workspaceToggle: $('#workspace-toggle'),
+        sidebarShowBtn: $('#sidebar-show-btn'),
         
         // Onboarding
         onboardingModal: $('#onboarding-modal'),
@@ -120,6 +130,15 @@
         listView: $('#list-view'),
         textView: $('#text-view'),
         filterView: $('#filter-view'),
+        filtersPanel: $('#filters-panel'),
+        filterManipulation: $('#filter-manipulation'),
+        filterCognitiveBias: $('#filter-cognitive-bias'),
+        filterRhetoricalFallacy: $('#filter-rhetorical-fallacy'),
+        filterMinSeverity: $('#filter-min-severity'),
+        filterMaxSeverity: $('#filter-max-severity'),
+        filterSearch: $('#filter-search'),
+        clearFiltersBtn: $('#clear-filters'),
+        applyFiltersBtn: $('#apply-filters'),
         
         // Workspace
         workspaceClientInfo: $('#workspace-client-info'),
@@ -264,6 +283,11 @@
         if (side === 'left') {
             state.ui.leftSidebarCollapsed = !isCollapsed;
             sidebar.classList.toggle('collapsed');
+            
+            // Show/hide the sidebar show button
+            if (elements.sidebarShowBtn) {
+                elements.sidebarShowBtn.style.display = !isCollapsed ? 'none' : 'flex';
+            }
             
             // Update main content margin
             if (window.innerWidth > 1024) {
@@ -563,6 +587,9 @@
         
         // Load analysis history for this client
         loadAnalysisHistory(clientId);
+        
+        // Save state
+        scheduleStateSave();
     }
 
     function updateNavClientInfo(client) {
@@ -656,6 +683,9 @@
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
             showSection('analysis-dashboard');
+            
+            // Save state
+            scheduleStateSave();
 
         } catch (error) {
             console.error('Save client error:', error);
@@ -790,6 +820,9 @@
             await loadTokenUsage();
             updateAnalysisSteps('completed');
             showNotification('Аналіз завершено успішно! ✨', 'success');
+            
+            // Save state
+            scheduleStateSave();
 
         } catch (error) {
             console.error('Analysis error:', error);
@@ -846,8 +879,27 @@
             return;
         }
         
-        elements.highlightsList.innerHTML = highlights.map((highlight, index) => `
-            <div class="highlight-item" data-highlight-id="${index}" draggable="true">
+        // Apply filters if they exist
+        const filteredHighlights = filterHighlights(highlights);
+        
+        if (filteredHighlights.length === 0) {
+            elements.highlightsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-filter"></i></div>
+                    <p>Жодних результатів не знайдено за вашими фільтрами</p>
+                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
+                </div>
+            `;
+            return;
+        }
+        
+        elements.highlightsList.innerHTML = filteredHighlights.map((highlight, filteredIndex) => {
+            // Find original index in the full highlights array
+            const originalIndex = highlights.findIndex(h => h.id === highlight.id || 
+                (h.text === highlight.text && h.category === highlight.category));
+            
+            return `
+            <div class="highlight-item" data-highlight-id="${originalIndex}" draggable="true">
                 <div class="highlight-header">
                     <div class="highlight-type ${highlight.category || 'manipulation'}">${highlight.label || 'Проблема'}</div>
                     <div class="highlight-severity">Рівень: ${highlight.severity || 1}</div>
@@ -855,24 +907,47 @@
                 <div class="highlight-text">"${highlight.text}"</div>
                 <div class="highlight-explanation">${highlight.explanation || ''}</div>
                 <div class="highlight-actions">
-                    <button class="btn-icon" onclick="addToWorkspace(${index})" title="Додати до робочої області">
+                    <button class="btn-icon add-to-workspace-btn" data-highlight-index="${originalIndex}" title="Додати до робочої області">
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
         
         // Enable drag functionality
         enableHighlightDrag();
+        
+        // Add event listeners for workspace buttons
+        $$('.add-to-workspace-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const index = parseInt(btn.dataset.highlightIndex);
+                addToWorkspace(index);
+            });
+        });
     }
 
     function updateSummaryDisplay(summary) {
         // Update counts from summary
         const counts = summary.counts_by_category || {};
         
-        if (elements.manipulationsCount) elements.manipulationsCount.textContent = counts.manipulation || 0;
-        if (elements.biasesCount) elements.biasesCount.textContent = counts.cognitive_bias || 0;
-        if (elements.fallaciesCount) elements.fallaciesCount.textContent = counts.rhetological_fallacy || 0;
+        // Animate counters
+        if (elements.manipulationsCount) {
+            animateNumber(elements.manipulationsCount, counts.manipulation || 0);
+        }
+        if (elements.biasesCount) {
+            animateNumber(elements.biasesCount, counts.cognitive_bias || 0);
+        }
+        if (elements.fallaciesCount) {
+            animateNumber(elements.fallaciesCount, counts.rhetological_fallacy || 0);
+        }
+        
+        // Calculate total recommendations
+        const totalCount = (counts.manipulation || 0) + (counts.cognitive_bias || 0) + (counts.rhetological_fallacy || 0);
+        if (elements.recommendationsCount) {
+            animateNumber(elements.recommendationsCount, totalCount);
+        }
         
         // Show patterns
         if (summary.top_patterns) {
@@ -881,25 +956,61 @@
     }
 
     function updateBarometerDisplay(barometer) {
-        if (!barometer.score) return;
+        if (!barometer || typeof barometer.score === 'undefined') {
+            console.log('No barometer data received:', barometer);
+            return;
+        }
         
-        const score = barometer.score;
+        const score = Math.round(barometer.score);
         const label = barometer.label || 'Medium';
         
-        // Update barometer display
+        console.log('Updating barometer:', score, label);
+        
+        // Update barometer display with animation
         if (elements.barometerScore) {
-            elements.barometerScore.textContent = score;
+            animateNumber(elements.barometerScore, score);
         }
         if (elements.barometerLabel) {
             elements.barometerLabel.textContent = label;
         }
         
-        // Update gauge
+        // Update gauge with smooth animation
         const gaugeCircle = $('#gauge-circle');
         if (gaugeCircle) {
             const circumference = 2 * Math.PI * 45; // radius = 45
             const progress = (score / 100) * circumference;
-            gaugeCircle.style.strokeDasharray = `${progress} ${circumference}`;
+            
+            // Animate the gauge
+            let currentProgress = 0;
+            const duration = 1500;
+            const startTime = Date.now();
+            
+            function animateGauge() {
+                const elapsed = Date.now() - startTime;
+                const progressRatio = Math.min(elapsed / duration, 1);
+                currentProgress = progress * progressRatio;
+                
+                gaugeCircle.style.strokeDasharray = `${currentProgress} ${circumference}`;
+                
+                // Color based on score
+                if (score <= 20) {
+                    gaugeCircle.style.stroke = 'var(--neon-green)';
+                } else if (score <= 40) {
+                    gaugeCircle.style.stroke = 'var(--neon-cyan)';
+                } else if (score <= 60) {
+                    gaugeCircle.style.stroke = 'var(--neon-yellow)';
+                } else if (score <= 80) {
+                    gaugeCircle.style.stroke = 'var(--neon-purple)';
+                } else {
+                    gaugeCircle.style.stroke = 'var(--neon-pink)';
+                }
+                
+                if (progressRatio < 1) {
+                    requestAnimationFrame(animateGauge);
+                }
+            }
+            
+            animateGauge();
         }
     }
 
@@ -1079,7 +1190,6 @@
         // Update button states
         elements.listView?.classList.toggle('active', view === 'list');
         elements.textView?.classList.toggle('active', view === 'text');
-        elements.filterView?.classList.toggle('active', view === 'filter');
         
         // Show/hide content
         if (elements.highlightsList) {
@@ -1093,6 +1203,100 @@
                 updateFullTextView();
             }
         }
+    }
+
+    function toggleFilters() {
+        state.ui.filtersVisible = !state.ui.filtersVisible;
+        
+        // Update button state
+        elements.filterView?.classList.toggle('active', state.ui.filtersVisible);
+        
+        // Show/hide filters panel
+        if (elements.filtersPanel) {
+            elements.filtersPanel.style.display = state.ui.filtersVisible ? 'block' : 'none';
+        }
+        
+        // Hide other views when filters are shown
+        if (state.ui.filtersVisible) {
+            if (elements.highlightsList) elements.highlightsList.style.display = 'none';
+            if (elements.fulltextContent) elements.fulltextContent.style.display = 'none';
+        } else {
+            // Restore previous view
+            switchHighlightsView(state.ui.highlightsView || 'list');
+        }
+    }
+
+    function applyFilters() {
+        // Get filter values
+        state.ui.filters.showManipulation = elements.filterManipulation?.checked ?? true;
+        state.ui.filters.showCognitiveBias = elements.filterCognitiveBias?.checked ?? true;
+        state.ui.filters.showRhetoricalFallacy = elements.filterRhetoricalFallacy?.checked ?? true;
+        state.ui.filters.minSeverity = parseInt(elements.filterMinSeverity?.value || '1');
+        state.ui.filters.maxSeverity = parseInt(elements.filterMaxSeverity?.value || '3');
+        state.ui.filters.searchText = elements.filterSearch?.value.toLowerCase() || '';
+        
+        // Apply filters to current highlights
+        if (state.currentAnalysis?.highlights) {
+            updateHighlightsDisplay(state.currentAnalysis.highlights);
+        }
+        
+        // Close filters panel
+        toggleFilters();
+        
+        showNotification('Фільтри застосовано', 'success');
+    }
+
+    function clearFilters() {
+        // Reset filter values
+        state.ui.filters = {
+            showManipulation: true,
+            showCognitiveBias: true,
+            showRhetoricalFallacy: true,
+            minSeverity: 1,
+            maxSeverity: 3,
+            searchText: ''
+        };
+        
+        // Update UI
+        if (elements.filterManipulation) elements.filterManipulation.checked = true;
+        if (elements.filterCognitiveBias) elements.filterCognitiveBias.checked = true;
+        if (elements.filterRhetoricalFallacy) elements.filterRhetoricalFallacy.checked = true;
+        if (elements.filterMinSeverity) elements.filterMinSeverity.value = '1';
+        if (elements.filterMaxSeverity) elements.filterMaxSeverity.value = '3';
+        if (elements.filterSearch) elements.filterSearch.value = '';
+        
+        // Reapply filters
+        applyFilters();
+    }
+
+    function filterHighlights(highlights) {
+        if (!highlights || highlights.length === 0) return highlights;
+        
+        return highlights.filter(highlight => {
+            // Category filter
+            const category = highlight.category || 'manipulation';
+            if (category === 'manipulation' && !state.ui.filters.showManipulation) return false;
+            if (category === 'cognitive_bias' && !state.ui.filters.showCognitiveBias) return false;
+            if ((category === 'rhetological_fallacy' || category === 'rhetorical_fallacy') && !state.ui.filters.showRhetoricalFallacy) return false;
+            
+            // Severity filter
+            const severity = highlight.severity || 1;
+            if (severity < state.ui.filters.minSeverity || severity > state.ui.filters.maxSeverity) return false;
+            
+            // Text search filter
+            if (state.ui.filters.searchText) {
+                const searchText = state.ui.filters.searchText;
+                const text = (highlight.text || '').toLowerCase();
+                const label = (highlight.label || '').toLowerCase();
+                const explanation = (highlight.explanation || '').toLowerCase();
+                
+                if (!text.includes(searchText) && !label.includes(searchText) && !explanation.includes(searchText)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
     }
 
     // ===== File Handling =====
@@ -1337,6 +1541,9 @@
         updateWorkspaceFragments();
         updateWorkspaceActions();
         showNotification('Фрагмент додано до робочої області', 'success');
+        
+        // Save state
+        scheduleStateSave();
     }
 
     function updateWorkspaceFragments() {
@@ -1404,8 +1611,8 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    client_id: state.currentClient.id,
-                    fragments: state.selectedFragments
+                    items: state.selectedFragments,
+                    profile: state.currentClient
                 })
             });
 
@@ -1416,7 +1623,7 @@
             }
 
             // Show advice in a modal or notification
-            showAdviceModal(data.advice);
+            showAdviceModal(data.advice || data);
             await loadTokenUsage();
 
         } catch (error) {
@@ -1429,6 +1636,43 @@
     }
 
     function showAdviceModal(advice) {
+        console.log('Showing advice modal with:', advice);
+        
+        // Handle different response formats
+        let content = '';
+        if (typeof advice === 'string') {
+            content = `<div class="advice-text">${advice}</div>`;
+        } else if (advice && typeof advice === 'object') {
+            content = `
+                ${advice.recommended_replies ? `
+                    <div class="advice-section">
+                        <h4><i class="fas fa-comments"></i> Рекомендовані відповіді:</h4>
+                        <ul class="advice-list">
+                            ${advice.recommended_replies.map(reply => `<li>${escapeHtml(reply)}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+                
+                ${advice.risks ? `
+                    <div class="advice-section">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Виявлені ризики:</h4>
+                        <ul class="advice-list risks">
+                            ${advice.risks.map(risk => `<li>${escapeHtml(risk)}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+                
+                ${advice.notes ? `
+                    <div class="advice-section">
+                        <h4><i class="fas fa-clipboard-list"></i> Додаткові поради:</h4>
+                        <div class="advice-notes">${escapeHtml(advice.notes)}</div>
+                    </div>
+                ` : ''}
+            `;
+        } else {
+            content = '<div class="advice-text">Помилка отримання порад</div>';
+        }
+        
         // Create and show advice modal
         const modal = document.createElement('div');
         modal.className = 'advice-modal';
@@ -1441,11 +1685,11 @@
                     </button>
                 </div>
                 <div class="advice-body">
-                    <div class="advice-text">${advice}</div>
+                    ${content}
                 </div>
                 <div class="advice-actions">
                     <button class="btn-secondary" onclick="this.closest('.advice-modal').remove()">Закрити</button>
-                    <button class="btn-primary" onclick="copyAdviceToClipboard('${advice.replace(/'/g, "\\'")}')">
+                    <button class="btn-primary" onclick="copyAdviceToClipboard(${JSON.stringify(JSON.stringify(advice))})">
                         <i class="fas fa-copy"></i> Копіювати
                     </button>
                 </div>
@@ -1513,6 +1757,7 @@
         elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
         elements.mobileMenuToggle?.addEventListener('click', () => toggleSidebar('left'));
         elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
+        elements.sidebarShowBtn?.addEventListener('click', () => toggleSidebar('left'));
 
         // Client search
         elements.clientSearch?.addEventListener('input', debounce(renderClientsList, 300));
@@ -1565,7 +1810,11 @@
         // View controls
         elements.listView?.addEventListener('click', () => switchHighlightsView('list'));
         elements.textView?.addEventListener('click', () => switchHighlightsView('text'));
-        elements.filterView?.addEventListener('click', () => switchHighlightsView('filter'));
+        elements.filterView?.addEventListener('click', () => toggleFilters());
+
+        // Filter controls
+        elements.clearFiltersBtn?.addEventListener('click', clearFilters);
+        elements.applyFiltersBtn?.addEventListener('click', applyFilters);
 
         // Workspace actions
         elements.getAdviceBtn?.addEventListener('click', getPersonalizedAdvice);
@@ -1765,15 +2014,172 @@
         showNotification('Новий аналіз створено. Введіть текст для початку.', 'info');
     }
 
+    async function editClient(clientId) {
+        try {
+            const client = state.clients.find(c => c.id === clientId);
+            if (!client) {
+                showNotification('Клієнт не знайдений', 'error');
+                return;
+            }
+            showClientForm(clientId);
+        } catch (error) {
+            console.error('Edit client error:', error);
+            showNotification('Помилка при редагуванні клієнта', 'error');
+        }
+    }
+
+    async function deleteClient(clientId) {
+        try {
+            const client = state.clients.find(c => c.id === clientId);
+            if (!client) {
+                showNotification('Клієнт не знайдений', 'error');
+                return;
+            }
+
+            if (!confirm(`Видалити клієнта "${client.company}"? Всі аналізи також будуть видалені. Цю дію неможливо скасувати.`)) {
+                return;
+            }
+
+            const response = await fetch(`/api/clients/${clientId}`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Помилка видалення клієнта');
+            }
+
+            // Update state
+            state.clients = state.clients.filter(c => c.id !== clientId);
+            
+            // If deleted client was current, clear selection
+            if (state.currentClient?.id === clientId) {
+                state.currentClient = null;
+                state.currentAnalysis = null;
+                state.selectedFragments = [];
+                updateNavClientInfo(null);
+                updateWorkspaceClientInfo(null);
+                updateWorkspaceFragments();
+                showSection('welcome-screen');
+            }
+
+            // Re-render clients list
+            renderClientsList();
+            updateClientCount();
+
+            showNotification(`Клієнт "${client.company}" видалено успішно`, 'success');
+
+        } catch (error) {
+            console.error('Delete client error:', error);
+            showNotification(error.message || 'Помилка при видаленні клієнта', 'error');
+        }
+    }
+
     // ===== Global Functions =====
     window.showClientForm = showClientForm;
     window.selectClient = selectClient;
-    window.editClient = (id) => showClientForm(id);
-    window.deleteClient = (id) => console.log('Delete client:', id);
-    window.addToWorkspace = (id) => console.log('Add to workspace:', id);
+    window.editClient = editClient;
+    window.deleteClient = deleteClient;
+    window.addToWorkspace = addToWorkspace;
     window.shareHighlight = (id) => console.log('Share highlight:', id);
     window.loadAnalysis = loadAnalysis;
     window.createNewAnalysis = createNewAnalysis;
+    window.clearFilters = clearFilters;
+
+    // ===== State Persistence =====
+    function saveAppState() {
+        const appState = {
+            currentClient: state.currentClient,
+            currentAnalysis: state.currentAnalysis,
+            selectedFragments: state.selectedFragments,
+            originalText: state.originalText,
+            ui: state.ui,
+            timestamp: new Date().toISOString()
+        };
+        
+        try {
+            localStorage.setItem('teampulse-app-state', JSON.stringify(appState));
+        } catch (e) {
+            console.warn('Failed to save app state:', e);
+        }
+    }
+
+    function loadAppState() {
+        try {
+            const savedState = localStorage.getItem('teampulse-app-state');
+            if (!savedState) return false;
+            
+            const appState = JSON.parse(savedState);
+            
+            // Check if state is not too old (max 24 hours)
+            const savedTime = new Date(appState.timestamp);
+            const now = new Date();
+            const hoursDiff = (now - savedTime) / (1000 * 60 * 60);
+            
+            if (hoursDiff > 24) {
+                localStorage.removeItem('teampulse-app-state');
+                return false;
+            }
+            
+            // Restore state
+            if (appState.currentClient) {
+                state.currentClient = appState.currentClient;
+                updateNavClientInfo(state.currentClient);
+                updateWorkspaceClientInfo(state.currentClient);
+            }
+            
+            if (appState.currentAnalysis) {
+                state.currentAnalysis = appState.currentAnalysis;
+                state.originalText = appState.originalText;
+                
+                // Restore analysis UI
+                if (elements.negotiationText) {
+                    elements.negotiationText.value = state.originalText || '';
+                    updateTextStats();
+                }
+                
+                if (elements.resultsSection) {
+                    elements.resultsSection.style.display = 'block';
+                }
+                
+                // Restore displays
+                if (state.currentAnalysis.highlights) {
+                    updateHighlightsDisplay(state.currentAnalysis.highlights);
+                }
+                if (state.currentAnalysis.summary) {
+                    updateSummaryDisplay(state.currentAnalysis.summary);
+                }
+                if (state.currentAnalysis.barometer) {
+                    updateBarometerDisplay(state.currentAnalysis.barometer);
+                }
+                
+                updateAnalysisSteps('completed');
+                showSection('analysis-dashboard');
+            }
+            
+            if (appState.selectedFragments) {
+                state.selectedFragments = appState.selectedFragments;
+                updateWorkspaceFragments();
+                updateWorkspaceActions();
+            }
+            
+            if (appState.ui) {
+                Object.assign(state.ui, appState.ui);
+            }
+            
+            return true;
+        } catch (e) {
+            console.warn('Failed to load app state:', e);
+            return false;
+        }
+    }
+
+    // Auto-save state on important changes
+    function scheduleStateSave() {
+        clearTimeout(scheduleStateSave.timeout);
+        scheduleStateSave.timeout = setTimeout(saveAppState, 1000);
+    }
 
     // ===== Initialization =====
     function init() {
@@ -1808,8 +2214,19 @@
         
         // Load initial data if onboarding completed
         if (state.onboardingCompleted) {
-            loadClients();
-            loadTokenUsage();
+            loadClients().then(() => {
+                loadTokenUsage();
+                
+                // Try to restore previous app state
+                const stateRestored = loadAppState();
+                
+                // Load current client's analysis history if we have a current client
+                if (state.currentClient) {
+                    loadAnalysisHistory(state.currentClient.id);
+                }
+                
+                console.log('App state restored:', stateRestored);
+            });
             
             // Auto-refresh token usage
             setInterval(loadTokenUsage, 30000);
@@ -1817,6 +2234,12 @@
         
         // Handle initial resize
         handleResize();
+        
+        // Auto-save state periodically
+        setInterval(saveAppState, 60000); // Save every minute
+        
+        // Save state on page unload
+        window.addEventListener('beforeunload', saveAppState);
         
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }

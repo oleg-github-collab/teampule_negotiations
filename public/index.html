@@ -102,6 +102,10 @@
                 </div>
                 
                 <div class="nav-actions">
+                    <button class="nav-action sidebar-show-btn" id="sidebar-show-btn" title="Показати меню клієнтів" style="display: none;">
+                        <i class="fas fa-users"></i>
+                    </button>
+                    
                     <div class="token-counter" id="token-counter">
                         <div class="token-usage">
                             <span class="used-tokens" id="used-tokens">—</span>
@@ -492,6 +496,66 @@
                                             <i class="fas fa-file-text"></i>
                                         </div>
                                         <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                                    </div>
+                                </div>
+
+                                <!-- Filters Panel -->
+                                <div class="filters-panel" id="filters-panel" style="display: none;">
+                                    <div class="filters-header">
+                                        <h4><i class="fas fa-filter"></i> Фільтри</h4>
+                                    </div>
+                                    
+                                    <div class="filters-content">
+                                        <!-- Category Filters -->
+                                        <div class="filter-group">
+                                            <h5>Типи проблем:</h5>
+                                            <label class="filter-checkbox">
+                                                <input type="checkbox" id="filter-manipulation" checked>
+                                                <span class="checkmark manipulation"></span>
+                                                Маніпуляції
+                                            </label>
+                                            <label class="filter-checkbox">
+                                                <input type="checkbox" id="filter-cognitive-bias" checked>
+                                                <span class="checkmark cognitive_bias"></span>
+                                                Когнітивні викривлення
+                                            </label>
+                                            <label class="filter-checkbox">
+                                                <input type="checkbox" id="filter-rhetorical-fallacy" checked>
+                                                <span class="checkmark fallacy"></span>
+                                                Софізми та помилки
+                                            </label>
+                                        </div>
+
+                                        <!-- Severity Filter -->
+                                        <div class="filter-group">
+                                            <h5>Рівень серйозності:</h5>
+                                            <div class="severity-range">
+                                                <label>Від:</label>
+                                                <select id="filter-min-severity">
+                                                    <option value="1">1 - Легкий</option>
+                                                    <option value="2">2 - Помірний</option>
+                                                    <option value="3">3 - Серйозний</option>
+                                                </select>
+                                                <label>До:</label>
+                                                <select id="filter-max-severity">
+                                                    <option value="1">1 - Легкий</option>
+                                                    <option value="2">2 - Помірний</option>
+                                                    <option value="3" selected>3 - Серйозний</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <!-- Text Search -->
+                                        <div class="filter-group">
+                                            <h5>Пошук по тексту:</h5>
+                                            <input type="text" id="filter-search" placeholder="Введіть ключові слова...">
+                                        </div>
+
+                                        <!-- Filter Actions -->
+                                        <div class="filter-actions">
+                                            <button class="btn-secondary btn-sm" id="clear-filters">Очистити</button>
+                                            <button class="btn-primary btn-sm" id="apply-filters">Застосувати</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
