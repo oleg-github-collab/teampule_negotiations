@@ -32,3 +32,19 @@
 {"level":"info","message":"127.0.0.1 - - [11/Aug/2025:23:56:12 +0000] \"POST /api/analyze HTTP/1.1\" 503 102 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-12 01:56:12"}
 {"context":{"context":"OpenAI advice API call failed","ip":"127.0.0.1","itemsCount":1,"model":"gpt-5"},"error":{"message":"401 Incorrect API key provided: demo. You can find your API key at https://platform.openai.com/account/api-keys.","name":"Error","stack":"Error: 401 Incorrect API key provided: demo. You can find your API key at https://platform.openai.com/account/api-keys.\n    at APIError.generate (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/error.mjs:44:20)\n    at OpenAI.makeStatusError (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:295:25)\n    at OpenAI.makeRequest (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:339:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/advice.js:148:14"},"level":"error","message":"Application Error","service":"teampulse-turbo","timestamp":"2025-08-12 01:56:20"}
 {"level":"info","message":"127.0.0.1 - - [11/Aug/2025:23:56:20 +0000] \"POST /api/advice HTTP/1.1\" 503 102 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-12 01:56:20"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)","service":"teampulse-turbo","timestamp":"2025-08-12 02:08:57"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-12 02:08:57"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-12 02:08:57"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-12 02:08:57"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-12 02:08:57"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)","service":"teampulse-turbo","timestamp":"2025-08-12 02:09:12"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-12 02:09:13"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-12 02:09:13"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-12 02:09:13"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-12 02:09:13"}
+{"level":"info","message":"127.0.0.1 - - [12/Aug/2025:00:09:17 +0000] \"GET /health HTTP/1.1\" 200 43 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-12 02:09:17"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":21,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-12 02:09:22","url":"/api/login","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [12/Aug/2025:00:09:22 +0000] \"POST /api/login HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-12 02:09:22"}
+{"level":"info","message":"127.0.0.1 - - [12/Aug/2025:00:09:25 +0000] \"GET /api/clients HTTP/1.1\" 200 2673 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-12 02:09:25"}
+{"level":"info","message":"127.0.0.1 - - [12/Aug/2025:00:10:02 +0000] \"POST /api/clients HTTP/1.1\" 200 543 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-12 02:10:02"}
+{"level":"info","message":"127.0.0.1 - - [12/Aug/2025:00:10:38 +0000] \"POST /api/clients HTTP/1.1\" 200 536 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-12 02:10:38"}

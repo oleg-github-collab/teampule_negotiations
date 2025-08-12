@@ -463,12 +463,14 @@
           body: JSON.stringify(clientData)
         });
   
-        const contentType = res.headers.get('content-type');
         let data;
         
-        if (contentType && contentType.includes('application/json')) {
+        try {
+          // Try to parse as JSON first, regardless of content-type header
+          // This handles cases where the server returns JSON but with incorrect/missing headers
           data = await res.json();
-        } else {
+        } catch (parseError) {
+          // If JSON parsing fails, get the response as text for better error reporting
           const text = await res.text();
           throw new Error(`Сервер повернув невалідну відповідь: ${text.substring(0, 100)}`);
         }
