@@ -124,4 +124,58 @@ export const logAIUsage = (tokens, model, operation) => {
   });
 };
 
+// Railway-specific logging
+export const logRailwayDeploy = (stage, details = {}) => {
+  logger.info('Railway Deployment', {
+    stage,
+    details,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    railwayServiceId: process.env.RAILWAY_SERVICE_ID,
+    railwayEnvironment: process.env.RAILWAY_ENVIRONMENT
+  });
+};
+
+// Enhanced error logging for debugging
+export const logDetailedError = (error, req, additionalContext = {}) => {
+  const errorDetails = {
+    error: {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      status: error.status || error.statusCode
+    },
+    request: {
+      method: req?.method,
+      url: req?.url,
+      ip: req?.ip,
+      userAgent: req?.get?.('User-Agent'),
+      headers: req?.headers,
+      body: req?.body ? JSON.stringify(req.body).substring(0, 500) : undefined
+    },
+    system: {
+      timestamp: new Date().toISOString(),
+      nodeVersion: process.version,
+      platform: process.platform,
+      memory: process.memoryUsage(),
+      uptime: process.uptime()
+    },
+    ...additionalContext
+  };
+  
+  logger.error('Detailed Error Report', errorDetails);
+  return errorDetails;
+};
+
+// Client-side error logging
+export const logClientError = (errorData, req) => {
+  logger.error('Client-Side Error', {
+    clientError: errorData,
+    userAgent: req?.get?.('User-Agent'),
+    ip: req?.ip,
+    timestamp: new Date().toISOString()
+  });
+};
+
 export default logger;

@@ -1269,3 +1269,329 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-12 11:27:29'
 }
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:22:42'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:22:42'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:22:42'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:22:42'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:22:42'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:22:57 +0000] "GET /health HTTP/1.1" 200 400 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:22:57'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/login',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 25,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 14:23:06'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:23:06 +0000] "POST /api/login HTTP/1.1" 200 16 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:23:06'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:23:13 +0000] "POST /api/clients HTTP/1.1" 200 559 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:23:13'
+}
+{
+  service: 'teampulse-turbo',
+  event: '404 - Resource not found',
+  details: {
+    ip: '127.0.0.1',
+    method: 'POST',
+    url: '/api/analyze/text',
+    userAgent: 'curl/8.7.1',
+    referer: undefined
+  },
+  timestamp: '2025-08-12 14:23:53',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/analyze/text',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 404,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-12 14:23:53'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:23:53 +0000] "POST /api/analyze/text HTTP/1.1" 404 69 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:23:53'
+}
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: 'Unsupported content type: application/json',
+    stack: 'Error: Unsupported content type: application/json\n' +
+      '    at getInstance (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/busboy/lib/index.js:36:9)\n' +
+      '    at module.exports (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/busboy/lib/index.js:56:10)\n' +
+      '    at file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/analyze.js:108:20\n' +
+      '    at new Promise (<anonymous>)\n' +
+      '    at parseMultipart (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/analyze.js:107:10)\n' +
+      '    at file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/analyze.js:197:66\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:149:13)\n' +
+      '    at validateFileUpload (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/middleware/validators.js:194:3)\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:149:13)\n' +
+      '    at Route.dispatch (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:119:3)\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at /Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/index.js:284:15\n' +
+      '    at Function.process_params (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/index.js:346:12)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/index.js:280:10)',
+    name: 'Error'
+  },
+  context: {
+    context: 'Analysis route error',
+    duration: 0.6609570000000531,
+    tokensUsed: 0,
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1'
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-12 14:24:13'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:24:13 +0000] "POST /api/analyze HTTP/1.1" 500 117 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:24:13'
+}
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: '400 Unrecognized request argument supplied: signal',
+    stack: 'Error: 400 Unrecognized request argument supplied: signal\n' +
+      '    at APIError.generate (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/error.mjs:41:20)\n' +
+      '    at OpenAI.makeStatusError (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:295:25)\n' +
+      '    at OpenAI.makeRequest (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:339:30)\n' +
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+      '    at async Object.create (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/utils/openAIClient.js:55:26)\n' +
+      '    at async file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/analyze.js:398:18',
+    name: 'Error'
+  },
+  context: {
+    context: 'Analysis route error',
+    duration: 1079.8532929999928,
+    tokensUsed: 1246,
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1'
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-12 14:24:43'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:24:43 +0000] "POST /api/analyze HTTP/1.1" 500 125 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:24:43'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:25:12'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:25:12'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:25:12'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:25:12'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:25:12'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:25:24 +0000] "GET /health HTTP/1.1" 200 400 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:25:24'
+}
+{
+  service: 'teampulse-turbo',
+  tokens: 2846,
+  model: 'gpt-4o',
+  operation: 'text_analysis',
+  timestamp: '2025-08-12 14:25:41',
+  level: 'info',
+  message: 'AI Usage'
+}
+{
+  service: 'teampulse-turbo',
+  operation: 'Complete Analysis',
+  duration: 2807.3600079999997,
+  details: {
+    textLength: 184,
+    tokensUsed: 2846,
+    highlightsFound: 1,
+    clientId: 9
+  },
+  level: 'info',
+  message: 'Performance Metric',
+  timestamp: '2025-08-12 14:25:41'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:25:41 +0000] "POST /api/analyze HTTP/1.1" 200 - "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:25:41'
+}
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: '400 Unrecognized request argument supplied: signal',
+    stack: 'Error: 400 Unrecognized request argument supplied: signal\n' +
+      '    at APIError.generate (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/error.mjs:41:20)\n' +
+      '    at OpenAI.makeStatusError (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:295:25)\n' +
+      '    at OpenAI.makeRequest (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/node_modules/openai/core.mjs:339:30)\n' +
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+      '    at async Object.create (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/utils/openAIClient.js:55:26)\n' +
+      '    at async file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/advice.js:169:18',
+    name: 'Error'
+  },
+  context: {
+    context: 'OpenAI advice API call failed after retries',
+    model: 'gpt-4o',
+    itemsCount: 1,
+    retries: 0,
+    isRetryable: false,
+    ip: '127.0.0.1'
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-12 14:26:04'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:26:04 +0000] "POST /api/advice HTTP/1.1" 503 190 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:26:04'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:27:15'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:27:15'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:27:15'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:27:15'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:27:15'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:27:27 +0000] "GET /health HTTP/1.1" 200 400 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:27:27'
+}
+{
+  service: 'teampulse-turbo',
+  tokens: 1018,
+  model: 'gpt-4o',
+  operation: 'advice_generation',
+  timestamp: '2025-08-12 14:27:46',
+  level: 'info',
+  message: 'AI Usage'
+}
+{
+  service: 'teampulse-turbo',
+  operation: 'Advice Generation',
+  duration: 5535.3612109999995,
+  details: { itemsCount: 1, tokensUsed: 1018 },
+  level: 'info',
+  message: 'Performance Metric',
+  timestamp: '2025-08-12 14:27:46'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:27:46 +0000] "POST /api/advice HTTP/1.1" 200 1222 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:27:46'
+}
+{
+  message: '127.0.0.1 - - [12/Aug/2025:12:27:55 +0000] "HEAD / HTTP/1.1" 200 41214 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-12 14:27:55'
+}

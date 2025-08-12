@@ -816,6 +816,12 @@
           </div>
         `;
       }
+
+      // Activate right sidebar with analysis results
+      if (elements.rightSidebar) {
+        elements.rightSidebar.classList.add('active');
+        console.log('✅ Right sidebar activated after analysis (legacy)');
+      }
   
       elements.exportBtn.disabled = false;
     }
@@ -2077,6 +2083,12 @@
         // Update summary
         if (results.summary) {
           displaySummaryNew(results.summary);
+        }
+        
+        // Activate right sidebar with analysis results
+        if (elements.rightSidebar) {
+          elements.rightSidebar.classList.add('active');
+          console.log('✅ Right sidebar activated after analysis');
         }
         
         // Enable export

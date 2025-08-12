@@ -1,9 +1,13 @@
 // server.js - Production TeamPulse Turbo Server
+import dotenv from 'dotenv';
+
+// Load environment variables FIRST
+dotenv.config();
+
 import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
@@ -11,16 +15,13 @@ import { dirname, join } from 'path';
 import fs from 'fs';
 
 // Import custom middleware and utilities
-import logger, { logError, logSecurity, logAPI } from './utils/logger.js';
+import logger, { logError, logSecurity, logAPI, logDetailedError, logClientError, logRailwayDeploy } from './utils/logger.js';
 import { apiLimiter, loginLimiter, analysisLimiter } from './middleware/rateLimiter.js';
 import { validateSecurityHeaders } from './middleware/validators.js';
 
 import analyzeRoutes from './routes/analyze.js';
 import clientsRoutes from './routes/clients.js';
 import adviceRoutes from './routes/advice.js';
-
-// Load environment variables
-dotenv.config();
 
 // Validate required environment variables
 const requiredEnvVars = ['OPENAI_API_KEY', 'NODE_ENV'];
@@ -209,15 +210,14 @@ app.get('/api/usage', authMiddleware, (req, res) => {
 // Client error logging endpoint
 app.post('/api/log-error', (req, res) => {
   const { error, url, line, column, stack } = req.body;
-  console.error('🐛 Client error:', {
+  logClientError({
     error: error?.toString() || 'Unknown error',
     url,
     line,
     column,
     stack,
-    userAgent: req.get('User-Agent'),
     timestamp: new Date().toISOString()
-  });
+  }, req);
   res.status(200).json({ logged: true });
 });
 
@@ -376,19 +376,10 @@ app.get('/', (req, res) => {
 app.use((err, req, res, next) => {
   const errorId = Math.random().toString(36).substring(2, 15);
   
-  logError(err, {
+  // Use detailed logging for better debugging
+  logDetailedError(err, req, {
     errorId,
-    ip: req.ip,
-    method: req.method,
-    url: req.url,
-    userAgent: req.get('User-Agent'),
-    body: req.path?.startsWith('/api/') ? '[REDACTED]' : req.body,
-    headers: {
-      'content-type': req.get('Content-Type'),
-      'user-agent': req.get('User-Agent'),
-      'referer': req.get('Referer')
-    },
-    stack: err.stack
+    body: req.path?.startsWith('/api/') ? '[REDACTED]' : req.body
   });
   
   // Prevent hanging requests
@@ -592,6 +583,17 @@ const server = app.listen(PORT, HOST, () => {
   logger.info(`🤖 AI Model: ${process.env.OPENAI_MODEL || 'gpt-4o'}`);
   logger.info(`🔒 Security features enabled: ${isProduction ? 'YES' : 'NO'}`);
   logger.info(`📝 Logging level: ${process.env.LOG_LEVEL || 'info'}`);
+  
+  // Log Railway deployment info
+  if (process.env.RAILWAY_ENVIRONMENT) {
+    logRailwayDeploy('server-start', {
+      host: HOST,
+      port: PORT,
+      environment: env,
+      serviceId: process.env.RAILWAY_SERVICE_ID,
+      deploymentId: process.env.RAILWAY_DEPLOYMENT_ID
+    });
+  }
 });
 
 // Server timeout configuration

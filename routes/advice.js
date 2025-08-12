@@ -7,7 +7,7 @@ import { run, get } from '../utils/db.js';
 import { performance } from 'perf_hooks';
 
 const r = Router();
-const MODEL = process.env.OPENAI_MODEL || 'gpt-5';
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
 
 // Daily limit helpers - FIXED: using sync DB calls like analyze.js
@@ -166,10 +166,7 @@ ${JSON.stringify(
         }, API_TIMEOUT);
         
         try {
-          resp = await openaiClient.chat.completions.create({
-            ...reqPayload,
-            signal: controller.signal
-          });
+          resp = await openaiClient.chat.completions.create(reqPayload);
           clearTimeout(timeout);
           break; // Success, exit retry loop
           

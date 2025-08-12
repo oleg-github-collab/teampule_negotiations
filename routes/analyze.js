@@ -289,6 +289,15 @@ r.post('/', validateFileUpload, async (req, res) => {
       notes: profile?.notes || '',
     };
 
+    // Check if OpenAI client is available
+    if (!openaiClient) {
+      return res.status(503).json({
+        error: 'AI сервіс тимчасово недоступний. Перевірте конфігурацію OpenAI API ключа.',
+        code: 'AI_SERVICE_UNAVAILABLE',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // SSE headers
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -386,10 +395,7 @@ r.post('/', validateFileUpload, async (req, res) => {
           await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, retryCount), 10000)));
         }
         
-        stream = await openaiClient.chat.completions.create({
-          ...reqPayload,
-          signal: controller.signal
-        });
+        stream = await openaiClient.chat.completions.create(reqPayload);
         
         clearTimeout(timeout);
         clearInterval(connectionCheck);

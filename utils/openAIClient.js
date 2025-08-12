@@ -1,4 +1,7 @@
 // utils/openAIClient.js - Enhanced with circuit breaker and monitoring
+import dotenv from 'dotenv';
+dotenv.config();
+
 import OpenAI from 'openai';
 
 // Circuit breaker state
@@ -8,21 +11,29 @@ const circuitBreaker = {
   state: 'CLOSED', // CLOSED, OPEN, HALF_OPEN
   maxFailures: process.env.NODE_ENV === 'production' ? 5 : 3,
   timeout: 60000, // 1 minute
-  halfOpenMaxCalls: 3
+  halfOpenMaxCalls: 3,
+  halfOpenCalls: 0
 };
 
 // Create OpenAI client with error handling
 let _client = null;
 try {
-  if (process.env.OPENAI_API_KEY) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  console.log(`🔑 Initializing OpenAI client with API key: ${apiKey ? apiKey.substring(0, 8) + '...' : 'MISSING'}`);
+  
+  if (apiKey && apiKey !== 'demo' && apiKey.startsWith('sk-')) {
     _client = new OpenAI({ 
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: apiKey,
       timeout: 45000, // 45 second timeout
       maxRetries: 0, // We handle retries manually
     });
+    console.log('✅ OpenAI client initialized successfully');
+  } else {
+    console.error('❌ Invalid or missing OpenAI API key. Expected format: sk-..., got:', apiKey || 'undefined');
+    throw new Error('OpenAI client not configured - invalid or missing API key');
   }
 } catch (initError) {
-  console.error('Failed to initialize OpenAI client:', initError.message);
+  console.error('❌ Failed to initialize OpenAI client:', initError.message);
 }
 
 // Circuit breaker wrapper
