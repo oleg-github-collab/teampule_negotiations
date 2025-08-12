@@ -4,8 +4,8 @@
     
     // ===== Authentication =====
     const CREDENTIALS = {
-        username: 'admin',
-        password: 'teampulse2024'
+        username: 'janeDVDops',
+        password: 'jane2210'
     };
 
     function $(selector) {

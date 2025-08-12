@@ -430,8 +430,12 @@
             }
             
             state.clients = data.clients || [];
-            renderClientsList();
-            updateClientCount();
+            
+            // Ensure UI updates even if there were issues
+            setTimeout(() => {
+                renderClientsList();
+                updateClientCount();
+            }, 100);
             
         } catch (error) {
             console.error('Failed to load clients:', error);
@@ -440,7 +444,10 @@
     }
 
     function renderClientsList() {
-        if (!elements.clientList) return;
+        if (!elements.clientList) {
+            console.warn('Client list element not found');
+            return;
+        }
 
         const searchTerm = elements.clientSearch?.value.toLowerCase().trim() || '';
         const filtered = state.clients.filter(client => {
@@ -657,9 +664,17 @@
             
             // Set the new client as current and show analysis dashboard
             state.currentClient = data.client;
+            
+            // Force refresh the clients list to ensure it appears
             await loadClients();
+            
+            // Make sure the client appears in UI
+            renderClientsList();
+            updateClientCount();
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
+            
+            // Show analysis dashboard
             showSection('analysis-dashboard');
             
             // Save state
@@ -1861,8 +1876,12 @@
                 throw new Error(data.error || 'Помилка отримання порад');
             }
 
+            // Save the advice for future reference
+            const advice = data.advice || data;
+            saveAdviceToHistory(advice);
+            
             // Show advice in a modal or notification
-            showAdviceModal(data.advice || data);
+            showAdviceModal(advice);
             await loadTokenUsage();
 
         } catch (error) {
@@ -1871,6 +1890,46 @@
         } finally {
             elements.getAdviceBtn.classList.remove('btn-loading');
             elements.getAdviceBtn.disabled = state.selectedFragments.length === 0;
+        }
+    }
+
+    function saveAdviceToHistory(advice) {
+        try {
+            if (!state.currentClient) return;
+            
+            const adviceRecord = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                clientId: state.currentClient.id,
+                fragments: [...state.selectedFragments],
+                advice: advice,
+                created: formatDate(new Date())
+            };
+            
+            // Get existing advice history
+            const historyKey = 'teampulse-advice-history';
+            let history = [];
+            try {
+                const saved = localStorage.getItem(historyKey);
+                if (saved) history = JSON.parse(saved);
+            } catch (e) {
+                console.warn('Failed to parse advice history');
+            }
+            
+            // Add new advice to beginning of history
+            history.unshift(adviceRecord);
+            
+            // Keep only last 50 recommendations
+            if (history.length > 50) {
+                history = history.slice(0, 50);
+            }
+            
+            // Save updated history
+            localStorage.setItem(historyKey, JSON.stringify(history));
+            console.log('Saved advice to history:', adviceRecord);
+            
+        } catch (error) {
+            console.error('Failed to save advice to history:', error);
         }
     }
 
@@ -1928,6 +1987,9 @@
                 </div>
                 <div class="advice-actions">
                     <button class="btn-secondary close-advice-btn">Закрити</button>
+                    <button class="btn-ghost view-history-btn">
+                        <i class="fas fa-history"></i> Попередні поради
+                    </button>
                     <button class="btn-primary copy-advice-btn">
                         <i class="fas fa-copy"></i> Копіювати
                     </button>
@@ -1946,6 +2008,12 @@
             modal.remove();
         });
         
+        // Add event listener for history button
+        modal.querySelector('.view-history-btn').addEventListener('click', () => {
+            modal.remove();
+            showAdviceHistory();
+        });
+        
         // Add event listener for copy button
         modal.querySelector('.copy-advice-btn').addEventListener('click', () => {
             copyAdviceToClipboard(JSON.stringify(advice));
@@ -1959,6 +2027,135 @@
         });
         
         showNotification('Поради згенеровано успішно! 💡', 'success');
+    }
+
+    function showAdviceHistory() {
+        try {
+            const historyKey = 'teampulse-advice-history';
+            const saved = localStorage.getItem(historyKey);
+            const history = saved ? JSON.parse(saved) : [];
+            
+            // Filter by current client if one is selected
+            const filteredHistory = state.currentClient 
+                ? history.filter(record => record.clientId === state.currentClient.id)
+                : history;
+                
+            if (filteredHistory.length === 0) {
+                showNotification('Немає збережених порад для цього клієнта', 'info');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'advice-modal';
+            modal.innerHTML = `
+                <div class="advice-content" style="max-width: 800px;">
+                    <div class="advice-header">
+                        <h3><i class="fas fa-history"></i> Історія порад${state.currentClient ? ` для ${state.currentClient.company}` : ''}</h3>
+                        <button class="btn-icon close-history">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="advice-body" style="max-height: 500px; overflow-y: auto;">
+                        ${filteredHistory.map(record => `
+                            <div class="advice-history-item" style="margin-bottom: 20px; padding: 15px; border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <span style="font-size: 0.9em; color: rgba(255, 255, 255, 0.7);">${record.created}</span>
+                                    <button class="btn-icon copy-history-advice" data-advice='${JSON.stringify(record.advice)}' title="Копіювати">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <div class="advice-content-preview">
+                                    ${typeof record.advice === 'string' 
+                                        ? `<div class="advice-text">${escapeHtml(record.advice)}</div>` 
+                                        : formatAdviceContent(record.advice)
+                                    }
+                                </div>
+                                ${record.fragments && record.fragments.length > 0 ? `
+                                    <div style="margin-top: 10px; font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">
+                                        Базувалося на ${record.fragments.length} обраних фрагментах
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="advice-actions">
+                        <button class="btn-secondary close-history-btn">Закрити</button>
+                        <button class="btn-ghost clear-history-btn">
+                            <i class="fas fa-trash"></i> Очистити історію
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Event listeners
+            modal.querySelector('.close-history').addEventListener('click', () => modal.remove());
+            modal.querySelector('.close-history-btn').addEventListener('click', () => modal.remove());
+            modal.querySelector('.clear-history-btn').addEventListener('click', () => {
+                if (confirm('Ви впевнені, що хочете видалити всю історію порад?')) {
+                    localStorage.removeItem(historyKey);
+                    modal.remove();
+                    showNotification('Історію порад очищено', 'success');
+                }
+            });
+            
+            // Copy buttons
+            modal.querySelectorAll('.copy-history-advice').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const advice = e.target.closest('.copy-history-advice').getAttribute('data-advice');
+                    copyAdviceToClipboard(advice);
+                });
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+            
+        } catch (error) {
+            console.error('Failed to show advice history:', error);
+            showNotification('Помилка завантаження історії порад', 'error');
+        }
+    }
+
+    function formatAdviceContent(advice) {
+        if (!advice || typeof advice !== 'object') return '';
+        
+        let content = '';
+        if (advice.recommended_replies && advice.recommended_replies.length > 0) {
+            content += `
+                <div class="advice-section">
+                    <h5><i class="fas fa-comments"></i> Рекомендовані відповіді:</h5>
+                    <ul class="advice-list">
+                        ${advice.recommended_replies.map(reply => `<li>${escapeHtml(reply)}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        if (advice.strategies && advice.strategies.length > 0) {
+            content += `
+                <div class="advice-section">
+                    <h5><i class="fas fa-chess"></i> Стратегії:</h5>
+                    <ul class="advice-list">
+                        ${advice.strategies.map(strategy => `<li>${escapeHtml(strategy)}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        if (advice.warnings && advice.warnings.length > 0) {
+            content += `
+                <div class="advice-section">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Попередження:</h5>
+                    <ul class="advice-list">
+                        ${advice.warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        return content || '<div class="advice-text">Немає структурованих порад</div>';
     }
 
     function copyAdviceToClipboard(advice) {
