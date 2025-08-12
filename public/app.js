@@ -463,7 +463,15 @@
           body: JSON.stringify(clientData)
         });
   
-        const data = await res.json();
+        const contentType = res.headers.get('content-type');
+        let data;
+        
+        if (contentType && contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          throw new Error(`Сервер повернув невалідну відповідь: ${text.substring(0, 100)}`);
+        }
         
         if (!res.ok || !data.success) {
           throw new Error(data.error || `HTTP Error: ${res.status}`);
