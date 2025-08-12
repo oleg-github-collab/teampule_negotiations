@@ -92,6 +92,101 @@
       }
     }
     window.closeSidebar = closeSidebar;
+    
+    // ===== Enhanced User Guidance =====
+    function showStepHint(step, message, element = null) {
+      // Remove existing hints first
+      $$('.step-hint').forEach(hint => hint.remove());
+      
+      const hint = document.createElement('div');
+      hint.className = 'step-hint';
+      hint.innerHTML = `
+        <div class="hint-content">
+          <div class="hint-header">
+            <span class="hint-step">Крок ${step}</span>
+            <button class="hint-close" onclick="this.closest('.step-hint').remove()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="hint-message">${message}</div>
+          ${element ? '<div class="hint-arrow"></div>' : ''}
+        </div>
+      `;
+      
+      if (element && element.getBoundingClientRect) {
+        // Position hint near the target element
+        const rect = element.getBoundingClientRect();
+        hint.style.cssText = `
+          position: fixed;
+          top: ${Math.max(10, rect.bottom + 10)}px;
+          left: ${Math.min(window.innerWidth - 320, Math.max(10, rect.left))}px;
+          z-index: 1000;
+          max-width: 300px;
+        `;
+      } else {
+        hint.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 1000;
+          max-width: 300px;
+        `;
+      }
+      
+      document.body.appendChild(hint);
+      
+      // Auto-remove after 15 seconds
+      setTimeout(() => {
+        if (hint.parentNode) hint.remove();
+      }, 15000);
+      
+      return hint;
+    }
+    
+    function checkUserProgress() {
+      // Don't show hints during analysis
+      if (currentAbortController) return;
+      
+      // Guide user through the workflow
+      if (state.clients.length === 0) {
+        setTimeout(() => {
+          showStepHint(1, '👋 Почніть зі створення профілю клієнта для точного аналізу переговорів', elements.newClientBtn);
+        }, 2000);
+        return;
+      }
+      
+      if (!state.currentClient) {
+        setTimeout(() => {
+          showStepHint(2, '👤 Оберіть клієнта зі списку для продовження роботи', $('.clients-list'));
+        }, 1500);
+        return;
+      }
+      
+      const hasText = elements.textInput?.value.trim();
+      const hasFile = elements.fileInput?.files?.[0];
+      
+      if (!hasText && !hasFile) {
+        setTimeout(() => {
+          showStepHint(3, '📄 Введіть текст переговорів або завантажте файл для аналізу', elements.textInput || elements.dropzone);
+        }, 1000);
+        return;
+      }
+      
+      // All conditions met, show analysis hint if button is available
+      if (elements.analyzeBtn && !elements.analyzeBtn.disabled && !elements.analyzeBtn.innerHTML.includes('Зупинити')) {
+        setTimeout(() => {
+          showStepHint(4, '🚀 Усе готово! Запустіть аналіз для виявлення проблемних моментів', elements.analyzeBtn);
+        }, 500);
+      }
+    }
+    
+    function updateUserGuidance() {
+      // Remove existing hints
+      $$('.step-hint').forEach(hint => hint.remove());
+      
+      // Check progress after DOM updates
+      setTimeout(checkUserProgress, 600);
+    }
   
     function escapeHtml(text) {
       const div = document.createElement('div');
@@ -530,6 +625,7 @@
         selectClient(data.id);
   
         showNotification(isUpdate ? 'Клієнта оновлено' : 'Клієнта створено', 'success');
+        updateUserGuidance(); // Update guidance after client save
       } catch (err) {
         logger.error('Failed to save client', { clientData, error: err.message });
         showNotification(`Помилка збереження: ${err.message}`, 'error');
@@ -589,6 +685,9 @@
       elements.bucket.innerHTML = '';
       elements.adviceBtn.disabled = true;
       elements.exportBtn.disabled = true;
+      
+      // Disable analysis results panel
+      setAnalysisState(true);
   
       // Toggle analyze button
       currentAbortController = new AbortController();
@@ -601,6 +700,8 @@
             elements.analyzeBtn.innerHTML = '<i class="fas fa-brain"></i> Розпочати аналіз';
             elements.analyzeBtn.onclick = runAnalysis;
           }
+          // Re-enable analysis results panel on abort
+          setAnalysisState(false);
         };
       }
   
@@ -690,6 +791,9 @@
           elements.analyzeBtn.innerHTML = '<i class="fas fa-brain"></i> Розпочати аналіз';
           elements.analyzeBtn.onclick = runAnalysis;
         }
+        
+        // Re-enable analysis results panel
+        setAnalysisState(false);
       }
     }
   
@@ -1006,15 +1110,85 @@
       showNotification('Дані експортовано', 'success');
     }
   
-    // ===== Event Listeners =====
-    elements.navToggle?.addEventListener('click', () => {
-      elements.leftSidebar?.classList.toggle('active');
-    });
-    elements.toolsToggle?.addEventListener('click', () => {
+    // ===== Enhanced Sidebar Management =====
+    function toggleLeftSidebar() {
+      const sidebar = elements.leftSidebar;
+      const toggleBtn = elements.navToggle;
+      
+      if (!sidebar) return;
+      
+      const isActive = sidebar.classList.toggle('active');
+      
+      // Update toggle button state
+      if (toggleBtn) {
+        const icon = toggleBtn.querySelector('i');
+        if (icon) {
+          icon.className = isActive ? 'fas fa-times' : 'fas fa-bars';
+        }
+        toggleBtn.setAttribute('aria-expanded', isActive.toString());
+      }
+      
+      // Add backdrop for mobile
+      if (window.innerWidth <= 768) {
+        if (isActive) {
+          addSidebarBackdrop();
+        } else {
+          removeSidebarBackdrop();
+        }
+      }
+      
+      logger.debug(`Left sidebar ${isActive ? 'opened' : 'closed'}`);
+      showNotification(`Меню ${isActive ? 'відкрито' : 'закрито'}`, 'info');
+    }
+    
+    function addSidebarBackdrop() {
+      if ($('#sidebar-backdrop')) return; // Already exists
+      
+      const backdrop = document.createElement('div');
+      backdrop.id = 'sidebar-backdrop';
+      backdrop.style.cssText = `
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 99;
+        transition: opacity 0.3s ease;
+      `;
+      
+      backdrop.addEventListener('click', () => {
+        elements.leftSidebar?.classList.remove('active');
+        removeSidebarBackdrop();
+        const toggleBtn = elements.navToggle;
+        if (toggleBtn) {
+          const icon = toggleBtn.querySelector('i');
+          if (icon) icon.className = 'fas fa-bars';
+          toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+      
+      document.body.appendChild(backdrop);
+    }
+    
+    function removeSidebarBackdrop() {
+      const backdrop = $('#sidebar-backdrop');
+      if (backdrop) {
+        backdrop.remove();
+      }
+    }
+    
+    function toggleRightPanel() {
       const panel = $('#recommendations-panel');
-      panel?.classList.toggle('active');
-      panel?.classList.toggle('collapsed');
-    });
+      if (!panel) return;
+      
+      const isActive = panel.classList.toggle('active');
+      panel.classList.toggle('collapsed', !isActive);
+      
+      logger.debug(`Right panel ${isActive ? 'opened' : 'closed'}`);
+      showNotification(`Інструменти ${isActive ? 'відкрито' : 'закрито'}`, 'info');
+    }
+
+    // ===== Event Listeners =====
+    elements.navToggle?.addEventListener('click', toggleLeftSidebar);
+    elements.toolsToggle?.addEventListener('click', toggleRightPanel);
     
     // Right panel event listeners
     $('#refresh-panel')?.addEventListener('click', () => {
@@ -1104,6 +1278,7 @@
     elements.fileInput?.addEventListener('change', () => {
       if (elements.fileInput.files.length > 0) {
         updateDropzoneText(elements.fileInput.files[0].name);
+        updateUserGuidance(); // Update guidance when file is selected
       }
     });
   
@@ -2703,18 +2878,111 @@
       }
     }
     
+    // ===== Analysis State Management =====
+    function setAnalysisState(isAnalyzing) {
+      const resultsLayout = $('.analysis-results-layout');
+      if (resultsLayout) {
+        if (isAnalyzing) {
+          resultsLayout.classList.add('analyzing');
+          logger.debug('Analysis results panel disabled');
+        } else {
+          resultsLayout.classList.remove('analyzing');
+          logger.debug('Analysis results panel enabled');
+        }
+      }
+    }
+
+    // ===== Header Button Initialization =====
+    function initializeHeaderButtons() {
+      // Help button functionality
+      const helpButton = $('#help-toggle');
+      if (helpButton) {
+        helpButton.addEventListener('click', showHelpModal);
+        logger.debug('Help button initialized');
+      } else {
+        logger.warn('Help button not found');
+      }
+      
+      // Tools button functionality  
+      const toolsButton = $('#tools-toggle');
+      if (toolsButton) {
+        toolsButton.addEventListener('click', showToolsModal);
+        logger.debug('Tools button initialized');
+      } else {
+        logger.warn('Tools button not found');
+      }
+    }
+
     // ===== Initialize =====
     loadClients().then(() => {
       onboarding.init();
       initStepAnalysis();
       loadTokenUsage();
       updateRightPanel();
+      initializeHeaderButtons(); // Initialize header buttons after DOM is ready
+      updateUserGuidance(); // Start user guidance
       // Refresh token usage every 5 minutes
       setInterval(loadTokenUsage, 5 * 60 * 1000);
     });
     
-    // Add text input listener
-    elements.textInput?.addEventListener('input', updateTextStats);
+    // ===== Keyboard Shortcuts =====
+    function handleKeyboardShortcuts(event) {
+      // Only handle shortcuts when not typing in inputs
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      // Ctrl/Cmd + shortcuts
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key.toLowerCase()) {
+          case 'n':
+            event.preventDefault();
+            elements.newClientBtn?.click();
+            showNotification('Новий клієнт', 'info');
+            break;
+          case 'u':
+            event.preventDefault();
+            elements.fileInput?.click();
+            showNotification('Відкрити файл', 'info');
+            break;
+          case 'enter':
+            event.preventDefault();
+            elements.analyzeBtn?.click();
+            break;
+          case 'e':
+            event.preventDefault();
+            elements.exportBtn?.click();
+            break;
+        }
+      }
+      
+      // Escape key
+      if (event.key === 'Escape') {
+        // Close modals or sidebars
+        const modals = $$('.modal-overlay');
+        if (modals.length > 0) {
+          modals.forEach(modal => modal.remove());
+        } else if (window.innerWidth <= 768 && elements.leftSidebar?.classList.contains('active')) {
+          toggleLeftSidebar();
+        }
+      }
+      
+      // Toggle sidebar with 'S' key
+      if (event.key.toLowerCase() === 's' && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        toggleLeftSidebar();
+      }
+    }
+    
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+
+    // Add text input listener with guidance
+    elements.textInput?.addEventListener('input', (e) => {
+      updateTextStats();
+      if (e.target.value.trim().length > 20) {
+        updateUserGuidance(); // Update guidance when sufficient text is entered
+      }
+    });
     
     resetBarometer();
     // Global error handling
@@ -2779,11 +3047,6 @@
     // Initialize workspace
     updateWorkspace();
     
-    // Help button functionality
-    const helpButton = document.getElementById('help-toggle');
-    if (helpButton) {
-      helpButton.addEventListener('click', showHelpModal);
-    }
     
     function showHelpModal() {
       const modalOverlay = document.createElement('div');
@@ -2844,11 +3107,6 @@
       });
     }
     
-    // Tools button functionality
-    const toolsButton = document.getElementById('tools-toggle');
-    if (toolsButton) {
-      toolsButton.addEventListener('click', showToolsModal);
-    }
     
     function showToolsModal() {
       const modalOverlay = document.createElement('div');

@@ -311,19 +311,53 @@ r.post('/', validateFileUpload, async (req, res) => {
     let summaryObj = null;
     let barometerObj = null;
 
-    // Production requires OpenAI API
+    // Check if OpenAI client is available, provide fallback if not
     if (!openaiClient) {
-      logError(new Error('OpenAI client not configured'), {
-        context: 'Analysis attempted without API key',
-        ip: req.ip,
-        clientId: finalClientId
-      });
+      console.warn('OpenAI client not configured, using fallback mode');
       
-      return res.status(503).json({
-        error: 'Сервіс тимчасово недоступний. Налаштуйте OPENAI_API_KEY.',
-        code: 'AI_SERVICE_UNAVAILABLE'
-      });
-    }
+      // Provide fallback demo analysis
+      const firstLen = Math.min(paragraphs[0]?.text.length || 0, 60);
+      if (firstLen > 0) {
+        const demo = {
+          type: 'highlight',
+          id: 'hl_demo',
+          paragraph_index: 0,
+          char_start: 0,
+          char_end: firstLen,
+          category: 'manipulation',
+          label: 'Appeal to Fear',
+          explanation: 'Демонстраційний режим - налаштуйте OPENAI_API_KEY для повного функціоналу',
+          severity: 2,
+        };
+        rawHighlights.push(demo);
+        sendLine(demo);
+      }
+      
+      summaryObj = {
+        type: 'summary',
+        counts_by_category: {
+          manipulation: rawHighlights.length,
+          cognitive_bias: 0,
+          rhetological_fallacy: 0,
+        },
+        top_patterns: ['Appeal to Fear'],
+        overall_observations: 'Демонстраційний аналіз. Налаштуйте OPENAI_API_KEY для повного функціоналу.',
+      };
+      
+      barometerObj = {
+        type: 'barometer',
+        score: 50,
+        label: 'Demo Mode',
+        rationale: 'Демонстраційний режим - налаштуйте OPENAI_API_KEY',
+        factors: {
+          goal_alignment: 0.5,
+          manipulation_density: 0.5,
+          scope_clarity: 0.5,
+          time_pressure: 0.5,
+          resource_demand: 0.5,
+        },
+      };
+    } else {
 
     const aiStartTime = performance.now();
     const system = buildSystemPrompt();
@@ -479,6 +513,7 @@ r.post('/', validateFileUpload, async (req, res) => {
       }
       return;
     }
+    } // Close the else block for OpenAI client availability
 
     const words = text.split(/\s+/).filter(Boolean).length || 1;
     const maxAllowed = Math.max(
