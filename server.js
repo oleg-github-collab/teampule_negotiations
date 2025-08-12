@@ -197,14 +197,41 @@ app.post('/api/logout', (req, res) => {
 });
 
 // Token usage endpoint
-app.get('/api/usage', authMiddleware, (req, res) => {
-  // Mock data - replace with real implementation
-  res.json({ 
-    used_tokens: 125000, 
-    total_tokens: 512000, 
-    percentage: 24.4,
-    reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-  });
+app.get('/api/usage', authMiddleware, async (req, res) => {
+  try {
+    const { get: dbGet } = await import('./utils/db.js');
+    
+    // Get today's usage
+    const today = new Date().toISOString().slice(0, 10);
+    const usageRow = dbGet(`SELECT * FROM usage_daily WHERE day = ?`, [today]);
+    
+    const usedTokens = usageRow?.tokens_used || 0;
+    const totalTokens = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
+    const percentage = Math.min((usedTokens / totalTokens) * 100, 100);
+    
+    // Calculate reset date (tomorrow at midnight)
+    const resetDate = new Date();
+    resetDate.setDate(resetDate.getDate() + 1);
+    resetDate.setHours(0, 0, 0, 0);
+    
+    res.json({ 
+      success: true,
+      used_tokens: usedTokens, 
+      total_tokens: totalTokens, 
+      percentage: Math.round(percentage * 10) / 10,
+      reset_date: resetDate.toISOString(),
+      day: today
+    });
+  } catch (error) {
+    logError('Failed to get token usage', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to retrieve token usage',
+      used_tokens: 0,
+      total_tokens: Number(process.env.DAILY_TOKEN_LIMIT || 512000),
+      percentage: 0
+    });
+  }
 });
 
 // Client error logging endpoint

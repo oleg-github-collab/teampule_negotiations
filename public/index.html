@@ -1,832 +1,728 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
-  <title>TeamPulse Turbo — Negotiation Analysis</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
-  <link rel="stylesheet" href="/css/main.css"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TeamPulse Turbo — AI Negotiation Analysis</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/styles-neon.css">
+    
+    <!-- Meta tags for better SEO -->
+    <meta name="description" content="Advanced AI-powered negotiation analysis tool for detecting manipulation and cognitive biases">
+    <meta name="author" content="Kaminskyi AI">
+    <meta name="theme-color" content="#a855f7">
 </head>
 <body>
-  <!-- Background effects -->
-  <div class="particles" aria-hidden="true">
-    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
-    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
-  </div>
-  <div class="app-container">
-    <!-- Left Sidebar - Always Visible -->
-    <aside class="sidebar-left" id="sidebar-left">
-      <div class="sidebar-header">
-        <div class="sidebar-brand">
-          <span class="brand-icon">⚡</span>
-          <span class="brand-text">TeamPulse Turbo</span>
-          <span class="brand-badge">AI</span>
-        </div>
-        <button class="new-chat-btn" id="new-client-btn">
-          <i class="fas fa-plus"></i> Новий клієнт
-        </button>
-      </div>
-
-      <div class="sidebar-search">
-        <div class="search-wrapper">
-          <i class="fas fa-search"></i>
-          <input type="text" id="client-search" placeholder="Пошук клієнтів..." />
-          <button class="search-clear" id="clear-search" style="display: none;">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-
-      <div class="sidebar-content">
-        <div class="clients-section">
-          <div class="section-header">
-            <h4>Клієнти</h4>
-            <span class="client-count" id="client-count">0</span>
-          </div>
-          <div id="clients-list" class="clients-list">
-            <!-- Dynamic client list will be here -->
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <div class="main-content">
-      <!-- Top Navigation -->
-      <nav class="top-nav">
-        <button class="nav-toggle" id="nav-toggle" aria-label="Меню" style="display: none;">
-          <i class="fas fa-bars"></i>
-        </button>
-        <div class="nav-brand">
-          <span class="current-client" id="current-client">
-            <i class="fas fa-building"></i> <span>TeamPulse Turbo</span>
-          </span>
-        </div>
-        <div class="nav-actions">
-          <div class="token-counter" id="token-counter">
-            <div class="token-info">
-              <div class="token-usage">
-                <span class="used-tokens" id="used-tokens">—</span>
-                <span class="token-separator">/</span>
-                <span class="total-tokens" id="total-tokens">—</span>
-              </div>
-              <div class="token-label">Токени</div>
-            </div>
-            <div class="token-progress">
-              <div class="token-progress-fill" id="token-progress-fill"></div>
-            </div>
-          </div>
-          <button class="nav-action" id="help-toggle" title="Довідка">
-            <i class="fas fa-question-circle"></i>
-          </button>
-          <button class="nav-action" id="tools-toggle" title="Інструменти">
-            <i class="fas fa-sliders-h"></i>
-          </button>
-          <button class="nav-action" id="logout-btn" title="Вихід">
-            <i class="fas fa-right-from-bracket"></i>
-          </button>
-        </div>
-      </nav>
-
-      <!-- Content Area - 2 Zone Layout -->
-      <div class="content-area" id="content-area">
-        <!-- Main Work Area (Left) -->
-        <div class="main-work-area" id="main-work-area">
-          
-          <!-- Welcome Screen -->
-          <div id="welcome-screen" class="welcome-screen">
-            <div class="welcome-content">
-              <h1>👋 Ласкаво просимо до TeamPulse Turbo</h1>
-              <p>Розумний AI-аналіз переговорів для виявлення маніпуляцій та покращення результатів</p>
-              <div class="welcome-actions">
-                <button class="btn-primary" onclick="document.getElementById('new-client-btn').click()">
-                  <i class="fas fa-plus"></i> Створити клієнта
+    <!-- App Container -->
+    <div class="app-container">
+        
+        <!-- Left Sidebar - Client Management -->
+        <aside class="sidebar sidebar-left" id="sidebar-left">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <span class="brand-icon">⚡</span>
+                    <span class="brand-text">TeamPulse</span>
+                    <span class="brand-badge">AI</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebar-left-toggle" title="Згорнути">
+                    <i class="fas fa-chevron-left"></i>
                 </button>
-              </div>
             </div>
-          </div>
-
-          <!-- Client Profile Form -->
-          <div id="client-form" class="content-section" style="display:none;">
-            <div class="content-header">
-              <h1><i class="fas fa-user-tie"></i> Новий клієнт</h1>
-              <p class="content-description">Створіть профіль клієнта для персоналізованого аналізу переговорів</p>
-            </div>
-
-        <div class="client-form-sections">
-          <!-- Basic Information -->
-          <div class="form-section">
-            <div class="section-title">
-              <i class="fas fa-building"></i>
-              <h3>Основна інформація</h3>
-            </div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label for="company">Назва компанії*</label>
-                <input id="company" placeholder="Apple Inc., Google LLC..." required />
-                <small>Повна або скорочена назва організації</small>
-              </div>
-              <div class="form-group">
-                <label for="negotiator">Ключовий переговорник</label>
-                <input id="negotiator" placeholder="Джон Сміт, CEO" />
-                <small>Ім'я та посада основного представника</small>
-              </div>
-              <div class="form-group">
-                <label for="sector">Сфера діяльності</label>
-                <select id="sector-select">
-                  <option value="">Оберіть сферу...</option>
-                  <option value="IT">Інформаційні технології</option>
-                  <option value="Finance">Фінанси та банківство</option>
-                  <option value="Healthcare">Охорона здоров'я</option>
-                  <option value="Education">Освіта</option>
-                  <option value="Manufacturing">Виробництво</option>
-                  <option value="Retail">Роздрібна торгівля</option>
-                  <option value="Real Estate">Нерухомість</option>
-                  <option value="Energy">Енергетика</option>
-                  <option value="Consulting">Консалтинг</option>
-                  <option value="Other">Інше</option>
-                </select>
-                <input id="sector" placeholder="Вкажіть свою сферу..." style="display: none; margin-top: 0.5rem;" />
-              </div>
-              <div class="form-group">
-                <label for="company-size">Розмір компанії</label>
-                <select id="company-size">
-                  <option value="">Оберіть розмір...</option>
-                  <option value="startup">Стартап (1-10 осіб)</option>
-                  <option value="small">Мала (11-50 осіб)</option>
-                  <option value="medium">Середня (51-250 осіб)</option>
-                  <option value="large">Велика (251+ осіб)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Negotiation Context -->
-          <div class="form-section">
-            <div class="section-title">
-              <i class="fas fa-handshake"></i>
-              <h3>Контекст переговорів</h3>
-            </div>
-            <div class="form-grid">
-              <div class="form-group full-width">
-                <label for="negotiation-type">Тип переговорів</label>
-                <select id="negotiation-type">
-                  <option value="">Оберіть тип...</option>
-                  <option value="sales">Продажі послуг/продуктів</option>
-                  <option value="partnership">Партнерська угода</option>
-                  <option value="contract">Підписання контракту</option>
-                  <option value="investment">Інвестиційна угода</option>
-                  <option value="acquisition">Поглинання/злиття</option>
-                  <option value="licensing">Ліцензування</option>
-                  <option value="other">Інше</option>
-                </select>
-              </div>
-              <div class="form-group full-width">
-                <label for="goal">Основна ціль переговорів</label>
-                <textarea id="goal" rows="2" placeholder="Чого ви хочете досягнути в результаті цих переговорів?"></textarea>
-              </div>
-              <div class="form-group">
-                <label for="deal-value">Очікувана вартість угоди</label>
-                <input id="deal-value" placeholder="$10,000, €50K, 1M грн..." />
-                <small>Приблизна вартість або бюджет проекту</small>
-              </div>
-              <div class="form-group">
-                <label for="timeline">Часові рамки</label>
-                <select id="timeline">
-                  <option value="">Оберіть термін...</option>
-                  <option value="urgent">Терміново (до тижня)</option>
-                  <option value="short">Короткостроково (1-4 тижні)</option>
-                  <option value="medium">Середньостроково (1-3 місяці)</option>
-                  <option value="long">Довгостроково (3+ місяці)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Strategic Analysis -->
-          <div class="form-section">
-            <div class="section-title">
-              <i class="fas fa-chess"></i>
-              <h3>Стратегічний аналіз</h3>
-            </div>
-            <div class="form-grid">
-              <div class="form-group full-width">
-                <label for="user_goals">Ваші ключові цілі та пріоритети</label>
-                <textarea id="user_goals" rows="3" placeholder="1. Максимізувати прибуток&#10;2. Встановити довгострокове партнерство&#10;3. Мінімізувати ризики..."></textarea>
-                <small>Перелічіть ваші головні цілі в порядку важливості</small>
-              </div>
-              <div class="form-group full-width">
-                <label for="client_goals">Передбачувані цілі клієнта</label>
-                <textarea id="client_goals" rows="3" placeholder="Що, на вашу думку, хоче отримати клієнт?"></textarea>
-                <small>Ваші припущення про мотивацію та потреби клієнта</small>
-              </div>
-              <div class="form-group full-width">
-                <label for="criteria">Критерії прийняття рішень</label>
-                <textarea id="criteria" rows="2" placeholder="Ціна, якість, терміни виконання, репутація, технічні можливості..."></textarea>
-                <small>На що клієнт звертає найбільшу увагу при виборі</small>
-              </div>
-              <div class="form-group full-width">
-                <label for="constraints">Обмеження та ризики</label>
-                <textarea id="constraints" rows="2" placeholder="Бюджетні обмеження, регулятивні вимоги, технічні обмеження..."></textarea>
-                <small>Які фактори можуть вплинути на переговори</small>
-              </div>
-            </div>
-          </div>
-
-          <!-- Competition & Market -->
-          <div class="form-section">
-            <div class="section-title">
-              <i class="fas fa-chart-bar"></i>
-              <h3>Конкуренція та ринок</h3>
-            </div>
-            <div class="form-grid">
-              <div class="form-group full-width">
-                <label for="competitors">Основні конкуренти</label>
-                <textarea id="competitors" rows="2" placeholder="Які компанії також претендують на цю угоду?"></textarea>
-              </div>
-              <div class="form-group">
-                <label for="competitive-advantage">Ваша конкурентна перевага</label>
-                <textarea id="competitive-advantage" rows="2" placeholder="Чим ви кращі за конкурентів?"></textarea>
-              </div>
-              <div class="form-group">
-                <label for="market-position">Позиція на ринку</label>
-                <select id="market-position">
-                  <option value="">Оберіть позицію...</option>
-                  <option value="leader">Лідер ринку</option>
-                  <option value="challenger">Претендент</option>
-                  <option value="follower">Послідовник</option>
-                  <option value="niche">Нішевий гравець</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Additional Details -->
-          <div class="form-section">
-            <div class="section-title">
-              <i class="fas fa-cogs"></i>
-              <h3>Додаткові деталі</h3>
-            </div>
-            <div class="form-grid">
-              <div class="form-group full-width">
-                <label for="offered_services">Пропоновані послуги/продукти</label>
-                <textarea id="offered_services" rows="2" placeholder="Детальний опис того, що ви пропонуєте клієнту"></textarea>
-              </div>
-              <div class="form-group">
-                <label for="weekly_hours">Інтенсивність роботи</label>
-                <input id="weekly_hours" type="number" min="0" placeholder="40" />
-                <small>Годин на тиждень або обсяг залучення</small>
-              </div>
-              <div class="form-group">
-                <label for="deadlines">Ключові дедлайни</label>
-                <input id="deadlines" placeholder="15.03.2024 - демо, 30.03 - фінал" />
-                <small>Важливі дати та етапи проекту</small>
-              </div>
-              <div class="form-group full-width">
-                <label for="previous-interactions">Попередні взаємодії</label>
-                <textarea id="previous-interactions" rows="2" placeholder="Чи мали ви раніше справи з цим клієнтом? Який досвід?"></textarea>
-              </div>
-              <div class="form-group full-width">
-                <label for="notes">Додаткові нотатки</label>
-                <textarea id="notes" rows="3" placeholder="Будь-яка інша важлива інформація, особливості клієнта, культурні аспекти тощо"></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button class="btn-primary" id="save-client-btn">
-            <i class="fas fa-save"></i> Зберегти клієнта
-          </button>
-          <button class="btn-secondary" id="cancel-client-btn">
-            <i class="fas fa-times"></i> Скасувати
-          </button>
-        </div>
-      </div>
-
-          <!-- Analysis Dashboard -->
-          <div id="analysis-dashboard" class="content-section" style="display:none;">
-            <div class="content-header">
-              <h1><i class="fas fa-chart-line"></i> Аналіз переговорів</h1>
-              <p class="content-description">Завантажте текст переговорів для розумного AI-аналізу</p>
-            </div>
-
-            <!-- Analysis Steps -->
-            <div class="analysis-steps">
-              <div class="step active" data-step="1">
-                <div class="step-number">1</div>
-                <div class="step-content">
-                  <h3>Завантаження тексту</h3>
-                  <p>Додайте текст переговорів</p>
+            
+            <div class="sidebar-content">
+                <!-- New Client Button -->
+                <button class="btn-primary btn-full" id="new-client-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>Новий клієнт</span>
+                </button>
+                
+                <!-- Client Search -->
+                <div class="client-search">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="client-search" placeholder="Пошук клієнтів...">
                 </div>
-              </div>
-              <div class="step" data-step="2">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                  <h3>AI аналіз</h3>
-                  <p>Виявлення маніпуляцій</p>
-                </div>
-              </div>
-              <div class="step" data-step="3">
-                <div class="step-number">3</div>
-                <div class="step-content">
-                  <h3>Результати</h3>
-                  <p>Рекомендації та звіт</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 1: Text Input -->
-            <div class="analysis-step-content" id="step-1-content">
-              <div class="upload-section">
-                <!-- Input Method Tabs -->
-                <div class="input-method-tabs">
-                  <button class="input-tab active" data-method="text" id="text-tab">
-                    <i class="fas fa-keyboard"></i>
-                    <span>Ввести текст</span>
-                  </button>
-                  <button class="input-tab" data-method="file" id="file-tab">
-                    <i class="fas fa-file-upload"></i>
-                    <span>Завантажити файл</span>
-                  </button>
-                </div>
-
-                <!-- Text Input Area (Default) -->
-                <div class="input-content active" id="text-input-content">
-                  <div class="text-input-container">
-                    <div class="input-header">
-                      <h4><i class="fas fa-edit"></i> Введіть або вставте текст переговорів</h4>
-                      <div class="input-stats">
-                        <span id="char-count">0 символів</span>
-                        <span class="separator">•</span>
-                        <span id="word-count">0 слів</span>
-                      </div>
+                
+                <!-- Client List -->
+                <div class="client-section">
+                    <h4>
+                        <i class="fas fa-users"></i>
+                        Клієнти
+                        <span class="fragment-counter" id="client-count">0</span>
+                    </h4>
+                    <div class="client-list" id="client-list">
+                        <!-- Dynamic content -->
                     </div>
-                    <div class="text-input-wrapper">
-                      <textarea 
-                        id="negotiation-text" 
-                        placeholder="Вставте або введіть текст переговорів тут...
+                </div>
+                
+                <!-- Analysis History -->
+                <div class="client-section">
+                    <h4>
+                        <i class="fas fa-history"></i>
+                        Історія аналізів
+                        <span class="fragment-counter" id="analysis-count">0</span>
+                    </h4>
+                    <div class="analysis-history" id="analysis-history">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="main-content">
+            
+            <!-- Top Navigation -->
+            <nav class="top-nav">
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" title="Меню">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                <div class="nav-brand">
+                    <span class="brand-icon">⚡</span>
+                    <span class="brand-text">TeamPulse Turbo</span>
+                </div>
+                
+                <div class="nav-client-info" id="nav-client-info" style="display: none;">
+                    <div class="client-avatar" id="nav-client-avatar">C</div>
+                    <div class="client-details">
+                        <h4 id="nav-client-name">Оберіть клієнта</h4>
+                        <p id="nav-client-sector">—</p>
+                    </div>
+                </div>
+                
+                <div class="nav-actions">
+                    <div class="token-counter" id="token-counter">
+                        <div class="token-usage">
+                            <span class="used-tokens" id="used-tokens">—</span>
+                            <span>/</span>
+                            <span class="total-tokens" id="total-tokens">—</span>
+                        </div>
+                        <div class="token-progress">
+                            <div class="token-progress-fill" id="token-progress-fill"></div>
+                        </div>
+                    </div>
+                    
+                    <button class="nav-action" id="help-toggle" title="Довідка">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                    
+                    <button class="nav-action" id="workspace-toggle" title="Робоча область">
+                        <i class="fas fa-tools"></i>
+                    </button>
+                    
+                    <button class="nav-action" id="settings-toggle" title="Налаштування">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                
+                <!-- Welcome Screen -->
+                <div id="welcome-screen" class="welcome-screen">
+                    <div class="welcome-content">
+                        <h1>👋 Ласкаво просимо до TeamPulse Turbo</h1>
+                        <p>Потужний AI-інструмент для аналізу переговорів та виявлення маніпуляцій. Створіть профіль клієнта та почніть аналіз.</p>
+                        <div class="welcome-actions">
+                            <button class="btn-primary btn-large" id="welcome-new-client">
+                                <i class="fas fa-user-plus"></i>
+                                Створити клієнта
+                            </button>
+                            <button class="btn-secondary btn-large" id="welcome-help">
+                                <i class="fas fa-play-circle"></i>
+                                Онбординг
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client Form -->
+                <div id="client-form" class="tab-pane" style="display: none;">
+                    <div class="content-header">
+                        <h1>
+                            <i class="fas fa-user-tie"></i>
+                            <span id="client-form-title">Новий клієнт</span>
+                        </h1>
+                        <div class="content-actions">
+                            <button class="btn-secondary" id="cancel-client-btn">
+                                <i class="fas fa-times"></i>
+                                Скасувати
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-grid">
+                        <!-- Basic Information -->
+                        <div class="form-section">
+                            <div class="section-header">
+                                <i class="fas fa-building section-icon"></i>
+                                <h2>Основна інформація</h2>
+                            </div>
+                            
+                            <div class="form-field">
+                                <label for="company">Назва компанії *</label>
+                                <input type="text" id="company" placeholder="Apple Inc., Google LLC..." required>
+                                <small>Повна або скорочена назва організації</small>
+                            </div>
+                            
+                            <div class="form-field">
+                                <label for="negotiator">Ключовий переговорник</label>
+                                <input type="text" id="negotiator" placeholder="Джон Сміт, CEO">
+                                <small>Ім'я та посада основного представника</small>
+                            </div>
+                            
+                            <div class="form-field">
+                                <label for="sector">Сфера діяльності</label>
+                                <select id="sector">
+                                    <option value="">Оберіть сферу...</option>
+                                    <option value="IT">Інформаційні технології</option>
+                                    <option value="Finance">Фінанси та банківство</option>
+                                    <option value="Healthcare">Охорона здоров'я</option>
+                                    <option value="Education">Освіта</option>
+                                    <option value="Manufacturing">Виробництво</option>
+                                    <option value="Retail">Роздрібна торгівля</option>
+                                    <option value="Real Estate">Нерухомість</option>
+                                    <option value="Energy">Енергетика</option>
+                                    <option value="Consulting">Консалтинг</option>
+                                    <option value="Other">Інше</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-field">
+                                <label for="company-size">Розмір компанії</label>
+                                <select id="company-size">
+                                    <option value="">Оберіть розмір...</option>
+                                    <option value="startup">Стартап (1-10 осіб)</option>
+                                    <option value="small">Мала (11-50 осіб)</option>
+                                    <option value="medium">Середня (51-250 осіб)</option>
+                                    <option value="large">Велика (251+ осіб)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Strategic Information -->
+                        <div class="form-section">
+                            <div class="section-header">
+                                <i class="fas fa-chess section-icon"></i>
+                                <h2>Стратегічна інформація</h2>
+                            </div>
+                            
+                            <div class="form-field full-width">
+                                <label for="negotiation-type">Тип переговорів</label>
+                                <select id="negotiation-type">
+                                    <option value="">Оберіть тип...</option>
+                                    <option value="sales">Продажі послуг/продуктів</option>
+                                    <option value="partnership">Партнерська угода</option>
+                                    <option value="contract">Підписання контракту</option>
+                                    <option value="investment">Інвестиційна угода</option>
+                                    <option value="acquisition">Поглинання/злиття</option>
+                                    <option value="licensing">Ліцензування</option>
+                                    <option value="other">Інше</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-field full-width">
+                                <label for="goals">Ваші цілі</label>
+                                <textarea id="goals" rows="3" placeholder="Опишіть ваші ключові цілі у переговорах..."></textarea>
+                            </div>
+                            
+                            <div class="form-field full-width">
+                                <label for="deal-value">Очікувана вартість</label>
+                                <input type="text" id="deal-value" placeholder="$10,000, €50K, 1M грн...">
+                                <small>Приблизна вартість або бюджет проекту</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button class="btn-primary btn-large" id="save-client-btn">
+                            <i class="fas fa-save"></i>
+                            Зберегти клієнта
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Analysis Dashboard -->
+                <div id="analysis-dashboard" class="tab-pane" style="display: none;">
+                    <div class="content-header">
+                        <h1>
+                            <i class="fas fa-chart-line"></i>
+                            Аналіз переговорів
+                        </h1>
+                        <div class="status-badge" id="analysis-status" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Готово до аналізу</span>
+                        </div>
+                    </div>
+
+                    <div class="analysis-container">
+                        
+                        <!-- Input Section -->
+                        <div class="analysis-input">
+                            <div class="section-header">
+                                <i class="fas fa-upload section-icon"></i>
+                                <h2>Завантаження тексту</h2>
+                            </div>
+                            
+                            <!-- Input Method Selection -->
+                            <div class="input-methods">
+                                <button class="input-method active" data-method="text" id="text-method">
+                                    <i class="fas fa-keyboard"></i>
+                                    <span>Ввести текст</span>
+                                </button>
+                                <button class="input-method" data-method="file" id="file-method">
+                                    <i class="fas fa-file-upload"></i>
+                                    <span>Завантажити файл</span>
+                                </button>
+                            </div>
+
+                            <!-- Text Input -->
+                            <div class="input-content" id="text-input-content">
+                                <div class="text-input-container">
+                                    <div class="text-input-wrapper">
+                                        <textarea 
+                                            id="negotiation-text" 
+                                            placeholder="Вставте або введіть текст переговорів тут...
+
 Приклад:
 - Скрипт розмови з клієнтом
-- Протокол переговорів
+- Протокол переговорів  
 - Email переписка
 - Записи зустрічей"
-                        rows="15"
-                        spellcheck="false"
-                      ></textarea>
-                      <div class="input-actions">
-                        <button class="btn-icon" id="clear-text-btn" title="Очистити текст">
-                          <i class="fas fa-eraser"></i>
-                        </button>
-                        <button class="btn-icon" id="paste-btn" title="Вставити з буфера">
-                          <i class="fas fa-paste"></i>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- File Upload Area -->
-                <div class="input-content" id="file-input-content" style="display: none;">
-                  <div class="file-upload-container">
-                    <div class="input-header">
-                      <h4><i class="fas fa-cloud-upload-alt"></i> Завантажте файл з текстом переговорів</h4>
-                      <p class="file-types">Підтримувані формати: TXT, DOC, DOCX</p>
-                    </div>
-                    <div class="dropzone-container">
-                      <div id="main-dropzone" class="dropzone">
-                        <div class="dropzone-content">
-                          <div class="dropzone-icon">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                          </div>
-                          <div class="dropzone-text">
-                            <h4>Перетягніть файл сюди</h4>
-                            <p>або натисніть для вибору файлу</p>
-                          </div>
-                          <button type="button" class="btn-secondary" id="choose-file-btn">
-                            <i class="fas fa-folder-open"></i> Обрати файл
-                          </button>
-                        </div>
-                      </div>
-                      <input type="file" id="file-input-hidden" accept=".txt,.docx,.doc,.pdf" hidden />
-                    </div>
-                    <div id="file-preview" class="file-preview" style="display: none;">
-                      <div class="file-info">
-                        <i class="fas fa-file-alt"></i>
-                        <div class="file-details">
-                          <div class="file-name" id="selected-file-name"></div>
-                          <div class="file-size" id="selected-file-size"></div>
-                        </div>
-                        <button class="btn-icon remove-file" id="remove-file-btn">
-                          <i class="fas fa-times"></i>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Action Button -->
-                <div class="analysis-action">
-                  <button id="start-analysis-btn" class="btn-primary large" disabled>
-                    <i class="fas fa-brain"></i>
-                    <span>Розпочати аналіз</span>
-                  </button>
-                  <p class="analysis-note">
-                    <i class="fas fa-info-circle"></i>
-                    Аналіз займає 10-30 секунд залежно від розміру тексту
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 2: Analysis Progress -->
-            <div class="analysis-step-content" id="step-2-content" style="display:none;">
-              <div class="analysis-progress">
-                <div class="progress-animation">
-                  <div class="brain-icon">
-                    <i class="fas fa-brain"></i>
-                  </div>
-                  <div class="progress-text">
-                    <h3 id="analysis-status">Аналізую переговори...</h3>
-                    <p id="analysis-substatus">Виявляю маніпуляції та когнітивні викривлення</p>
-                  </div>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" id="analysis-progress"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 3: Results -->
-            <div class="analysis-step-content" id="step-3-content" style="display:none;">
-              <div class="results-section">
-                <div class="results-header">
-                  <h2><i class="fas fa-chart-bar"></i> Результати аналізу</h2>
-                  <div class="results-actions">
-                    <button class="btn-secondary" id="export-btn">
-                      <i class="fas fa-download"></i> Експорт
-                    </button>
-                    <button class="btn-primary" onclick="startNewAnalysis()">
-                      <i class="fas fa-plus"></i> Новий аналіз
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Results Layout -->
-                <div class="analysis-results-layout">
-                  <!-- Top Section - Barometer and Summary -->
-                  <div class="results-top-section">
-                    <!-- Barometer -->
-                    <div class="result-card barometer-card">
-                      <h3><i class="fas fa-tachometer-alt"></i> Барометр складності</h3>
-                      <div id="barometer" class="barometer-container">
-                        <div class="barometer-gauge">
-                          <div class="gauge-circle">
-                            <div class="gauge-fill" id="gauge-progress"></div>
-                            <div class="gauge-center">
-                              <div class="barometer-score" id="barometer-score">—</div>
-                              <div class="barometer-label" id="barometer-label">Очікування...</div>
+                                            spellcheck="false"
+                                        ></textarea>
+                                        <div class="input-actions">
+                                            <button class="btn-icon" id="clear-text-btn" title="Очистити">
+                                                <i class="fas fa-eraser"></i>
+                                            </button>
+                                            <button class="btn-icon" id="paste-btn" title="Вставити">
+                                                <i class="fas fa-paste"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="input-stats">
+                                        <span id="char-count">0 символів</span>
+                                        <span id="word-count">0 слів</span>
+                                        <span id="estimated-tokens">≈ 0 токенів</span>
+                                    </div>
+                                </div>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
 
-                    <!-- Summary Stats -->
-                    <div class="result-card summary-stats-card">
-                      <h3><i class="fas fa-chart-bar"></i> Статистика аналізу</h3>
-                      <div class="stats-grid" id="analysis-stats">
-                        <div class="stat-item">
-                          <div class="stat-number" id="manipulations-count">0</div>
-                          <div class="stat-label">Маніпуляції</div>
-                        </div>
-                        <div class="stat-item">
-                          <div class="stat-number" id="biases-count">0</div>
-                          <div class="stat-label">Викривлення</div>
-                        </div>
-                        <div class="stat-item">
-                          <div class="stat-number" id="fallacies-count">0</div>
-                          <div class="stat-label">Софізми</div>
-                        </div>
-                        <div class="stat-item">
-                          <div class="stat-number" id="recommendations-count">0</div>
-                          <div class="stat-label">Рекомендації</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                            <!-- File Input -->
+                            <div class="input-content" id="file-input-content" style="display: none;">
+                                <div class="dropzone" id="file-dropzone">
+                                    <div class="dropzone-icon">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                    </div>
+                                    <div class="dropzone-text">
+                                        <h4>Перетягніть файл сюди</h4>
+                                        <p>або натисніть для вибору файлу</p>
+                                        <small>Підтримувані формати: TXT, DOC, DOCX (до 10MB)</small>
+                                    </div>
+                                    <button type="button" class="btn-secondary" id="choose-file-btn">
+                                        <i class="fas fa-folder-open"></i>
+                                        Обрати файл
+                                    </button>
+                                </div>
+                                <input type="file" id="file-input" accept=".txt,.docx,.doc" hidden>
+                                
+                                <!-- File Preview -->
+                                <div id="file-preview" class="file-preview" style="display: none;">
+                                    <div class="file-info">
+                                        <i class="fas fa-file-alt"></i>
+                                        <div class="file-details">
+                                            <div class="file-name" id="file-name"></div>
+                                            <div class="file-size" id="file-size"></div>
+                                        </div>
+                                        <button class="btn-icon" id="remove-file-btn" title="Видалити">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
 
-                  <!-- Main Section - Highlights and Report -->
-                  <div class="results-main-section">
-                    <!-- Highlights - Larger Area -->
-                    <div class="result-card highlights-card main-highlights">
-                      <div class="card-header">
-                        <h3><i class="fas fa-exclamation-triangle"></i> Виявлені проблемні моменти</h3>
-                        <div class="highlights-actions">
-                          <div class="highlights-legend">
-                            <span class="legend-item manip">Маніпуляції</span>
-                            <span class="legend-item cognitive">Когнітивні</span>
-                            <span class="legend-item fallacy">Логічні помилки</span>
-                          </div>
-                          <div class="highlights-view-controls">
-                            <button class="btn-icon view-toggle active" id="highlights-view" title="Список проблем">
-                              <i class="fas fa-list"></i>
-                            </button>
-                            <button class="btn-icon view-toggle" id="fulltext-view" title="Повний текст з підсвічуванням">
-                              <i class="fas fa-file-text"></i>
-                            </button>
-                          </div>
+                            <!-- Analysis Action -->
+                            <div class="analysis-action">
+                                <button class="btn-primary btn-large btn-full" id="start-analysis-btn" disabled>
+                                    <i class="fas fa-brain"></i>
+                                    <span>Розпочати аналіз</span>
+                                </button>
+                                <p class="analysis-note">
+                                    <i class="fas fa-info-circle"></i>
+                                    Аналіз займає 10-30 секунд залежно від розміру тексту
+                                </p>
+                            </div>
                         </div>
-                      </div>
-                      <div id="highlighted-text" class="highlighted-text-main">
+
+                        <!-- Results Section -->
+                        <div id="results-section" class="results-section" style="display: none;">
+                            
+                            <!-- Analysis Steps -->
+                            <div class="analysis-steps">
+                                <div class="analysis-step completed" id="step-input">
+                                    <div class="step-circle">1</div>
+                                    <div class="step-content">
+                                        <h4>Ввід тексту</h4>
+                                        <p>Завершено</p>
+                                    </div>
+                                </div>
+                                <div class="analysis-step active" id="step-analysis">
+                                    <div class="step-circle">2</div>
+                                    <div class="step-content">
+                                        <h4>AI аналіз</h4>
+                                        <p>В процесі</p>
+                                    </div>
+                                </div>
+                                <div class="analysis-step" id="step-results">
+                                    <div class="step-circle">3</div>
+                                    <div class="step-content">
+                                        <h4>Результати</h4>
+                                        <p>Очікування</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Statistics Overview -->
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-number" id="manipulations-count">0</div>
+                                    <div class="stat-label">Маніпуляції</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number" id="biases-count">0</div>
+                                    <div class="stat-label">Викривлення</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number" id="fallacies-count">0</div>
+                                    <div class="stat-label">Софізми</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number" id="recommendations-count">0</div>
+                                    <div class="stat-label">Рекомендації</div>
+                                </div>
+                            </div>
+
+                            <!-- Barometer -->
+                            <div class="barometer-card">
+                                <div class="section-header">
+                                    <i class="fas fa-tachometer-alt section-icon"></i>
+                                    <h2>Барометр складності</h2>
+                                </div>
+                                <div class="barometer-gauge">
+                                    <div class="gauge-circle">
+                                        <svg class="gauge-svg" viewBox="0 0 100 100">
+                                            <defs>
+                                                <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stop-color="#00ff88"/>
+                                                    <stop offset="50%" stop-color="#ffea00"/>
+                                                    <stop offset="100%" stop-color="#ff0080"/>
+                                                </linearGradient>
+                                            </defs>
+                                            <circle class="gauge-bg" cx="50" cy="50" r="45"/>
+                                            <circle class="gauge-fill" cx="50" cy="50" r="45" 
+                                                    stroke-dasharray="0 283" 
+                                                    id="gauge-circle"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="barometer-score" id="barometer-score">—</div>
+                                <div class="barometer-label" id="barometer-label">Очікування аналізу...</div>
+                            </div>
+
+                            <!-- Highlights Section -->
+                            <div class="highlights-section">
+                                <div class="highlights-header">
+                                    <div class="section-header">
+                                        <i class="fas fa-exclamation-triangle section-icon"></i>
+                                        <h2>Виявлені проблеми</h2>
+                                    </div>
+                                    
+                                    <div class="highlights-legend">
+                                        <span class="legend-item bias">Викривлення</span>
+                                        <span class="legend-item manip">Маніпуляції</span>
+                                        <span class="legend-item fallacy">Софізми</span>
+                                        <span class="legend-item cognitive">Когнітивні</span>
+                                    </div>
+                                    
+                                    <div class="view-controls">
+                                        <button class="view-control active" id="list-view" title="Список проблем">
+                                            <i class="fas fa-list"></i>
+                                        </button>
+                                        <button class="view-control" id="text-view" title="Повний текст">
+                                            <i class="fas fa-file-text"></i>
+                                        </button>
+                                        <button class="view-control" id="filter-view" title="Фільтри">
+                                            <i class="fas fa-filter"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Highlights List -->
+                                <div class="highlights-list" id="highlights-list">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">
+                                            <i class="fas fa-search"></i>
+                                        </div>
+                                        <p>Проблемні моменти з'являться тут після аналізу</p>
+                                    </div>
+                                </div>
+
+                                <!-- Full Text View -->
+                                <div class="fulltext-content" id="fulltext-content" style="display: none;">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">
+                                            <i class="fas fa-file-text"></i>
+                                        </div>
+                                        <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- Right Panel - Workspace -->
+        <aside class="sidebar sidebar-right" id="sidebar-right">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <i class="fas fa-tools"></i>
+                    <span class="brand-text">Робоча область</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebar-right-toggle" title="Згорнути">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                <!-- Current Client Info -->
+                <div class="workspace-section" id="client-info-section">
+                    <h4>
+                        <i class="fas fa-user"></i>
+                        Поточний клієнт
+                    </h4>
+                    <div class="client-info-card" id="workspace-client-info">
                         <div class="empty-state">
-                          <i class="fas fa-search"></i>
-                          <p>Проблемні моменти з'являться тут після аналізу</p>
+                            <div class="empty-icon">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+                            <p>Оберіть клієнта для роботи</p>
                         </div>
-                      </div>
-                      <div id="fulltext-content" class="fulltext-content" style="display: none;">
-                        <div class="fulltext-container">
-                          <div class="fulltext-empty-state">
-                            <i class="fas fa-file-text"></i>
-                            <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
-                          </div>
-                        </div>
-                      </div>
                     </div>
+                </div>
 
-                    <!-- Detailed Report -->
-                    <div class="result-card report-card">
-                      <div class="card-header">
-                        <h3><i class="fas fa-file-alt"></i> Детальний звіт</h3>
-                        <button class="btn-icon" id="expand-report" title="Розгорнути">
-                          <i class="fas fa-expand"></i>
-                        </button>
-                      </div>
-                      <div id="stream-output" class="stream-output-main">
-                        <div class="empty-state">
-                          <i class="fas fa-clock"></i>
-                          <p>Звіт з'явиться після завершення аналізу</p>
+                <!-- Selected Fragments -->
+                <div class="workspace-section">
+                    <h4>
+                        <i class="fas fa-bookmark"></i>
+                        Обрані фрагменти
+                        <span class="fragment-counter" id="fragments-count">0</span>
+                    </h4>
+                    <div class="drop-zone" id="fragments-drop-zone">
+                        <div class="drop-zone-icon">
+                            <i class="fas fa-hand-pointer"></i>
                         </div>
-                      </div>
+                        <div class="drop-zone-text">
+                            <h5>Перетягніть важливі фрагменти</h5>
+                            <p>Натисніть "+" біля проблемного моменту</p>
+                        </div>
+                        <div class="selected-fragments" id="selected-fragments">
+                            <!-- Dynamic content -->
+                        </div>
                     </div>
-                  </div>
                 </div>
-              </div>
+
+                <!-- Analysis Actions -->
+                <div class="workspace-section">
+                    <h4>
+                        <i class="fas fa-magic"></i>
+                        Дії
+                    </h4>
+                    <button class="btn-primary btn-full" id="get-advice-btn" disabled>
+                        <i class="fas fa-lightbulb"></i>
+                        Персоналізовані поради
+                    </button>
+                    <button class="btn-secondary btn-full" id="export-selected-btn" disabled>
+                        <i class="fas fa-download"></i>
+                        Експорт обраного
+                    </button>
+                    <button class="btn-ghost btn-full" id="clear-workspace-btn" disabled>
+                        <i class="fas fa-trash"></i>
+                        Очистити все
+                    </button>
+                </div>
+
+                <!-- Token Usage -->
+                <div class="workspace-section">
+                    <h4>
+                        <i class="fas fa-coins"></i>
+                        Використання токенів
+                    </h4>
+                    <div class="token-usage-display">
+                        <div class="token-stats">
+                            <span class="used-tokens" id="workspace-used-tokens">0</span>
+                            <span>/</span>
+                            <span class="total-tokens" id="workspace-total-tokens">512,000</span>
+                        </div>
+                        <div class="token-progress">
+                            <div class="token-progress-fill" id="workspace-token-progress"></div>
+                        </div>
+                        <div class="token-percentage" id="workspace-token-percentage">0%</div>
+                    </div>
+                </div>
             </div>
-          </div>
+        </aside>
 
     </div>
 
-  <!-- Onboarding Modal -->
-  <div id="onboarding-modal" class="onboarding-modal">
-    <div class="onboarding-content">
-      <button class="onboarding-close" title="Закрити">
-        <i class="fas fa-times"></i>
-      </button>
-      <div class="onboarding-progress">
-        <div class="progress-bar">
-          <div class="progress-fill" id="progress-fill"></div>
-        </div>
-        <span class="progress-text" id="progress-text">Крок 1 з 4</span>
-      </div>
-      
-      <div class="onboarding-step" id="step-1">
-        <div class="step-icon">🚀</div>
-        <h2>Ласкаво просимо до TeamPulse Turbo!</h2>
-        <p>Потужний AI-інструмент для аналізу переговорів та виявлення маніпуляцій. Давайте швидко покажемо, як все працює.</p>
-        <div class="step-features">
-          <div class="feature-item">
-            <i class="fas fa-brain"></i>
-            <span>AI-аналіз маніпуляцій</span>
-          </div>
-          <div class="feature-item">
-            <i class="fas fa-chart-line"></i>
-            <span>Барометр складності</span>
-          </div>
-          <div class="feature-item">
-            <i class="fas fa-lightbulb"></i>
-            <span>Персоналізовані рекомендації</span>
-          </div>
-        </div>
-      </div>
-      
-      <div class="onboarding-step" id="step-2" style="display: none;">
-        <div class="step-icon">👥</div>
-        <h2>Керування клієнтами</h2>
-        <p>Створюйте профілі клієнтів з детальною інформацією для більш точного аналізу.</p>
-        <div class="demo-sidebar">
-          <div class="demo-client active">
-            <div class="client-avatar">A</div>
-            <div class="client-info">
-              <div class="client-name">Apple Inc.</div>
-              <div class="client-meta">Технології • 5 аналізів</div>
-            </div>
-          </div>
-          <div class="demo-client">
-            <div class="client-avatar">G</div>
-            <div class="client-info">
-              <div class="client-name">Google LLC</div>
-              <div class="client-meta">IT-послуги • 2 аналізи</div>
-            </div>
-          </div>
-        </div>
-        <p class="step-tip"><i class="fas fa-lightbulb"></i> Кожен клієнт має унікальний профіль з історією аналізів</p>
-      </div>
-      
-      <div class="onboarding-step" id="step-3" style="display: none;">
-        <div class="step-icon">🔍</div>
-        <h2>Аналіз переговорів</h2>
-        <p>Завантажуйте тексти переговорів або вставляйте їх прямо в систему для миттєвого аналізу.</p>
-        <div class="demo-analysis">
-          <div class="demo-upload">
-            <i class="fas fa-cloud-upload-alt"></i>
-            <p>Перетягніть файл або вставте текст</p>
-          </div>
-          <div class="demo-results">
-            <div class="demo-highlight manip">Маніпуляція: "Ця пропозиція доступна лише сьогодні"</div>
-            <div class="demo-highlight cog">Когнітивне викривлення: Створення штучного дефіциту</div>
-          </div>
-        </div>
-        <p class="step-tip"><i class="fas fa-magic"></i> ШІ автоматично виявляє маніпуляції та пояснює їх</p>
-      </div>
-      
-      <div class="onboarding-step" id="step-4" style="display: none;">
-        <div class="step-icon">🎯</div>
-        <h2>Готові до початку!</h2>
-        <p>Тепер ви знаєте основи. Створіть свого першого клієнта і почніть аналіз переговорів.</p>
-        <div class="quick-stats">
-          <div class="stat-item">
-            <div class="stat-number">95%</div>
-            <div class="stat-label">Точність виявлення</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">30+</div>
-            <div class="stat-label">Типів маніпуляцій</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number"><5s</div>
-            <div class="stat-label">Час аналізу</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="onboarding-actions">
-        <button class="btn-ghost disabled" id="skip-onboarding" disabled title="Онбординг обов'язковий">
-          <i class="fas fa-lock"></i> Обов'язковий
-        </button>
-        <div class="nav-buttons">
-          <button class="btn-secondary" id="prev-step" style="display: none;">
-            <i class="fas fa-arrow-left"></i> Назад
-          </button>
-          <button class="btn-primary" id="next-step">
-            Далі <i class="fas fa-arrow-right"></i>
-          </button>
-        </div>
-        </div>
-        </div>
-
-        <!-- Right Sidebar Panel - Active Workspace -->
-        <div class="workspace-panel" id="workspace-panel">
-          <div class="panel-header">
-            <h3><i class="fas fa-clipboard-list"></i> Робоча область</h3>
-            <div class="panel-actions">
-              <button class="btn-icon" id="clear-workspace" title="Очистити все" disabled>
-                <i class="fas fa-trash"></i>
-              </button>
-              <button class="btn-icon" id="toggle-panel" title="Згорнути">
-                <i class="fas fa-chevron-right"></i>
-              </button>
-            </div>
-          </div>
-          
-          <div class="panel-content">
-            <!-- Current Client Info -->
-            <div class="workspace-section" id="client-info-section">
-              <h4><i class="fas fa-building"></i> Поточний клієнт</h4>
-              <div class="client-info-card" id="client-info-card">
-                <div class="client-placeholder">
-                  <i class="fas fa-user-plus"></i>
-                  <p>Оберіть клієнта для початку роботи</p>
+    <!-- Onboarding Modal -->
+    <div id="onboarding-modal" class="onboarding-modal" style="display: none;">
+        <div class="onboarding-content">
+            <button class="onboarding-close" id="onboarding-close" title="Закрити">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="onboarding-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="onboarding-progress"></div>
                 </div>
-              </div>
+                <span class="progress-text" id="progress-text">Крок 1 з 4</span>
             </div>
-
-            <!-- Drop Zone for Highlights -->
-            <div class="workspace-section" id="selected-fragments-section">
-              <h4>
-                <i class="fas fa-drag-drop"></i> 
-                Обрані фрагменти
-                <span class="fragment-count" id="fragment-count">0</span>
-              </h4>
-              <div class="drop-zone" id="fragments-drop-zone">
-                <div class="drop-zone-content">
-                  <div class="drop-zone-icon">
-                    <i class="fas fa-hand-pointer"></i>
-                  </div>
-                  <div class="drop-zone-text">
-                    <h5>Перетягніть сюди важливі фрагменти</h5>
-                    <p>Клікніть на кнопку "Додати" біля будь-якого виявленого моменту</p>
-                  </div>
+            
+            <!-- Step 1 -->
+            <div class="onboarding-step active" id="onboarding-step-1">
+                <div class="step-icon">🚀</div>
+                <h2>Ласкаво просимо до TeamPulse Turbo!</h2>
+                <p>Потужний AI-інструмент для аналізу переговорів та виявлення маніпуляцій. Давайте швидко покажемо можливості системи.</p>
+                <div class="step-features">
+                    <div class="feature-item">
+                        <i class="fas fa-brain"></i>
+                        <div>
+                            <h4>AI-аналіз маніпуляцій</h4>
+                            <p>Автоматичне виявлення понад 30 типів маніпуляцій</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-chart-line"></i>
+                        <div>
+                            <h4>Барометр складності</h4>
+                            <p>Оцінка рівня складності переговорів</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-lightbulb"></i>
+                        <div>
+                            <h4>Персоналізовані поради</h4>
+                            <p>Рекомендації на основі профілю клієнта</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="selected-fragments-list" id="selected-fragments-list">
-                  <!-- Selected fragments will appear here -->
+            </div>
+            
+            <!-- Step 2 -->
+            <div class="onboarding-step" id="onboarding-step-2">
+                <div class="step-icon">👥</div>
+                <h2>Керування клієнтами</h2>
+                <p>Створюйте детальні профілі клієнтів для більш точного аналізу переговорів та персоналізованих рекомендацій.</p>
+                <div class="demo-client-list">
+                    <div class="demo-client active">
+                        <div class="client-avatar">A</div>
+                        <div class="client-info">
+                            <div class="client-name">Apple Inc.</div>
+                            <div class="client-meta">Технології • 5 аналізів</div>
+                        </div>
+                    </div>
+                    <div class="demo-client">
+                        <div class="client-avatar">G</div>
+                        <div class="client-info">
+                            <div class="client-name">Google LLC</div>
+                            <div class="client-meta">IT-послуги • 2 аналізи</div>
+                        </div>
+                    </div>
                 </div>
-              </div>
             </div>
-
-            <!-- Action Buttons -->
-            <div class="workspace-section" id="workspace-actions">
-              <button class="btn-primary full-width" id="get-personalized-advice-btn" disabled>
-                <i class="fas fa-magic"></i> Отримати персоналізовані поради
-              </button>
-              <button class="btn-secondary full-width" id="export-selected-btn" disabled>
-                <i class="fas fa-download"></i> Експорт обраного
-              </button>
-            </div>
-
-            <!-- AI Strategic Advice -->
-            <div class="workspace-section" id="strategic-advice-section" style="display: none;">
-              <h4><i class="fas fa-brain"></i> Стратегічні поради</h4>
-              <div class="strategic-advice-content" id="strategic-advice-content">
-                <!-- Strategic advice based on selected fragments -->
-              </div>
-            </div>
-
-            <!-- Token Usage Display -->
-            <div class="workspace-section" id="token-usage-section">
-              <h4><i class="fas fa-coins"></i> Використання токенів</h4>
-              <div class="token-usage-display">
-                <div class="token-bar">
-                  <div class="token-progress" id="token-progress-bar"></div>
+            
+            <!-- Step 3 -->
+            <div class="onboarding-step" id="onboarding-step-3">
+                <div class="step-icon">🔍</div>
+                <h2>Аналіз переговорів</h2>
+                <p>Завантажуйте тексти переговорів або вставляйте їх прямо в систему. ШІ проаналізує та виділить проблемні моменти.</p>
+                <div class="demo-analysis">
+                    <div class="demo-text">
+                        <mark class="manip">"Ця пропозиція доступна лише сьогодні"</mark> - створення штучного дефіциту
+                    </div>
+                    <div class="demo-text">
+                        <mark class="cognitive">"Всі так роблять"</mark> - апеляція до більшості
+                    </div>
                 </div>
-                <div class="token-stats">
-                  <span class="used-tokens" id="tokens-used-display">0</span>
-                  <span>/</span>
-                  <span class="total-tokens" id="tokens-limit-display">512,000</span>
-                </div>
-                <div class="token-percentage" id="token-percentage">0%</div>
-              </div>
             </div>
-
-            <!-- Quick Actions -->
-            <div class="workspace-section" id="quick-actions-section">
-              <h4><i class="fas fa-bolt"></i> Швидкі дії</h4>
-              <div class="quick-actions-grid">
-                <button class="quick-action" id="quick-new-analysis">
-                  <i class="fas fa-plus"></i>
-                  <span>Новий аналіз</span>
+            
+            <!-- Step 4 -->
+            <div class="onboarding-step" id="onboarding-step-4">
+                <div class="step-icon">🎯</div>
+                <h2>Готові до початку!</h2>
+                <p>Тепер ви знаєте основи роботи з TeamPulse Turbo. Створіть свого першого клієнта і почніть аналіз.</p>
+                <div class="step-features">
+                    <div class="feature-item">
+                        <div class="stat-number">95%</div>
+                        <div class="stat-label">Точність виявлення</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="stat-number">30+</div>
+                        <div class="stat-label">Типів маніпуляцій</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="stat-number">&lt;30с</div>
+                        <div class="stat-label">Час аналізу</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="onboarding-actions">
+                <button class="btn-ghost" id="skip-onboarding">
+                    Пропустити
                 </button>
-                <button class="quick-action" id="quick-export-all">
-                  <i class="fas fa-file-export"></i>
-                  <span>Експорт все</span>
-                </button>
-                <button class="quick-action" id="quick-help" onclick="showProductionHelp()">
-                  <i class="fas fa-question-circle"></i>
-                  <span>Довідка</span>
-                </button>
-              </div>
+                <div class="nav-buttons">
+                    <button class="btn-secondary" id="prev-step" style="display: none;">
+                        <i class="fas fa-arrow-left"></i>
+                        Назад
+                    </button>
+                    <button class="btn-primary" id="next-step">
+                        Далі
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
     </div>
-    
-    <!-- Tools Modal (replaces right sidebar) -->
-    <div class="tools-modal" id="tools-modal">
-      <div class="sidebar-header">
-        <h3><i class="fas fa-tools"></i> Інструменти</h3>
-        <button class="sidebar-close" onclick="closeSidebar('right')">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
 
-      <div class="sidebar-content">
-        <!-- Selected fragments -->
-        <div class="tool-section">
-          <h4>Відібрані фрагменти</h4>
-          <div id="bucket" class="bucket-list"></div>
-          <button class="btn-primary full-width" id="advice-btn" disabled>
-            <i class="fas fa-lightbulb"></i> Отримати рекомендації
-          </button>
-          <div id="advice-output" class="advice-output"></div>
-        </div>
-
-        <!-- Analysis history for current client -->
-        <div class="tool-section" id="analysis-history" style="display:none;">
-          <h4>Історія аналізів</h4>
-          <div id="history-list" class="history-list">
-            <!-- Dynamic analysis history -->
-          </div>
-        </div>
-      </div>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
     </div>
-  </div>
 
-  <!-- Notifications container -->
-  <div id="notifications" class="notifications"></div>
-  <script src="/app.js"></script>
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Notifications Container -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- Scripts -->
+    <script src="/app-neon.js"></script>
 </body>
 </html>
