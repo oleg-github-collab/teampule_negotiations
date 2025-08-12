@@ -2185,20 +2185,22 @@
           const classMap = {
             'manipulation': 'highlight-manipulation',
             'cognitive_bias': 'highlight-cognitive', 
+            'rhetological_fallacy': 'highlight-fallacy',
             'fallacy': 'highlight-fallacy'
           };
           
           // Count by type
-          if (highlight.classification === 'manipulation') counts.manipulations++;
-          else if (highlight.classification === 'cognitive_bias') counts.biases++;
-          else if (highlight.classification === 'fallacy') counts.fallacies++;
+          const category = highlight.category || highlight.classification;
+          if (category === 'manipulation') counts.manipulations++;
+          else if (category === 'cognitive_bias') counts.biases++;
+          else if (category === 'rhetological_fallacy' || category === 'fallacy') counts.fallacies++;
           
-          const className = classMap[highlight.classification] || 'highlight-manipulation';
+          const className = classMap[category] || 'highlight-manipulation';
           
           html += `
             <div class="highlight-item ${className}" data-index="${index}" draggable="true">
               <div class="highlight-header">
-                <span class="highlight-type">${getHighlightTypeLabel(highlight.classification)}</span>
+                <span class="highlight-type">${getHighlightTypeLabel(category)}</span>
                 <div class="highlight-actions">
                   <button class="btn-icon add-to-workspace" title="Додати до робочої області" data-index="${index}">
                     <i class="fas fa-plus"></i>
@@ -2237,7 +2239,98 @@
               addToWorkspace(highlight);
             });
           }
+          
+          // Add drag functionality
+          const highlightItem = highlightedTextEl.querySelector(`[data-index="${index}"]`);
+          if (highlightItem) {
+            setupHighlightDragAndDrop(highlightItem, highlight);
+          }
         });
+        
+        // Setup view toggle functionality
+        setupHighlightsViewToggle(highlights, analysisResults?.originalText);
+        
+        // Initialize workspace drop zone
+        setupWorkspaceDropZone();
+      }
+      
+      function setupHighlightsViewToggle(highlights, originalText) {
+        const highlightsViewBtn = $('#highlights-view');
+        const fulltextViewBtn = $('#fulltext-view');
+        const highlightedTextEl = $('#highlighted-text');
+        const fulltextContentEl = $('#fulltext-content');
+        
+        if (!highlightsViewBtn || !fulltextViewBtn) return;
+        
+        // Initialize full text view with highlights
+        if (originalText) {
+          generateFullTextView(originalText, highlights);
+        }
+        
+        highlightsViewBtn.addEventListener('click', () => {
+          highlightsViewBtn.classList.add('active');
+          fulltextViewBtn.classList.remove('active');
+          highlightedTextEl.style.display = 'block';
+          fulltextContentEl.style.display = 'none';
+        });
+        
+        fulltextViewBtn.addEventListener('click', () => {
+          fulltextViewBtn.classList.add('active');
+          highlightsViewBtn.classList.remove('active');
+          highlightedTextEl.style.display = 'none';
+          fulltextContentEl.style.display = 'block';
+        });
+      }
+      
+      function generateFullTextView(originalText, highlights) {
+        const fulltextContentEl = $('#fulltext-content');
+        if (!fulltextContentEl || !originalText || !highlights) return;
+        
+        // Sort highlights by position
+        const sortedHighlights = [...highlights].sort((a, b) => {
+          const aStart = a.paragraph_index * 10000 + (a.char_start || 0);
+          const bStart = b.paragraph_index * 10000 + (b.char_start || 0);
+          return aStart - bStart;
+        });
+        
+        // Split text into paragraphs
+        const paragraphs = originalText.split(/\n\s*\n/).filter(p => p.trim());
+        let html = '<div class="fulltext-paragraphs">';
+        
+        paragraphs.forEach((paragraph, paraIndex) => {
+          const paraHighlights = sortedHighlights.filter(h => h.paragraph_index === paraIndex);
+          
+          if (paraHighlights.length === 0) {
+            html += `<p class="paragraph">${escapeHtml(paragraph)}</p>`;
+          } else {
+            // Apply highlights to paragraph
+            let highlightedPara = paragraph;
+            let offset = 0;
+            
+            paraHighlights.forEach(highlight => {
+              const start = (highlight.char_start || 0) + offset;
+              const end = (highlight.char_end || highlight.char_start || 0) + offset;
+              const category = highlight.category || 'manipulation';
+              const className = category === 'manipulation' ? 'highlight-manip' :
+                               category === 'cognitive_bias' ? 'highlight-cognitive' : 'highlight-fallacy';
+              
+              const before = highlightedPara.slice(0, start);
+              const text = highlightedPara.slice(start, end);
+              const after = highlightedPara.slice(end);
+              
+              const highlightHtml = `<span class="${className} fulltext-highlight" 
+                                      title="${escapeHtml(highlight.explanation || '')}">${escapeHtml(text)}</span>`;
+              
+              highlightedPara = before + highlightHtml + after;
+              offset += highlightHtml.length - text.length;
+            });
+            
+            html += `<p class="paragraph">${highlightedPara}</p>`;
+          }
+        });
+        
+        html += '</div>';
+        fulltextContentEl.innerHTML = html;
       }
 
       function displaySummaryNew(summary) {
@@ -2249,46 +2342,62 @@
             <h3><i class="fas fa-chart-line"></i> Детальний звіт</h3>
         `;
         
-        if (summary.manipulations && summary.manipulations.length > 0) {
+        // Display overall observations
+        if (summary.overall_observations) {
           html += `
             <div class="summary-section">
-              <h4><i class="fas fa-exclamation-triangle"></i> Виявлені маніпуляції</h4>
-              <ul class="summary-list manipulation-list">
-                ${summary.manipulations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+              <h4><i class="fas fa-eye"></i> Загальні спостереження</h4>
+              <div class="summary-content">
+                ${escapeHtml(summary.overall_observations)}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Display top patterns
+        if (summary.top_patterns && summary.top_patterns.length > 0) {
+          html += `
+            <div class="summary-section">
+              <h4><i class="fas fa-list-ul"></i> Головні патерни проблем</h4>
+              <ul class="summary-list patterns-list">
+                ${summary.top_patterns.map(pattern => `<li>${escapeHtml(pattern)}</li>`).join('')}
               </ul>
             </div>
           `;
         }
         
-        if (summary.cognitive_biases && summary.cognitive_biases.length > 0) {
+        // Display category counts  
+        if (summary.counts_by_category) {
+          const counts = summary.counts_by_category;
           html += `
             <div class="summary-section">
-              <h4><i class="fas fa-brain"></i> Когнітивні викривлення</h4>
-              <ul class="summary-list cognitive-list">
-                ${summary.cognitive_biases.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
-              </ul>
+              <h4><i class="fas fa-chart-bar"></i> Статистика за категоріями</h4>
+              <div class="counts-grid">
+                <div class="count-item manipulation">
+                  <div class="count-number">${counts.manipulation || 0}</div>
+                  <div class="count-label">Маніпуляції</div>
+                </div>
+                <div class="count-item cognitive">
+                  <div class="count-number">${counts.cognitive_bias || 0}</div>
+                  <div class="count-label">Когнітивні викривлення</div>
+                </div>
+                <div class="count-item fallacy">
+                  <div class="count-number">${counts.rhetological_fallacy || 0}</div>
+                  <div class="count-label">Логічні помилки</div>
+                </div>
+              </div>
             </div>
           `;
         }
         
-        if (summary.fallacies && summary.fallacies.length > 0) {
+        // Add empty state message if no content
+        if (!summary.overall_observations && (!summary.top_patterns || summary.top_patterns.length === 0) && !summary.counts_by_category) {
           html += `
             <div class="summary-section">
-              <h4><i class="fas fa-balance-scale"></i> Логічні помилки</h4>
-              <ul class="summary-list fallacy-list">
-                ${summary.fallacies.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
-              </ul>
-            </div>
-          `;
-        }
-        
-        if (summary.recommendations && summary.recommendations.length > 0) {
-          html += `
-            <div class="summary-section recommendations-section">
-              <h4><i class="fas fa-lightbulb"></i> Рекомендації</h4>
-              <ul class="summary-list recommendations-list">
-                ${summary.recommendations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
-              </ul>
+              <div class="empty-state">
+                <i class="fas fa-info-circle"></i>
+                <p>Детальний звіт буде сформовано після завершення аналізу</p>
+              </div>
             </div>
           `;
         }
@@ -2301,6 +2410,7 @@
         const labels = {
           'manipulation': 'Маніпуляція',
           'cognitive_bias': 'Когнітивне викривлення',
+          'rhetological_fallacy': 'Логічна помилка',
           'fallacy': 'Логічна помилка'
         };
         return labels[classification] || 'Проблема';
@@ -2338,6 +2448,54 @@
         updateWorkspace();
         showNotification('Фрагмент додано до робочої області', 'success');
       }
+      
+      function setupHighlightDragAndDrop(element, highlight) {
+        if (!element || !highlight) return;
+        
+        element.addEventListener('dragstart', (e) => {
+          try {
+            e.dataTransfer.setData('application/json', JSON.stringify(highlight));
+            e.dataTransfer.effectAllowed = 'copy';
+            element.classList.add('dragging');
+          } catch (error) {
+            console.error('Drag start error:', error);
+          }
+        });
+        
+        element.addEventListener('dragend', () => {
+          element.classList.remove('dragging');
+        });
+      }
+      
+      function setupWorkspaceDropZone() {
+        const dropZone = $('#fragments-drop-zone');
+        if (!dropZone) return;
+        
+        dropZone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+          if (!dropZone.contains(e.relatedTarget)) {
+            dropZone.classList.remove('drag-over');
+          }
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropZone.classList.remove('drag-over');
+          
+          try {
+            const highlightData = JSON.parse(e.dataTransfer.getData('application/json'));
+            addToWorkspace(highlightData);
+          } catch (error) {
+            console.error('Error processing dropped item:', error);
+            showNotification('Помилка додавання фрагменту', 'error');
+          }
+        });
+      }
 
       function updateWorkspace() {
         const fragmentsList = $('#selected-fragments-list');
@@ -2345,7 +2503,7 @@
         const dropZone = $('#fragments-drop-zone');
         
         if (fragmentCount) {
-          fragmentCount.textContent = selectedFragments.length;
+          fragmentCount.textContent = selectedFragments ? selectedFragments.length : 0;
         }
         
         if (selectedFragments.length === 0) {
@@ -2727,7 +2885,7 @@
     }
 
     function showAnalysisResults(highlights, summary, barometer) {
-      analysisResults = { highlights, summary, barometer };
+      analysisResults = { highlights, summary, barometer, originalText: state.originalText };
       
       // Re-enable workspace panel
       const workspacePanel = $('#workspace-panel');

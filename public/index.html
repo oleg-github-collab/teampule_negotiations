@@ -525,16 +525,34 @@
                     <div class="result-card highlights-card main-highlights">
                       <div class="card-header">
                         <h3><i class="fas fa-exclamation-triangle"></i> Виявлені проблемні моменти</h3>
-                        <div class="highlights-legend">
-                          <span class="legend-item manip">Маніпуляції</span>
-                          <span class="legend-item cognitive">Когнітивні</span>
-                          <span class="legend-item fallacy">Логічні помилки</span>
+                        <div class="highlights-actions">
+                          <div class="highlights-legend">
+                            <span class="legend-item manip">Маніпуляції</span>
+                            <span class="legend-item cognitive">Когнітивні</span>
+                            <span class="legend-item fallacy">Логічні помилки</span>
+                          </div>
+                          <div class="highlights-view-controls">
+                            <button class="btn-icon view-toggle active" id="highlights-view" title="Список проблем">
+                              <i class="fas fa-list"></i>
+                            </button>
+                            <button class="btn-icon view-toggle" id="fulltext-view" title="Повний текст з підсвічуванням">
+                              <i class="fas fa-file-text"></i>
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div id="highlighted-text" class="highlighted-text-main">
                         <div class="empty-state">
                           <i class="fas fa-search"></i>
                           <p>Проблемні моменти з'являться тут після аналізу</p>
+                        </div>
+                      </div>
+                      <div id="fulltext-content" class="fulltext-content" style="display: none;">
+                        <div class="fulltext-container">
+                          <div class="fulltext-empty-state">
+                            <i class="fas fa-file-text"></i>
+                            <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                          </div>
                         </div>
                       </div>
                     </div>

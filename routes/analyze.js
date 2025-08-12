@@ -11,7 +11,7 @@ import { performance } from 'perf_hooks';
 const r = Router();
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const MAX_HIGHLIGHTS_PER_1000_WORDS = Number(
-  process.env.MAX_HIGHLIGHTS_PER_1000_WORDS || 12
+  process.env.MAX_HIGHLIGHTS_PER_1000_WORDS || 50
 );
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
 const MAX_TEXT_LENGTH = 100000; // 100k characters max
@@ -39,9 +39,27 @@ function splitToParagraphs(s) {
   });
 }
 
-function mergeOverlaps(highlights) {
+function extractTextFromHighlight(highlight, paragraphs) {
+  if (highlight.text) return highlight.text; // Already has text
+  
+  const paraIdx = highlight.paragraph_index;
+  if (paraIdx == null || !paragraphs[paraIdx]) return '';
+  
+  const para = paragraphs[paraIdx];
+  const start = Math.max(0, highlight.char_start || 0);
+  const end = Math.min(para.text.length, highlight.char_end || para.text.length);
+  
+  return para.text.slice(start, end);
+}
+
+function mergeOverlaps(highlights, paragraphs = null) {
   const byPara = new Map();
   for (const h of highlights) {
+    // Extract text if not present
+    if (!h.text && paragraphs) {
+      h.text = extractTextFromHighlight(h, paragraphs);
+    }
+    
     if (!byPara.has(h.paragraph_index)) byPara.set(h.paragraph_index, []);
     byPara.get(h.paragraph_index).push(h);
   }
@@ -60,6 +78,10 @@ function mergeOverlaps(highlights) {
         cur.labels = Array.from(new Set([...(cur.labels || []), ...nextLabels]));
         cur.severity = Math.max(cur.severity ?? 0, h.severity ?? 0);
         cur.category = cur.category || h.category;
+        // Update text to cover merged range
+        if (paragraphs && cur.paragraph_index != null) {
+          cur.text = extractTextFromHighlight(cur, paragraphs);
+        }
       } else {
         merged.push(cur);
         cur = { ...h, labels: h.labels || (h.label ? [h.label] : []) };
@@ -160,13 +182,15 @@ function buildSystemPrompt() {
 Ти — старший аналітик переговорної комунікації.
 ПОВЕРТАЙ ТІЛЬКИ NDJSON (по JSON-об'єкту на рядок), БЕЗ додаткового тексту.
 Формати рядків:
-{"type":"highlight","id":"...","paragraph_index":N,"char_start":S,"char_end":E,"category":"manipulation|cognitive_bias|rhetological_fallacy","label":"...","explanation":"1-2 речення","severity":0..3}
+{"type":"highlight","id":"...","paragraph_index":N,"char_start":S,"char_end":E,"category":"manipulation|cognitive_bias|rhetological_fallacy","label":"...","text":"цитата з тексту","explanation":"1-2 речення","severity":0..3}
 {"type":"summary","counts_by_category":{"manipulation":0,"cognitive_bias":0,"rhetological_fallacy":0},"top_patterns":["..."],"overall_observations":"..."}
 {"type":"barometer","score":0..100,"label":"Easy mode|Clear client|Medium|High|Bloody hell|Mission impossible","rationale":"...","factors":{"goal_alignment":0..1,"manipulation_density":0..1,"scope_clarity":0..1,"time_pressure":0..1,"resource_demand":0..1}}
 Правила:
 
-Аналізуй тільки normalized_paragraphs[]. Не цитуй великий текст; посилайся на позиції {paragraph_index,char_start,char_end}.
+Аналізуй тільки normalized_paragraphs[]. Включи текстовий фрагмент у поле "text" кожного highlight.
 Віддавай highlights інкрементально (одразу коли знаходиш).
+ВАЖЛИВО: Проаналізуй ВЕСЬ текст повністю - від першого до останнього параграфа.
+Не пропускай жодні частини тексту. Знайди ВСІ можливі проблемні моменти.
 Не дублюй однакові/перекривні фрагменти — віддавай найбільш релевантний.
 Кожен JSON має закінчуватись \\n.
 `.trim();
@@ -359,8 +383,12 @@ r.post('/', validateFileUpload, async (req, res) => {
     };
 
     if (supportsTemperature(MODEL)) {
-      reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.2);
+      reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.1);
     }
+    
+    // Encourage complete analysis
+    reqPayload.presence_penalty = 0.1;
+    reqPayload.frequency_penalty = 0.1;
 
     // Enhanced request handling with progressive timeout
     const controller = new AbortController();
@@ -548,19 +576,8 @@ r.post('/', validateFileUpload, async (req, res) => {
       return;
     }
 
-    const words = text.split(/\s+/).filter(Boolean).length || 1;
-    const maxAllowed = Math.max(
-      1,
-      Math.floor((words / 1000) * MAX_HIGHLIGHTS_PER_1000_WORDS)
-    );
-    let limited = rawHighlights;
-    if (rawHighlights.length > maxAllowed) {
-      limited = rawHighlights
-        .sort((a, b) => (b.severity ?? 0) - (a.severity ?? 0))
-        .slice(0, maxAllowed);
-    }
-
-    const merged = mergeOverlaps(limited);
+    // Remove artificial highlight limits to find all problems
+    const merged = mergeOverlaps(rawHighlights, paragraphs);
 
     sendLine({ type: 'merged_highlights', items: merged });
     if (summaryObj) sendLine(summaryObj);
