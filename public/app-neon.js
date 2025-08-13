@@ -711,8 +711,12 @@
 
     function updateClientCount() {
         const count = state.clients.length;
+        console.log('📊 Updating client count:', count);
         if (elements.clientCount) {
             elements.clientCount.textContent = count;
+            console.log('📊 Client count updated to:', count);
+        } else {
+            console.warn('📊 Client count element not found');
         }
     }
 
@@ -1241,20 +1245,52 @@
         if (elements.wordCount) elements.wordCount.textContent = `${formatNumber(words)} слів`;
         if (elements.estimatedTokens) elements.estimatedTokens.textContent = `≈ ${formatNumber(tokens)} токенів`;
         
-        // Enable/disable analysis button
+        // Update text input state
+        state.originalText = text;
+        
+        // Enable/disable analysis button with enhanced validation
         const hasText = chars > 0;
         const hasClient = state.currentClient !== null;
+        const isTextTooLarge = chars > 1000000; // 1M character limit
+        const isTextTooSmall = chars > 0 && chars < 20; // Minimum 20 characters
         
         if (elements.startAnalysisBtn) {
-            elements.startAnalysisBtn.disabled = !hasText || !hasClient;
+            const canAnalyze = hasText && hasClient && !isTextTooLarge && !isTextTooSmall;
+            elements.startAnalysisBtn.disabled = !canAnalyze;
             
             if (!hasClient) {
                 elements.startAnalysisBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Спочатку оберіть клієнта</span>';
+            } else if (isTextTooLarge) {
+                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>Текст занадто великий (макс. 1М символів)</span>';
+            } else if (isTextTooSmall) {
+                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-edit"></i> <span>Текст занадто короткий (мін. 20 символів)</span>';
             } else if (!hasText) {
                 elements.startAnalysisBtn.innerHTML = '<i class="fas fa-edit"></i> <span>Введіть текст для аналізу</span>';
             } else {
-                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-brain"></i> <span>Розпочати аналіз</span>';
+                // Show appropriate message for large texts
+                if (chars > 100000) {
+                    const estimatedTime = Math.ceil(chars / 10000); // Rough estimation: 1 minute per 10k characters
+                    elements.startAnalysisBtn.innerHTML = `<i class="fas fa-brain"></i> <span>Розпочати аналіз (≈${estimatedTime} хв)</span>`;
+                } else {
+                    elements.startAnalysisBtn.innerHTML = '<i class="fas fa-brain"></i> <span>Розпочати аналіз</span>';
+                }
             }
+        }
+        
+        // Add warning for very large texts
+        if (chars > 500000 && !document.querySelector('.large-text-warning')) {
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'large-text-warning';
+            warningDiv.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 14px;';
+            warningDiv.innerHTML = `
+                <i class="fas fa-info-circle" style="color: #856404; margin-right: 8px;"></i>
+                <strong>Великий текст:</strong> Аналіз може зайняти кілька хвилин. Система обробить весь текст повністю.
+            `;
+            elements.negotiationText?.parentNode?.insertBefore(warningDiv, elements.negotiationText.nextSibling);
+        } else if (chars <= 500000) {
+            // Remove warning if text is smaller
+            const warning = document.querySelector('.large-text-warning');
+            if (warning) warning.remove();
         }
     }
 
@@ -1300,25 +1336,45 @@
             
             updateAnalysisSteps('analysis');
             
-            // Add loading state with more descriptive text
+            // Add loading state with more descriptive text based on text size
             if (elements.startAnalysisBtn) {
                 elements.startAnalysisBtn.classList.add('btn-loading');
                 elements.startAnalysisBtn.disabled = true;
+                
+                const textLength = text.length;
+                let loadingMessage = 'Аналізую текст...';
+                if (textLength > 500000) {
+                    loadingMessage = 'Аналізую великий текст повністю...';
+                } else if (textLength > 100000) {
+                    loadingMessage = 'Аналізую розширений текст...';
+                } else if (textLength > 50000) {
+                    loadingMessage = 'Детальний аналіз тексту...';
+                }
+                
                 elements.startAnalysisBtn.innerHTML = `
                     <i class="fas fa-spinner fa-spin"></i>
-                    <span>Аналізую текст...</span>
+                    <span>${loadingMessage}</span>
                 `;
             }
             
-            // Show progress in step 2
+            // Show progress in step 2 with context about text size
             if (elements.stepAnalysis) {
                 const stepContent = elements.stepAnalysis.querySelector('.step-content p');
                 if (stepContent) {
                     let dots = 0;
+                    const textLength = text.length;
+                    let baseMessage = 'Аналіз в процесі';
+                    
+                    if (textLength > 500000) {
+                        baseMessage = 'Детальна обробка великого тексту';
+                    } else if (textLength > 100000) {
+                        baseMessage = 'Глибокий аналіз розширеного тексту';
+                    }
+                    
                     const progressInterval = setInterval(() => {
                         dots = (dots + 1) % 4;
-                        stepContent.textContent = `Аналіз в процесі${'.'.repeat(dots)}`;
-                    }, 500);
+                        stepContent.textContent = `${baseMessage}${'.'.repeat(dots)}`;
+                    }, 800);
                     
                     // Store interval to clear it later
                     state.progressInterval = progressInterval;
@@ -2306,42 +2362,89 @@
     }
 
     function updateFullTextView(highlightedText) {
-        if (elements.fulltextContent) {
-            if (highlightedText && highlightedText.trim() !== '') {
-                console.log('🔍 Updating full text view with highlighted content, length:', highlightedText.length);
-                elements.fulltextContent.innerHTML = `
-                    <div class="fulltext-container">
+        console.log('🔍 updateFullTextView called with:', {
+            highlightedTextLength: highlightedText ? highlightedText.length : 0,
+            hasCurrentAnalysis: !!state.currentAnalysis,
+            hasHighlights: state.currentAnalysis?.highlights?.length || 0,
+            hasOriginalText: !!(state.originalText || state.currentAnalysis?.original_text)
+        });
+        
+        if (!elements.fulltextContent) {
+            console.warn('🔍 fulltext content element not found');
+            return;
+        }
+        
+        if (highlightedText && highlightedText.trim() !== '') {
+            console.log('🔍 Displaying provided highlighted text');
+            elements.fulltextContent.innerHTML = `
+                <div class="fulltext-container">
+                    <div class="fulltext-header">
+                        <h4><i class="fas fa-file-text"></i> Повний текст з підсвічуванням проблем</h4>
+                    </div>
+                    <div class="fulltext-body">
                         ${highlightedText}
                     </div>
-                `;
-            } else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
-                // Generate highlighted text from highlights and original text
-                console.log('🔍 Generating highlighted text in updateFullTextView');
-                const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
-                const highlighted = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
-                elements.fulltextContent.innerHTML = `
-                    <div class="fulltext-container">
+                </div>
+            `;
+        } else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
+            // Generate highlighted text from highlights and original text
+            console.log('🔍 Generating highlighted text from highlights and original');
+            const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
+            const highlighted = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
+            elements.fulltextContent.innerHTML = `
+                <div class="fulltext-container">
+                    <div class="fulltext-header">
+                        <h4><i class="fas fa-file-text"></i> Повний текст з підсвічуванням проблем</h4>
+                        <span class="highlights-count">${state.currentAnalysis.highlights.length} проблем знайдено</span>
+                    </div>
+                    <div class="fulltext-body">
                         ${highlighted}
                     </div>
-                `;
-            } else if ((state.originalText || state.currentAnalysis?.original_text) && (state.originalText || state.currentAnalysis?.original_text).trim() !== '') {
-                // Show original text without highlighting if no highlights available
-                console.log('🔍 Showing original text without highlighting');
-                elements.fulltextContent.innerHTML = `
-                    <div class="fulltext-container">
-                        ${escapeHtml(state.originalText || state.currentAnalysis?.original_text)}
+                </div>
+            `;
+        } else if ((state.originalText || state.currentAnalysis?.original_text) && (state.originalText || state.currentAnalysis?.original_text).trim() !== '') {
+            // Show original text without highlighting if no highlights available
+            console.log('🔍 Showing original text without highlighting');
+            const originalTextToUse = state.originalText || state.currentAnalysis?.original_text;
+            elements.fulltextContent.innerHTML = `
+                <div class="fulltext-container">
+                    <div class="fulltext-header">
+                        <h4><i class="fas fa-file-text"></i> Повний текст</h4>
+                        <span class="text-info">Без підсвічування (аналіз не виконано)</span>
                     </div>
-                `;
-            } else {
-                // Show empty state if no text available
-                console.log('🔍 Showing empty state for full text view');
-                elements.fulltextContent.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon"><i class="fas fa-file-text"></i></div>
-                        <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                    <div class="fulltext-body">
+                        <div class="text-content">
+                            ${escapeHtml(originalTextToUse)}
+                        </div>
                     </div>
-                `;
-            }
+                </div>
+            `;
+        } else {
+            // Show empty state if no text available
+            console.log('🔍 Showing empty state for full text view');
+            elements.fulltextContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-file-text"></i></div>
+                    <h4>Повний текст недоступний</h4>
+                    <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                </div>
+            `;
+        }
+        
+        // Add some basic styling for better readability
+        const fulltextBody = elements.fulltextContent.querySelector('.fulltext-body');
+        if (fulltextBody) {
+            fulltextBody.style.cssText = `
+                max-height: 600px;
+                overflow-y: auto;
+                padding: 15px;
+                line-height: 1.6;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                font-size: 14px;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                background: #fafafa;
+            `;
         }
     }
 
@@ -2357,6 +2460,37 @@
         const positions = [];
         
         for (const highlight of highlights) {
+            // Strategy A: Use position information if available (from paragraph_index, char_start, char_end)
+            if (highlight.paragraph_index !== undefined && highlight.char_start !== undefined && highlight.char_end !== undefined) {
+                // Try to map paragraph positions to absolute positions
+                const paragraphs = originalText.split(/\n{2,}/);
+                let absoluteStart = 0;
+                
+                for (let i = 0; i < highlight.paragraph_index && i < paragraphs.length; i++) {
+                    absoluteStart += paragraphs[i].length + 2; // +2 for double newline
+                }
+                
+                const paragraphText = paragraphs[highlight.paragraph_index];
+                if (paragraphText) {
+                    const highlightStart = absoluteStart + highlight.char_start;
+                    const highlightEnd = absoluteStart + highlight.char_end;
+                    
+                    if (highlightStart < originalText.length && highlightEnd <= originalText.length) {
+                        const extractedText = originalText.substring(highlightStart, highlightEnd);
+                        positions.push({
+                            start: highlightStart,
+                            end: highlightEnd,
+                            highlight: highlight,
+                            strategy: 'position-based',
+                            text: extractedText
+                        });
+                        console.log(`🔍 Used position-based match for paragraph ${highlight.paragraph_index}: "${extractedText}"`);
+                        continue;
+                    }
+                }
+            }
+            
+            // Strategy B: Search by text content
             const searchText = highlight.text?.trim();
             if (!searchText) {
                 console.warn('🔍 Empty highlight text, skipping:', highlight);
@@ -2373,6 +2507,33 @@
                 console.log(`🔍 Found ${foundPositions.length} position(s) for: "${searchText}"`);
             } else {
                 console.warn(`🔍 Could not find text in original: "${searchText}"`);
+                
+                // Fallback: try to find a partial match
+                const words = searchText.split(/\s+/).filter(w => w.length > 3);
+                if (words.length > 0) {
+                    const firstWord = words[0];
+                    const partialMatches = findTextPositions(originalText, firstWord, highlight);
+                    if (partialMatches.length > 0) {
+                        console.log(`🔍 Using partial match for "${firstWord}" from "${searchText}"`);
+                        // Extend the match to try to capture more context
+                        const match = partialMatches[0];
+                        const contextStart = Math.max(0, match.start - 50);
+                        const contextEnd = Math.min(originalText.length, match.end + 50);
+                        const context = originalText.substring(contextStart, contextEnd);
+                        
+                        // Try to find the full phrase in this context
+                        const contextMatch = context.toLowerCase().indexOf(searchText.toLowerCase());
+                        if (contextMatch !== -1) {
+                            positions.push({
+                                start: contextStart + contextMatch,
+                                end: contextStart + contextMatch + searchText.length,
+                                highlight: highlight,
+                                strategy: 'context-fallback'
+                            });
+                            console.log(`🔍 Found context match for: "${searchText}"`);
+                        }
+                    }
+                }
             }
         }
         
@@ -2430,19 +2591,45 @@
             }
         }
         
-        // Strategy 3: Normalized whitespace match
+        // Strategy 3: Normalized whitespace match - fix whitespace issues
         if (positions.length === 0) {
-            const normalizedOriginal = originalText.replace(/\s+/g, ' ');
-            const normalizedSearch = searchText.replace(/\s+/g, ' ');
-            let index = normalizedOriginal.toLowerCase().indexOf(normalizedSearch.toLowerCase());
-            while (index !== -1) {
-                positions.push({
-                    start: index,
-                    end: index + normalizedSearch.length,
-                    highlight: highlight,
-                    strategy: 'normalized'
-                });
-                index = normalizedOriginal.toLowerCase().indexOf(normalizedSearch.toLowerCase(), index + 1);
+            const normalizedOriginal = originalText.replace(/\s+/g, ' ').trim();
+            const normalizedSearch = searchText.replace(/\s+/g, ' ').trim();
+            
+            // Map positions in normalized text back to original
+            const originalWords = originalText.split(/(\s+)/);
+            const normalizedWords = normalizedOriginal.split(' ');
+            
+            let normalizedIndex = normalizedOriginal.toLowerCase().indexOf(normalizedSearch.toLowerCase());
+            while (normalizedIndex !== -1) {
+                // Find the corresponding position in original text
+                const wordsBeforeMatch = normalizedOriginal.substring(0, normalizedIndex).split(' ').length - 1;
+                
+                let originalIndex = 0;
+                let wordCount = 0;
+                
+                for (let i = 0; i < originalWords.length && wordCount <= wordsBeforeMatch; i++) {
+                    if (originalWords[i].trim() !== '') {
+                        if (wordCount === wordsBeforeMatch) break;
+                        wordCount++;
+                    }
+                    originalIndex += originalWords[i].length;
+                }
+                
+                if (originalIndex < originalText.length) {
+                    // Find the actual match starting from this position
+                    const searchStart = originalText.toLowerCase().indexOf(searchText.toLowerCase(), Math.max(0, originalIndex - 50));
+                    if (searchStart !== -1) {
+                        positions.push({
+                            start: searchStart,
+                            end: searchStart + searchText.length,
+                            highlight: highlight,
+                            strategy: 'normalized-mapped'
+                        });
+                    }
+                }
+                
+                normalizedIndex = normalizedOriginal.toLowerCase().indexOf(normalizedSearch.toLowerCase(), normalizedIndex + 1);
             }
         }
         
@@ -2541,33 +2728,52 @@
 
     // ===== View Controls =====
     function switchHighlightsView(view) {
+        console.log('🔍 Switching highlights view to:', view);
         state.ui.highlightsView = view;
         
         // Update button states
         elements.listView?.classList.toggle('active', view === 'list');
         elements.textView?.classList.toggle('active', view === 'text');
         elements.highlightsView?.classList.toggle('active', view === 'highlights');
+        elements.filterView?.classList.toggle('active', view === 'filter');
         
-        // Show/hide content
+        // Show/hide content panels
         if (elements.highlightsList) {
             elements.highlightsList.style.display = view === 'list' ? 'block' : 'none';
         }
         if (elements.fulltextContent) {
             elements.fulltextContent.style.display = view === 'text' ? 'block' : 'none';
             
-            // Update full text view when switching to text view
+            // Always update full text view when switching to text view
             if (view === 'text') {
-                console.log('🔍 Switching to text view, updating full text view');
+                console.log('🔍 Switching to text view, force updating content');
+                
+                // Priority 1: Use cached highlighted text
                 if (state.currentAnalysis?.highlighted_text) {
+                    console.log('🔍 Using cached highlighted text');
                     updateFullTextView(state.currentAnalysis.highlighted_text);
-                } else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
-                    // Generate highlighted text if not cached
+                }
+                // Priority 2: Generate from highlights and original text
+                else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
+                    console.log('🔍 Generating highlighted text from analysis data');
                     const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
                     const highlightedText = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
-                    state.currentAnalysis.highlighted_text = highlightedText; // Cache it
+                    
+                    // Cache the generated text
+                    if (state.currentAnalysis) {
+                        state.currentAnalysis.highlighted_text = highlightedText;
+                    }
+                    
                     updateFullTextView(highlightedText);
-                } else {
-                    // Fallback to original text or empty state
+                }
+                // Priority 3: Show original text if available
+                else if (state.originalText || state.currentAnalysis?.original_text) {
+                    console.log('🔍 Showing original text without highlights');
+                    updateFullTextView(null);
+                }
+                // Priority 4: Show empty state
+                else {
+                    console.log('🔍 No text available, showing empty state');
                     updateFullTextView(null);
                 }
             }
@@ -2581,6 +2787,11 @@
                 updateFragmentsView(state.currentAnalysis.highlights);
             }
         }
+        if (elements.filtersPanel) {
+            elements.filtersPanel.style.display = view === 'filter' ? 'block' : 'none';
+        }
+        
+        console.log('🔍 View switch completed, current view:', view);
     }
 
     function updateFragmentsView(highlights) {
@@ -3593,10 +3804,22 @@
         });
 
         // View controls
-        elements.listView?.addEventListener('click', () => switchHighlightsView('list'));
-        elements.textView?.addEventListener('click', () => switchHighlightsView('text'));
-        elements.highlightsView?.addEventListener('click', () => switchHighlightsView('highlights'));
-        elements.filterView?.addEventListener('click', () => toggleFilters());
+        elements.listView?.addEventListener('click', () => {
+            console.log('🔍 List view button clicked');
+            switchHighlightsView('list');
+        });
+        elements.textView?.addEventListener('click', () => {
+            console.log('🔍 Text view button clicked');
+            switchHighlightsView('text');
+        });
+        elements.highlightsView?.addEventListener('click', () => {
+            console.log('🔍 Highlights view button clicked');
+            switchHighlightsView('highlights');
+        });
+        elements.filterView?.addEventListener('click', () => {
+            console.log('🔍 Filter view button clicked');
+            toggleFilters();
+        });
 
         // Filter controls
         elements.clearFiltersBtn?.addEventListener('click', clearFilters);
@@ -3772,8 +3995,12 @@
     function renderAnalysisHistory(analyses) {
         if (!elements.analysisHistory) return;
 
+        console.log('📊 Updating analysis count:', analyses.length);
         if (elements.analysisCount) {
             elements.analysisCount.textContent = analyses.length;
+            console.log('📊 Analysis count updated to:', analyses.length);
+        } else {
+            console.warn('📊 Analysis count element not found');
         }
 
         if (analyses.length === 0) {
@@ -4542,6 +4769,11 @@
         console.log('🚀 Starting loadClients...');
         loadClients().then(() => {
             console.log('🚀 loadClients completed, clients loaded:', state.clients.length);
+            
+            // Force update counters even if empty
+            updateClientCount();
+            renderAnalysisHistory(state.analyses || []);
+            
             loadTokenUsage();
             
             // Try to restore previous app state
