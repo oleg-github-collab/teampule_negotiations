@@ -2198,7 +2198,8 @@
 
     function updateFullTextView(highlightedText) {
         if (elements.fulltextContent) {
-            if (highlightedText) {
+            if (highlightedText && highlightedText.trim() !== '') {
+                console.log('🔍 Updating full text view with highlighted content, length:', highlightedText.length);
                 elements.fulltextContent.innerHTML = `
                     <div class="fulltext-container">
                         ${highlightedText}
@@ -2206,13 +2207,24 @@
                 `;
             } else if (state.currentAnalysis?.highlights && state.originalText) {
                 // Generate highlighted text from highlights and original text
+                console.log('🔍 Generating highlighted text in updateFullTextView');
                 const highlighted = generateHighlightedText(state.originalText, state.currentAnalysis.highlights);
                 elements.fulltextContent.innerHTML = `
                     <div class="fulltext-container">
                         ${highlighted}
                     </div>
                 `;
+            } else if (state.originalText && state.originalText.trim() !== '') {
+                // Show original text without highlighting if no highlights available
+                console.log('🔍 Showing original text without highlighting');
+                elements.fulltextContent.innerHTML = `
+                    <div class="fulltext-container">
+                        ${escapeHtml(state.originalText)}
+                    </div>
+                `;
             } else {
+                // Show empty state if no text available
+                console.log('🔍 Showing empty state for full text view');
                 elements.fulltextContent.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon"><i class="fas fa-file-text"></i></div>
@@ -2566,9 +2578,19 @@
             elements.fulltextContent.style.display = view === 'text' ? 'block' : 'none';
             
             // Update full text view when switching to text view
-            if (view === 'text' && state.currentAnalysis?.highlighted_text) {
-                console.log('🔍 Updating full text view with highlighted text');
-                updateFullTextView(state.currentAnalysis.highlighted_text);
+            if (view === 'text') {
+                console.log('🔍 Switching to text view, updating full text view');
+                if (state.currentAnalysis?.highlighted_text) {
+                    updateFullTextView(state.currentAnalysis.highlighted_text);
+                } else if (state.currentAnalysis?.highlights && state.originalText) {
+                    // Generate highlighted text if not cached
+                    const highlightedText = generateHighlightedText(state.originalText, state.currentAnalysis.highlights);
+                    state.currentAnalysis.highlighted_text = highlightedText; // Cache it
+                    updateFullTextView(highlightedText);
+                } else {
+                    // Fallback to original text or empty state
+                    updateFullTextView(null);
+                }
             }
         }
         if (elements.fragmentsContent) {
@@ -3760,11 +3782,34 @@
             const date = new Date(analysis.created_at);
             const timeAgo = getTimeAgo(date);
             
-            // Calculate issues count from highlights if not provided by server
-            let issuesCount = analysis.issues_count || 0;
-            if (issuesCount === 0 && analysis.highlights && Array.isArray(analysis.highlights)) {
+            // Calculate issues count from highlights
+            let issuesCount = 0;
+            
+            // First try to get from analysis.issues_count
+            if (analysis.issues_count && analysis.issues_count > 0) {
+                issuesCount = analysis.issues_count;
+            } 
+            // Then try to parse highlights array
+            else if (analysis.highlights && Array.isArray(analysis.highlights)) {
                 issuesCount = analysis.highlights.length;
             }
+            // Finally try to parse highlights_json string
+            else if (analysis.highlights_json) {
+                try {
+                    const highlights = JSON.parse(analysis.highlights_json);
+                    if (Array.isArray(highlights)) {
+                        issuesCount = highlights.length;
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse highlights_json:', e);
+                }
+            }
+            
+            console.log(`📊 Analysis ${analysis.id}: calculated ${issuesCount} issues from`, {
+                issues_count: analysis.issues_count,
+                highlights: analysis.highlights?.length,
+                highlights_json: analysis.highlights_json ? 'present' : 'missing'
+            });
             
             // Calculate complexity score from barometer if not provided
             let complexityScore = analysis.complexity_score || 0;
@@ -3916,6 +3961,22 @@
             }
             if (data.analysis.barometer) {
                 updateBarometerDisplay(data.analysis.barometer);
+            }
+            
+            // Update full text view with highlighting
+            if (data.analysis.highlighted_text) {
+                console.log('🔍 Loading analysis with pre-generated highlighted text');
+                updateFullTextView(data.analysis.highlighted_text);
+            } else if (data.analysis.highlights && state.originalText) {
+                console.log('🔍 Generating highlighted text from highlights and original text');
+                const highlightedText = generateHighlightedText(state.originalText, data.analysis.highlights);
+                updateFullTextView(highlightedText);
+                
+                // Also store it in current analysis for future use
+                state.currentAnalysis.highlighted_text = highlightedText;
+            } else {
+                console.log('🔍 No highlighting data available, showing plain text');
+                updateFullTextView(escapeHtml(state.originalText || ''));
             }
             
             // Update analysis steps to show completed

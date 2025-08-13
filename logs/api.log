@@ -791,3 +791,13 @@
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:19:35:24 +0000] \"GET / HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 21:35:24"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:19:35:25 +0000] \"HEAD / HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 21:35:25"}
 {"level":"info","message":"Received SIGTERM, starting graceful shutdown...","service":"teampulse-turbo","timestamp":"2025-08-13 21:35:25"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:13"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:13"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:13"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:13"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:13"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:19:50:15 +0000] \"GET / HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:15"}
+{"details":{"ip":"127.0.0.1","method":"GET","url":"/api/health","userAgent":"curl/8.7.1"},"event":"404 - Resource not found","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:15"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":11,"service":"teampulse-turbo","statusCode":404,"timestamp":"2025-08-13 21:50:15","url":"/api/health","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:19:50:15 +0000] \"GET /api/health HTTP/1.1\" 404 69 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:15"}
+{"level":"info","message":"Received SIGTERM, starting graceful shutdown...","service":"teampulse-turbo","timestamp":"2025-08-13 21:50:15"}

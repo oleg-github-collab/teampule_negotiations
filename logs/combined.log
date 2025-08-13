@@ -6080,3 +6080,78 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-13 21:35:25'
 }
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 21:50:13'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 21:50:13'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 21:50:13'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 21:50:13'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 21:50:13'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:19:50:15 +0000] "GET / HTTP/1.1" 302 28 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 21:50:15'
+}
+{
+  service: 'teampulse-turbo',
+  event: '404 - Resource not found',
+  details: {
+    ip: '127.0.0.1',
+    method: 'GET',
+    url: '/api/health',
+    userAgent: 'curl/8.7.1',
+    referer: undefined
+  },
+  timestamp: '2025-08-13 21:50:15',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/health',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 11,
+  statusCode: 404,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-13 21:50:15'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:19:50:15 +0000] "GET /api/health HTTP/1.1" 404 69 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 21:50:15'
+}
+{
+  message: 'Received SIGTERM, starting graceful shutdown...',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 21:50:15'
+}
