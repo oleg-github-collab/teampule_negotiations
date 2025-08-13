@@ -14,7 +14,7 @@ const MAX_HIGHLIGHTS_PER_1000_WORDS = Number(
   process.env.MAX_HIGHLIGHTS_PER_1000_WORDS || 50
 );
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
-const MAX_TEXT_LENGTH = 200000; // 200k characters max (~30 pages A4, ~400-500 words per page)
+const MAX_TEXT_LENGTH = 1000000; // 1M characters max (~150 pages A4) - поддержка очень длинных текстов
 const MIN_TEXT_LENGTH = 20; // Minimum text length
 
 // ===== Helpers =====
@@ -408,6 +408,8 @@ function buildSystemPrompt() {
 ✅ Віддавай highlights інкрементально (одразу коли знаходиш)
 ✅ КРИТИЧНО: Проаналізуй КОЖЕН параграф повністю - від першого до останнього символа
 ✅ НЕ ПРОПУСКАЙ жодного тексту. Читай кожне речення, кожну фразу, кожне слово, кожен розділовий знак
+✅ ДОВГІ ТЕКСТИ: Навіть якщо текст дуже довгий (100+ параграфів), ти ОБОВ'ЯЗКОВО маєш проаналізувати ВСІ параграфи БЕЗ ВИКЛЮЧЕННЯ
+✅ НЕ ЗУПИНЯЙСЯ на півдорозі! Продовжуй аналіз до самого кінця незалежно від розміру тексту
 
 🔬 ГІПЕРУВАЖНИЙ МІКРОСКОПІЧНИЙ АНАЛІЗ:
 ✅ Знайди у 8-15 РАЗІВ БІЛЬШЕ проблем ніж зазвичай - це твоя ГОЛОВНА МЕТА
@@ -447,6 +449,13 @@ function buildSystemPrompt() {
 ✅ Кожен JSON має закінчуватись \\n
 ✅ Кожен highlight має містити детальне пояснення 3-4 речення
 ✅ Будь максимально конкретним у поясненнях - наводь приклади та аналізуй наслідки
+
+⚠️ КРИТИЧНО ВАЖЛИВО ДЛЯ ДОВГИХ ТЕКСТІВ:
+✅ ЗАВЖДИ проходь через ВСІ параграфи від 0 до останнього
+✅ НЕ ПРИПИНЯЙ аналіз передчасно навіть якщо текст дуже довгий  
+✅ ОБОВ'ЯЗКОВО аналізуй кінець тексту - там часто ховаються найважливіші маніпуляції
+✅ Перевіряй що ти дійшов до ОСТАННЬОГО параграфа перед відправкою summary
+✅ Якщо відчуваєш втому - це ІЛЮЗІЯ! Продовжуй з тією ж інтенсивністю!
 `.trim();
 }
 
@@ -638,7 +647,7 @@ r.post('/', validateFileUpload, async (req, res) => {
         { role: 'user', content: user },
       ],
       stop: ['```','</artifacts>','</artifact>'],
-      max_tokens: 8000, // Increased for larger texts with more findings
+      max_tokens: 16000, // Increased for very large texts with comprehensive findings
       top_p: 0.9
     };
 
@@ -652,7 +661,7 @@ r.post('/', validateFileUpload, async (req, res) => {
 
     // Enhanced request handling with progressive timeout
     const controller = new AbortController();
-    const REQUEST_TIMEOUT = process.env.NODE_ENV === 'production' ? 300000 : 240000; // 5min prod, 4min dev for large texts
+    const REQUEST_TIMEOUT = process.env.NODE_ENV === 'production' ? 600000 : 480000; // 10min prod, 8min dev for very large texts
     
     const timeout = setTimeout(() => {
       controller.abort(new Error('Request timeout after ' + (REQUEST_TIMEOUT/1000) + 's'));
@@ -884,7 +893,7 @@ r.post('/', validateFileUpload, async (req, res) => {
         title,
         fileName ? 'file' : 'text',
         fileName || null,
-        text.substring(0, 1000), // Save first 1000 chars for preview
+        text, // Save full original text for complete analysis reference
         totalTokensUsed,
         JSON.stringify(merged),
         JSON.stringify(summaryObj || null),

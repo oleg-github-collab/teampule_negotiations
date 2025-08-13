@@ -116,6 +116,7 @@ r.get('/:id/analysis/:analysisId', (req, res) => {
         summary: JSON.parse(analysis.summary_json || '{}'),
         barometer: JSON.parse(analysis.barometer_json || '{}'),
         highlighted_text: analysis.highlighted_text || null,
+        original_text: analysis.original_text || null,
       },
     });
   } catch (e) {
@@ -329,7 +330,9 @@ r.get('/:id/analysis/:analysisId', validateClientId, validateAnalysisId, async (
         ...analysis,
         highlights,
         summary,
-        barometer
+        barometer,
+        highlighted_text: analysis.highlighted_text || null,
+        original_text: analysis.original_text || null
       },
       meta: {
         responseTime: Math.round(duration)

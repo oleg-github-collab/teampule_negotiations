@@ -988,3 +988,74 @@
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":0,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:42:59","url":"/api/usage?date=2025-08-13&_=1755124979149","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:43:16","url":"/api/usage?date=2025-08-13&_=1755124996597","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:43:28","url":"/api/usage?date=2025-08-13&_=1755125008266","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:43:43","url":"/api/usage?date=2025-08-13&_=1755125023452","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":3,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:43:57","url":"/api/usage?date=2025-08-13&_=1755125037826","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:49:58"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:49:58"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:49:58"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:49:58"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:49:58"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:08"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:08"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:08"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:08"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:08"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:17"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:17"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:17"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:17"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:50:17"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:07"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:07"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:07"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:07"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:07"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:45"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:45"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:45"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:45"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:45"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:59"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:59"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:59"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:59"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:52:59"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:16"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:16"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:16"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:16"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:16"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:28"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:28"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:28"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:28"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:28"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:50"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:50"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:50"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:50"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:53:50"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:36"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:36"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:36"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:36"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:36"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:47"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:47"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:47"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:47"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:54:47"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:55:53"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:55:53"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:55:53"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:55:53"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:55:53"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)","service":"teampulse-turbo","timestamp":"2025-08-14 00:56:12"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:56:12"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:56:12"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-14 00:56:12"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:56:12"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:56:47","url":"/api/usage?date=2025-08-13&_=1755125807870","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":2,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:57:17","url":"/api/usage?date=2025-08-13&_=1755125837789","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":0,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:57:49","url":"/api/usage?date=2025-08-13&_=1755125869686","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:58:18","url":"/api/usage?date=2025-08-13&_=1755125898718","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}

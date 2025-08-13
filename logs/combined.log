@@ -7628,3 +7628,471 @@
   message: 'API Request',
   timestamp: '2025-08-14 00:43:28'
 }
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-13&_=1755125023452',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-14 00:43:43'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-13&_=1755125037826',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 3,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-14 00:43:57'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:49:58'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:49:58'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:49:58'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:49:58'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:49:58'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:08'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:08'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:08'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:08'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:08'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:17'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:17'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:17'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:17'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:50:17'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:07'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:07'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:07'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:07'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:07'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:45'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:45'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:45'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:45'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:45'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:59'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:59'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:59'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:59'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:52:59'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:16'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:16'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:16'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:16'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:16'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:28'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:28'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:28'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:28'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:28'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:50'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:50'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:50'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:50'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:53:50'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:36'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:36'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:36'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:36'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:36'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:47'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:47'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:47'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:47'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:54:47'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:55:53'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:55:53'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:55:53'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:55:53'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:55:53'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:56:12'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:56:12'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:56:12'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:56:12'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 00:56:12'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-13&_=1755125807870',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-14 00:56:47'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-13&_=1755125837789',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-14 00:57:17'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-13&_=1755125869686',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-14 00:57:49'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-13&_=1755125898718',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-14 00:58:18'
+}

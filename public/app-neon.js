@@ -1434,7 +1434,8 @@
                                     created_at: analysisForHistory.created_at,
                                     text_preview: analysisForHistory.text_preview,
                                     issues_count: analysisForHistory.issues_count,
-                                    complexity_score: analysisForHistory.complexity_score
+                                    complexity_score: analysisForHistory.complexity_score,
+                                    original_text: data.original_text // Зберігаємо повний оригінальний текст
                                 };
                                 
                                 // Update analysis history immediately with current data
@@ -2313,21 +2314,22 @@
                         ${highlightedText}
                     </div>
                 `;
-            } else if (state.currentAnalysis?.highlights && state.originalText) {
+            } else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
                 // Generate highlighted text from highlights and original text
                 console.log('🔍 Generating highlighted text in updateFullTextView');
-                const highlighted = generateHighlightedText(state.originalText, state.currentAnalysis.highlights);
+                const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
+                const highlighted = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
                 elements.fulltextContent.innerHTML = `
                     <div class="fulltext-container">
                         ${highlighted}
                     </div>
                 `;
-            } else if (state.originalText && state.originalText.trim() !== '') {
+            } else if ((state.originalText || state.currentAnalysis?.original_text) && (state.originalText || state.currentAnalysis?.original_text).trim() !== '') {
                 // Show original text without highlighting if no highlights available
                 console.log('🔍 Showing original text without highlighting');
                 elements.fulltextContent.innerHTML = `
                     <div class="fulltext-container">
-                        ${escapeHtml(state.originalText)}
+                        ${escapeHtml(state.originalText || state.currentAnalysis?.original_text)}
                     </div>
                 `;
             } else {
@@ -2558,9 +2560,10 @@
                 console.log('🔍 Switching to text view, updating full text view');
                 if (state.currentAnalysis?.highlighted_text) {
                     updateFullTextView(state.currentAnalysis.highlighted_text);
-                } else if (state.currentAnalysis?.highlights && state.originalText) {
+                } else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
                     // Generate highlighted text if not cached
-                    const highlightedText = generateHighlightedText(state.originalText, state.currentAnalysis.highlights);
+                    const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
+                    const highlightedText = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
                     state.currentAnalysis.highlighted_text = highlightedText; // Cache it
                     updateFullTextView(highlightedText);
                 } else {
@@ -3967,16 +3970,18 @@
             if (data.analysis.highlighted_text) {
                 console.log('🔍 Loading analysis with pre-generated highlighted text');
                 updateFullTextView(data.analysis.highlighted_text);
-            } else if (data.analysis.highlights && state.originalText) {
+            } else if (data.analysis.highlights && (state.originalText || data.analysis.original_text)) {
                 console.log('🔍 Generating highlighted text from highlights and original text');
-                const highlightedText = generateHighlightedText(state.originalText, data.analysis.highlights);
+                const originalTextToUse = state.originalText || data.analysis.original_text;
+                const highlightedText = generateHighlightedText(originalTextToUse, data.analysis.highlights);
                 updateFullTextView(highlightedText);
                 
                 // Also store it in current analysis for future use
                 state.currentAnalysis.highlighted_text = highlightedText;
+                state.currentAnalysis.original_text = originalTextToUse;
             } else {
                 console.log('🔍 No highlighting data available, showing plain text');
-                updateFullTextView(escapeHtml(state.originalText || ''));
+                updateFullTextView(escapeHtml(state.originalText || data.analysis.original_text || ''));
             }
             
             // Update analysis steps to show completed
