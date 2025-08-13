@@ -160,7 +160,11 @@
         newAnalysisBtn: $('#new-analysis-btn'),
         
         // Notifications
-        notifications: $('#notifications')
+        notifications: $('#notifications'),
+        
+        // Product switcher
+        productDropdownBtn: $('#product-dropdown-btn'),
+        productDropdown: $('#product-dropdown')
     };
 
     // ===== Utility Functions =====
@@ -2091,29 +2095,66 @@
     function displayAnalysisResults(analysis) {
         if (!analysis) return;
 
-        // Update statistics
-        const stats = {
-            manipulations: analysis.manipulations?.length || 0,
-            biases: analysis.biases?.length || 0,
-            fallacies: analysis.fallacies?.length || 0,
-            recommendations: analysis.recommendations?.length || 0
-        };
-
-        Object.keys(stats).forEach(key => {
-            const element = $(`#${key}-count`);
-            if (element) {
-                animateNumber(element, stats[key]);
-            }
+        console.log('🔍 displayAnalysisResults called with:', {
+            highlights: analysis.highlights?.length || 0,
+            summary: !!analysis.summary,
+            barometer: !!analysis.barometer
         });
 
+        // Process highlights to extract categories
+        let categoryCounts = { manipulation: 0, cognitive_bias: 0, rhetological_fallacy: 0 };
+        
+        if (analysis.highlights && Array.isArray(analysis.highlights)) {
+            analysis.highlights.forEach(highlight => {
+                const category = highlight.category;
+                if (categoryCounts.hasOwnProperty(category)) {
+                    categoryCounts[category]++;
+                }
+            });
+        }
+        
+        // Also check summary data if available
+        if (analysis.summary && analysis.summary.counts_by_category) {
+            categoryCounts = {
+                ...categoryCounts,
+                ...analysis.summary.counts_by_category
+            };
+        }
+
+        console.log('🔍 Category counts:', categoryCounts);
+
+        // Update statistics display
+        if (elements.manipulationsCount) {
+            animateNumber(elements.manipulationsCount, categoryCounts.manipulation || 0);
+        }
+        if (elements.biasesCount) {
+            animateNumber(elements.biasesCount, categoryCounts.cognitive_bias || 0);
+        }
+        if (elements.fallaciesCount) {
+            animateNumber(elements.fallaciesCount, categoryCounts.rhetological_fallacy || 0);
+        }
+        
+        // Calculate total for recommendations count
+        const totalCount = (categoryCounts.manipulation || 0) + (categoryCounts.cognitive_bias || 0) + (categoryCounts.rhetological_fallacy || 0);
+        if (elements.recommendationsCount) {
+            animateNumber(elements.recommendationsCount, totalCount);
+        }
+
         // Update barometer
-        if (analysis.complexity_score !== undefined) {
+        if (analysis.barometer) {
+            updateBarometerDisplay(analysis.barometer);
+        } else if (analysis.complexity_score !== undefined) {
             updateBarometer(analysis.complexity_score, analysis.complexity_label);
         }
 
-        // Update highlights
+        // Update highlights display
         if (analysis.highlights) {
             updateHighlightsDisplay(analysis.highlights);
+        }
+        
+        // Update summary display
+        if (analysis.summary) {
+            updateSummaryDisplay(analysis.summary);
         }
 
         // Update full text view
@@ -3495,6 +3536,28 @@
         }
     }
 
+    // ===== Product Switcher =====
+    function toggleProductDropdown(e) {
+        e.stopPropagation();
+        const isOpen = elements.productDropdown.style.display === 'block';
+        
+        if (isOpen) {
+            closeProductDropdown();
+        } else {
+            openProductDropdown();
+        }
+    }
+    
+    function openProductDropdown() {
+        elements.productDropdown.style.display = 'block';
+        elements.productDropdownBtn.classList.add('active');
+    }
+    
+    function closeProductDropdown() {
+        elements.productDropdown.style.display = 'none';
+        elements.productDropdownBtn.classList.remove('active');
+    }
+
     // Make functions globally accessible
     window.addToWorkspace = addToWorkspace;
     window.removeFromWorkspace = removeFromWorkspace;
@@ -3505,6 +3568,16 @@
         // Sidebar toggles (only right sidebar can be toggled now)
         elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
         elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
+        
+        // Product switcher
+        elements.productDropdownBtn?.addEventListener('click', toggleProductDropdown);
+        
+        // Close product dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.product-switcher')) {
+                closeProductDropdown();
+            }
+        });
 
         // Client search
         elements.clientSearch?.addEventListener('input', debounce(renderClientsList, 300));
@@ -3930,7 +4003,7 @@
     // ===== Analysis Loading =====
     async function loadAnalysis(analysisId) {
         try {
-            const response = await fetch(`/api/analyses/${analysisId}`);
+            const response = await fetch(`/api/clients/${state.currentClient.id}/analysis/${analysisId}`);
             const data = await response.json();
             
             if (!response.ok) {
@@ -3952,16 +4025,8 @@
                 elements.resultsSection.style.display = 'block';
             }
             
-            // Update displays with loaded analysis
-            if (data.analysis.highlights) {
-                updateHighlightsDisplay(data.analysis.highlights);
-            }
-            if (data.analysis.summary) {
-                updateSummaryDisplay(data.analysis.summary);
-            }
-            if (data.analysis.barometer) {
-                updateBarometerDisplay(data.analysis.barometer);
-            }
+            // Update displays with loaded analysis using displayAnalysisResults
+            displayAnalysisResults(data.analysis);
             
             // Update full text view with highlighting
             if (data.analysis.highlighted_text) {

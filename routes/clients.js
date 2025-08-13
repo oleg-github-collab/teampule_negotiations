@@ -274,6 +274,73 @@ r.delete('/:id', validateClientId, async (req, res) => {
   }
 });
 
+// GET /api/clients/:id/analysis/:analysisId - get specific analysis
+r.get('/:id/analysis/:analysisId', validateClientId, validateAnalysisId, async (req, res) => {
+  const startTime = performance.now();
+  
+  try {
+    const clientId = Number(req.params.id);
+    const analysisId = Number(req.params.analysisId);
+    
+    // Verify analysis exists and belongs to client
+    const analysis = get(`
+      SELECT * FROM analyses 
+      WHERE id=? AND client_id=?
+    `, [analysisId, clientId]);
+    
+    if (!analysis) {
+      return res.status(404).json({ success: false, error: 'Analysis not found' });
+    }
+    
+    // Parse JSON fields
+    let highlights = [];
+    let summary = null;
+    let barometer = null;
+    
+    try {
+      if (analysis.highlights_json) {
+        highlights = JSON.parse(analysis.highlights_json);
+      }
+    } catch (e) {
+      console.warn('Failed to parse highlights_json:', e);
+    }
+    
+    try {
+      if (analysis.summary_json) {
+        summary = JSON.parse(analysis.summary_json);
+      }
+    } catch (e) {
+      console.warn('Failed to parse summary_json:', e);
+    }
+    
+    try {
+      if (analysis.barometer_json) {
+        barometer = JSON.parse(analysis.barometer_json);
+      }
+    } catch (e) {
+      console.warn('Failed to parse barometer_json:', e);
+    }
+    
+    const duration = performance.now() - startTime;
+    res.set('X-Response-Time', `${Math.round(duration)}ms`);
+    res.json({ 
+      success: true, 
+      analysis: {
+        ...analysis,
+        highlights,
+        summary,
+        barometer
+      },
+      meta: {
+        responseTime: Math.round(duration)
+      }
+    });
+  } catch (e) {
+    logError(e, { endpoint: 'GET /api/clients/:id/analysis/:analysisId', clientId: req.params.id, analysisId: req.params.analysisId, ip: req.ip });
+    res.status(500).json({ success: false, error: 'Database error occurred' });
+  }
+});
+
 // DELETE /api/clients/:id/analysis/:analysisId - delete analysis
 r.delete('/:id/analysis/:analysisId', validateClientId, validateAnalysisId, async (req, res) => {
   const startTime = performance.now();
