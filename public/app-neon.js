@@ -891,14 +891,48 @@
         state.originalText = text;
 
         try {
+            // Show analysis has started with clear visual feedback
+            showNotification('🚀 Аналіз розпочато! Прокрутіть вниз для перегляду результатів...', 'info', 3000);
+            
             // Show results section and update steps
-            if (elements.resultsSection) elements.resultsSection.style.display = 'block';
+            if (elements.resultsSection) {
+                elements.resultsSection.style.display = 'block';
+                
+                // Smooth scroll to results section with delay for better UX
+                setTimeout(() => {
+                    elements.resultsSection.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                }, 500);
+            }
+            
             updateAnalysisSteps('analysis');
             
-            // Add loading state
+            // Add loading state with more descriptive text
             if (elements.startAnalysisBtn) {
                 elements.startAnalysisBtn.classList.add('btn-loading');
                 elements.startAnalysisBtn.disabled = true;
+                elements.startAnalysisBtn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Аналізую текст...</span>
+                `;
+            }
+            
+            // Show progress in step 2
+            if (elements.stepAnalysis) {
+                const stepContent = elements.stepAnalysis.querySelector('.step-content p');
+                if (stepContent) {
+                    let dots = 0;
+                    const progressInterval = setInterval(() => {
+                        dots = (dots + 1) % 4;
+                        stepContent.textContent = `Аналіз в процесі${'.'.repeat(dots)}`;
+                    }, 500);
+                    
+                    // Store interval to clear it later
+                    state.progressInterval = progressInterval;
+                }
             }
 
             // Prepare form data for streaming analysis
@@ -946,6 +980,9 @@
                                 analysisData.highlights = data.items;
                                 updateHighlightsDisplay(analysisData.highlights);
                                 updateCountersFromHighlights(analysisData.highlights);
+                                
+                                // Show progress feedback
+                                showNotification(`✨ Знайдено ${data.items.length} проблемних моментів`, 'info', 2000);
                             } else if (data.type === 'summary') {
                                 analysisData.summary = data;
                                 updateSummaryDisplay(data);
@@ -979,15 +1016,20 @@
                             } else if (data.type === 'complete') {
                                 console.log('📋 Analysis complete signal received');
                                 
-                                // Ensure barometer is displayed
+                                // Ensure barometer is displayed and stored
                                 if (analysisData.barometer) {
                                     console.log('📊 Triggering barometer display on complete');
                                     updateBarometerDisplay(analysisData.barometer);
                                 } else {
                                     console.log('📊 No barometer from AI, calculating custom barometer');
                                     const customBarometer = calculateComplexityBarometer(state.currentClient, analysisData);
+                                    analysisData.barometer = customBarometer; // Store it in analysisData
                                     updateBarometerDisplay(customBarometer);
                                 }
+                                
+                                // Ensure barometer is saved in currentAnalysis
+                                if (!state.currentAnalysis) state.currentAnalysis = {};
+                                state.currentAnalysis.barometer = analysisData.barometer;
                                 
                                 // Generate and display highlighted text
                                 if (state.originalText && analysisData.highlights?.length > 0) {
@@ -1030,6 +1072,12 @@
             showNotification(error.message || 'Помилка при аналізі', 'error');
             updateAnalysisSteps('error');
         } finally {
+            // Clear progress interval
+            if (state.progressInterval) {
+                clearInterval(state.progressInterval);
+                state.progressInterval = null;
+            }
+            
             // Remove loading state
             if (elements.startAnalysisBtn) {
                 elements.startAnalysisBtn.classList.remove('btn-loading');
@@ -1151,13 +1199,16 @@
         enableHighlightDrag();
         
         // Add event listeners for workspace buttons
-        $$('.add-to-workspace-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const index = parseInt(btn.dataset.highlightIndex);
-                addToWorkspace(index);
+        setTimeout(() => {
+            $$('.add-to-workspace-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = parseInt(btn.dataset.highlightIndex);
+                    console.log('🔘 Adding highlight to workspace via + button:', index);
+                    addToWorkspace(index);
+                });
             });
-        });
+        }, 100); // Small delay to ensure DOM is ready
     }
 
     function updateSummaryDisplay(summary) {
@@ -1775,22 +1826,72 @@
             return escapeHtml(originalText || '');
         }
 
-        let highlightedText = originalText;
-        const sortedHighlights = [...highlights].sort((a, b) => {
-            const aStart = originalText.indexOf(a.text);
-            const bStart = originalText.indexOf(b.text);
-            return bStart - aStart; // Sort in reverse order to avoid index shifting
-        });
-
-        for (const highlight of sortedHighlights) {
-            const regex = new RegExp(escapeRegExp(highlight.text), 'gi');
-            const categoryClass = getCategoryClass(highlight.category);
-            highlightedText = highlightedText.replace(regex, 
-                `<span class="text-highlight ${categoryClass}" data-tooltip="${escapeHtml(highlight.explanation || highlight.label)}">${highlight.text}</span>`
-            );
+        // Create an array of text positions with highlight information
+        const textParts = [];
+        let currentPos = 0;
+        
+        // Find all highlight positions in the original text
+        const highlightPositions = [];
+        for (const highlight of highlights) {
+            let searchPos = 0;
+            let foundPos;
+            
+            // Find all occurrences of this highlight text
+            while ((foundPos = originalText.indexOf(highlight.text, searchPos)) !== -1) {
+                highlightPositions.push({
+                    start: foundPos,
+                    end: foundPos + highlight.text.length,
+                    highlight: highlight,
+                    text: highlight.text
+                });
+                searchPos = foundPos + 1; // Continue searching for overlapping matches
+            }
         }
-
-        return highlightedText;
+        
+        // Sort positions by start position
+        highlightPositions.sort((a, b) => a.start - b.start);
+        
+        // Remove overlapping highlights (keep the first one found)
+        const nonOverlappingHighlights = [];
+        for (const pos of highlightPositions) {
+            const isOverlapping = nonOverlappingHighlights.some(existing => 
+                (pos.start >= existing.start && pos.start < existing.end) ||
+                (pos.end > existing.start && pos.end <= existing.end) ||
+                (pos.start <= existing.start && pos.end >= existing.end)
+            );
+            
+            if (!isOverlapping) {
+                nonOverlappingHighlights.push(pos);
+            }
+        }
+        
+        // Sort again to ensure proper order
+        nonOverlappingHighlights.sort((a, b) => a.start - b.start);
+        
+        // Build the highlighted text
+        let result = '';
+        let lastPos = 0;
+        
+        for (const pos of nonOverlappingHighlights) {
+            // Add text before highlight
+            if (pos.start > lastPos) {
+                result += escapeHtml(originalText.substring(lastPos, pos.start));
+            }
+            
+            // Add highlighted text
+            const categoryClass = getCategoryClass(pos.highlight.category);
+            const tooltip = escapeHtml(pos.highlight.explanation || pos.highlight.label || '');
+            result += `<span class="text-highlight ${categoryClass}" data-tooltip="${tooltip}">${escapeHtml(pos.text)}</span>`;
+            
+            lastPos = pos.end;
+        }
+        
+        // Add remaining text
+        if (lastPos < originalText.length) {
+            result += escapeHtml(originalText.substring(lastPos));
+        }
+        
+        return result;
     }
 
     function getCategoryClass(category) {
@@ -2984,8 +3085,18 @@
             const isLatest = index === 0;
             const date = new Date(analysis.created_at);
             const timeAgo = getTimeAgo(date);
-            const issuesCount = analysis.issues_count || 0;
-            const complexityScore = analysis.complexity_score || 0;
+            
+            // Calculate issues count from highlights if not provided by server
+            let issuesCount = analysis.issues_count || 0;
+            if (issuesCount === 0 && analysis.highlights && Array.isArray(analysis.highlights)) {
+                issuesCount = analysis.highlights.length;
+            }
+            
+            // Calculate complexity score from barometer if not provided
+            let complexityScore = analysis.complexity_score || 0;
+            if (complexityScore === 0 && analysis.barometer?.score) {
+                complexityScore = analysis.barometer.score;
+            }
             
             return `
                 <div class="analysis-history-item ${isLatest ? 'latest' : ''}" 
@@ -3020,18 +3131,30 @@
 
     function getTimeAgo(date) {
         const now = new Date();
-        const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+        const diffInMilliseconds = now - date;
+        const diffInMinutes = Math.floor(diffInMilliseconds / (1000 * 60));
         
         if (diffInMinutes < 1) return 'Щойно';
+        if (diffInMinutes === 1) return '1 хв тому';
         if (diffInMinutes < 60) return `${diffInMinutes} хв тому`;
         
         const diffInHours = Math.floor(diffInMinutes / 60);
+        if (diffInHours === 1) return '1 год тому';
         if (diffInHours < 24) return `${diffInHours} год тому`;
         
         const diffInDays = Math.floor(diffInHours / 24);
+        if (diffInDays === 1) return 'Вчора';
         if (diffInDays < 7) return `${diffInDays} дн тому`;
         
-        return formatDate(date);
+        // For older dates, show formatted date with time
+        const options = { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        return date.toLocaleDateString('uk-UA', options);
     }
 
     function getComplexityLevel(score) {

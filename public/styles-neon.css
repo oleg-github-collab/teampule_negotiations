@@ -2338,6 +2338,10 @@ mark.cognitive {
     100% { transform: rotate(360deg); }
 }
 
+.fa-spin {
+    animation: spin 1s linear infinite;
+}
+
 /* ===== Accessibility Improvements ===== */
 .sr-only {
     position: absolute;
