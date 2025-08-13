@@ -754,16 +754,18 @@
             return;
         }
 
-        const avatar = (client.company || 'C')[0].toUpperCase();
+        // Find the most current client data from state.clients to get updated analysis count
+        const currentClientData = state.clients.find(c => c.id === client.id) || client;
+        const avatar = (currentClientData.company || 'C')[0].toUpperCase();
         
         elements.workspaceClientInfo.innerHTML = `
             <div class="client-item active">
                 <div class="client-avatar">${avatar}</div>
                 <div class="client-info">
-                    <div class="client-name">${escapeHtml(client.company || 'Без назви')}</div>
+                    <div class="client-name">${escapeHtml(currentClientData.company || 'Без назви')}</div>
                     <div class="client-meta">
-                        ${client.sector ? escapeHtml(client.sector) + ' • ' : ''}
-                        ${client.analyses_count || 0} аналізів
+                        ${currentClientData.sector ? escapeHtml(currentClientData.sector) + ' • ' : ''}
+                        ${currentClientData.analyses_count || 0} аналізів
                     </div>
                 </div>
             </div>
@@ -954,6 +956,20 @@
                             } else if (data.type === 'analysis_saved') {
                                 state.currentAnalysis = { id: data.id, ...analysisData };
                                 await loadAnalysisHistory(state.currentClient.id);
+                                
+                                // Update client analysis count by refreshing client data
+                                await loadClients(true);
+                                
+                                // Update current client data with refreshed info
+                                if (state.currentClient) {
+                                    const updatedClient = state.clients.find(c => c.id === state.currentClient.id);
+                                    if (updatedClient) {
+                                        state.currentClient = updatedClient;
+                                    }
+                                }
+                                
+                                renderClientsList();
+                                updateWorkspaceClientInfo(state.currentClient);
                                 
                                 // Calculate and display custom barometer if none was provided
                                 if (!analysisData.barometer) {
@@ -1208,188 +1224,228 @@
             client_profile: 0,
             manipulation_density: 0,
             manipulation_severity: 0,
+            manipulation_frequency: 0,
             negotiation_type: 0,
             stakes_level: 0,
-            communication_complexity: 0,
-            risk_factors: 0,
+            communication_style: 0,
+            company_size_impact: 0,
+            sector_complexity: 0,
+            risk_indicators: 0,
             time_pressure: 0,
-            resource_demands: 0
+            power_dynamics: 0
         };
         
-        // Factor 1: Client Profile Complexity (0-20 points)
+        // Factor 1: Client Profile & Company Size (0-25 points) - More weight for large organizations
         if (clientData) {
-            // Company size impact with more granular scoring
-            const sizeMap = { 'startup': 3, 'small': 7, 'medium': 12, 'large': 20 };
-            factors.client_profile += sizeMap[clientData.company_size] || 8;
-            
-            // Sector complexity with refined weights
-            const sectorMap = { 
-                'IT': 8, 'Finance': 18, 'Healthcare': 12, 'Education': 4,
-                'Manufacturing': 10, 'Retail': 6, 'Real Estate': 15, 'Energy': 20,
-                'Consulting': 12, 'Other': 8
+            // Company size impact - larger companies mean more stakeholders, bureaucracy, and complexity
+            const sizeMap = { 
+                'startup': 4, 
+                'small': 8, 
+                'medium': 15, 
+                'large': 25  // Maximum points for large companies due to complexity
             };
-            factors.client_profile += (sectorMap[clientData.sector] || 8) * 0.4;
+            factors.company_size_impact = sizeMap[clientData.company_size] || 10;
             
-            // Deal value complexity with more detail
+            // Sector complexity with more realistic weights based on regulatory burden and negotiation complexity
+            const sectorMap = { 
+                'IT': 12, 'Finance': 25, 'Healthcare': 20, 'Education': 8,
+                'Manufacturing': 15, 'Retail': 10, 'Real Estate': 22, 'Energy': 25,
+                'Consulting': 16, 'Other': 12
+            };
+            factors.sector_complexity = sectorMap[clientData.sector] || 12;
+            
+            // Deal value complexity with exponential scaling
             if (clientData.deal_value) {
                 const dealStr = clientData.deal_value.toLowerCase();
+                const amount = parseFloat(dealStr.replace(/[^0-9.]/g, '')) || 0;
+                
                 if (dealStr.includes('m') || dealStr.includes('мільйон') || dealStr.includes('млн')) {
-                    factors.client_profile += 6;
+                    factors.client_profile += 8 + Math.min(12, amount * 0.5); // Scale with amount
                 } else if (dealStr.includes('k') || dealStr.includes('тисяч') || dealStr.includes('тис')) {
-                    factors.client_profile += 2;
+                    factors.client_profile += 3 + Math.min(5, amount * 0.1);
                 }
-                // Look for specific amounts
-                const amount = parseFloat(dealStr.replace(/[^0-9.]/g, ''));
-                if (amount > 10) factors.client_profile += 3; // Large amounts add complexity
+                
+                // Very large deals add exponential complexity
+                if (amount > 50 && (dealStr.includes('m') || dealStr.includes('мільйон'))) {
+                    factors.client_profile += 15;
+                }
             }
         }
         
-        // Factor 2: Manipulation Density (0-25 points)
+        // Factor 2: Manipulation Density Analysis (0-35 points) - Higher weight for frequent manipulation
         if (analysisData && analysisData.highlights) {
             const totalHighlights = analysisData.highlights.length;
             const textLength = state.originalText ? state.originalText.length : 1000;
-            const density = (totalHighlights / (textLength / 100)); // highlights per 100 chars
             
-            factors.manipulation_density = Math.min(25, density * 3);
+            // Calculate manipulation density per paragraph (more realistic than per 100 chars)
+            const paragraphs = (state.originalText || '').split(/\n\s*\n/).length;
+            const manipulationsPerParagraph = totalHighlights / Math.max(1, paragraphs);
             
-            // Category distribution analysis
+            // If there are many manipulations per paragraph, it's extremely complex
+            factors.manipulation_density = Math.min(25, manipulationsPerParagraph * 8);
+            
+            // Category analysis with higher penalties for multiple manipulation types
             const categories = analysisData.highlights.reduce((acc, h) => {
                 acc[h.category] = (acc[h.category] || 0) + 1;
                 return acc;
             }, {});
             
-            // More manipulation types = higher complexity
             const categoryCount = Object.keys(categories).length;
-            factors.manipulation_density += categoryCount * 2;
+            factors.manipulation_frequency = Math.min(10, categoryCount * 3); // Higher penalty for variety
+            
+            // Penalty for high concentration of any single manipulation type
+            const maxCategoryCount = Math.max(...Object.values(categories), 0);
+            if (maxCategoryCount > 5) factors.manipulation_frequency += 5;
         }
         
-        // Factor 3: Manipulation Severity Analysis (0-20 points)
-        if (analysisData?.highlights) {
+        // Factor 3: Manipulation Severity with Non-Linear Scaling (0-30 points)
+        if (analysisData?.highlights && analysisData.highlights.length > 0) {
             const severities = analysisData.highlights.map(h => h.severity || 1);
             const avgSeverity = severities.reduce((sum, s) => sum + s, 0) / severities.length;
             const maxSeverity = Math.max(...severities);
             const severeCount = severities.filter(s => s >= 3).length;
+            const extremeCount = severities.filter(s => s >= 4).length;
             
-            factors.manipulation_severity = avgSeverity * 3 + maxSeverity * 2 + severeCount * 1.5;
-            factors.manipulation_severity = Math.min(20, factors.manipulation_severity);
+            // Non-linear scaling - high severity gets exponentially more weight
+            factors.manipulation_severity = avgSeverity * 4 + maxSeverity * 3 + severeCount * 3 + extremeCount * 5;
+            factors.manipulation_severity = Math.min(30, factors.manipulation_severity);
+            
+            // If most manipulations are severe, add extra penalty
+            const severeRatio = severeCount / severities.length;
+            if (severeRatio > 0.6) factors.manipulation_severity += 8;
         }
         
-        // Factor 4: Negotiation Type Complexity (0-15 points) 
+        // Factor 4: Communication Style Analysis (0-20 points) - New factor
+        if (state.originalText) {
+            const text = state.originalText.toLowerCase();
+            
+            // Aggressive communication patterns
+            const aggressiveWords = ['мусиш', 'маєш', 'зобов\'язаний', 'примусити', 'змусити'];
+            const manipulativeWords = ['тільки сьогодні', 'останній шанс', 'всі так роблять', 'ніхто не'];
+            const pressureWords = ['швидко', 'зараз', 'негайно', 'терміново', 'поспішай'];
+            
+            factors.communication_style += aggressiveWords.filter(word => text.includes(word)).length * 4;
+            factors.communication_style += manipulativeWords.filter(word => text.includes(word)).length * 3;
+            factors.communication_style += pressureWords.filter(word => text.includes(word)).length * 2;
+            
+            // Length and complexity indicators
+            const sentences = text.split(/[.!?]+/).length;
+            const avgSentenceLength = text.length / sentences;
+            if (avgSentenceLength > 100) factors.communication_style += 3; // Very complex sentences
+            
+            factors.communication_style = Math.min(20, factors.communication_style);
+        }
+        
+        // Factor 5: Negotiation Type with Power Dynamics (0-20 points)
         if (clientData?.negotiation_type) {
             const typeMap = {
-                'sales': 5, 'partnership': 9, 'contract': 7, 'investment': 13,
-                'acquisition': 15, 'licensing': 11, 'other': 7
+                'sales': 8, 'partnership': 12, 'contract': 10, 'investment': 18,
+                'acquisition': 20, 'licensing': 14, 'other': 10
             };
-            factors.negotiation_type = typeMap[clientData.negotiation_type] || 7;
+            factors.negotiation_type = typeMap[clientData.negotiation_type] || 10;
+            
+            // Add complexity for high-stake deal types with large companies
+            if (['investment', 'acquisition'].includes(clientData.negotiation_type) && 
+                clientData.company_size === 'large') {
+                factors.power_dynamics += 10;
+            }
         }
         
-        // Factor 5: Stakes Level Analysis (0-15 points)
+        // Factor 6: Enhanced Stakes Analysis (0-25 points)
         if (clientData?.goals || clientData?.user_goals) {
             const goalsText = (clientData.goals || clientData.user_goals || '').toLowerCase();
             
-            // High-stakes keywords
-            const criticalWords = ['критично', 'важливо', 'стратегічно', 'ключово', 'пріоритет'];
-            const urgentWords = ['терміново', 'швидко', 'негайно', 'асап', 'дедлайн'];
-            const riskWords = ['ризик', 'загроза', 'втрати', 'конкуренти', 'криза'];
+            // Critical business keywords
+            const criticalWords = ['критично', 'важливо', 'стратегічно', 'ключово', 'пріоритет', 'життєво'];
+            const urgentWords = ['терміново', 'швидко', 'негайно', 'асап', 'дедлайн', 'вчора'];
+            const riskWords = ['ризик', 'загроза', 'втрати', 'конкуренти', 'криза', 'банкрутство'];
+            const powerWords = ['контроль', 'влада', 'домінування', 'перемога', 'поразка'];
             
-            factors.stakes_level += criticalWords.filter(word => goalsText.includes(word)).length * 3;
-            factors.stakes_level += urgentWords.filter(word => goalsText.includes(word)).length * 2;
-            factors.stakes_level += riskWords.filter(word => goalsText.includes(word)).length * 2;
-            factors.stakes_level += Math.min(4, goalsText.length / 100); // Length indicates detail/complexity
+            factors.stakes_level += criticalWords.filter(word => goalsText.includes(word)).length * 4;
+            factors.stakes_level += urgentWords.filter(word => goalsText.includes(word)).length * 3;
+            factors.stakes_level += riskWords.filter(word => goalsText.includes(word)).length * 4;
+            factors.stakes_level += powerWords.filter(word => goalsText.includes(word)).length * 3;
+            
+            // Very detailed goals indicate high stakes
+            factors.stakes_level += Math.min(8, goalsText.length / 80);
+            factors.stakes_level = Math.min(25, factors.stakes_level);
         }
         
-        // Factor 6: Communication Complexity (0-12 points)
-        if (analysisData?.highlights) {
-            const categories = analysisData.highlights.reduce((acc, h) => {
-                acc[h.category] = (acc[h.category] || 0) + 1;
-                return acc;
-            }, {});
-            
-            factors.communication_complexity = Object.keys(categories).length * 2;
-            
-            // Check for complex manipulation patterns
-            const manipulationCount = categories.manipulation || 0;
-            const biasCount = categories.cognitive_bias || 0;
-            const fallacyCount = categories.rhetological_fallacy || 0;
-            
-            if (manipulationCount > 5) factors.communication_complexity += 2;
-            if (biasCount > 3) factors.communication_complexity += 2;
-            if (fallacyCount > 3) factors.communication_complexity += 2;
-            
-            factors.communication_complexity = Math.min(12, factors.communication_complexity);
-        }
-        
-        // Factor 7: Risk Factors (0-10 points)
-        if (clientData) {
-            // Large companies = more bureaucracy and complexity
-            if (clientData.company_size === 'large') factors.risk_factors += 3;
-            
-            // High-risk sectors
-            const riskySectors = ['Finance', 'Energy', 'Real Estate'];
-            if (riskySectors.includes(clientData.sector)) factors.risk_factors += 3;
-            
-            // Complex deal types
-            const complexDeals = ['acquisition', 'investment', 'partnership'];
-            if (complexDeals.includes(clientData.negotiation_type)) factors.risk_factors += 2;
-            
-            // Multiple stakeholders indicator
-            if (clientData.goals && clientData.goals.length > 200) factors.risk_factors += 2;
-        }
-        
-        // Factor 8: Time Pressure (0-8 points)
+        // Factor 7: Time Pressure with Escalation (0-15 points)
         if (state.originalText) {
             const text = state.originalText.toLowerCase();
-            const timeWords = ['терміново', 'швидко', 'негайно', 'дедлайн', 'часу мало', 'пізно'];
-            factors.time_pressure = timeWords.filter(word => text.includes(word)).length * 1.5;
-            factors.time_pressure = Math.min(8, factors.time_pressure);
+            const timeWords = ['терміново', 'швидко', 'негайно', 'дедлайн', 'часу мало', 'пізно', 'вчора', 'зараз'];
+            const pressureWords = ['поспішай', 'не встигнеш', 'останній день', 'закінчується', 'спливає'];
+            
+            factors.time_pressure += timeWords.filter(word => text.includes(word)).length * 2;
+            factors.time_pressure += pressureWords.filter(word => text.includes(word)).length * 3;
+            factors.time_pressure = Math.min(15, factors.time_pressure);
         }
         
-        // Factor 9: Resource Demands (0-10 points)
+        // Factor 8: Risk Indicators (0-20 points)
         if (clientData) {
-            // Large deal values require more resources
-            if (clientData.deal_value) {
-                const dealStr = clientData.deal_value.toLowerCase();
-                if (dealStr.includes('m') || dealStr.includes('мільйон')) factors.resource_demands += 4;
-                else if (dealStr.includes('k') || dealStr.includes('тисяч')) factors.resource_demands += 2;
+            // Large companies in risky sectors = maximum complexity
+            if (clientData.company_size === 'large') factors.risk_indicators += 8;
+            
+            // High-risk sectors get exponential scaling
+            const riskySectors = ['Finance', 'Energy', 'Real Estate', 'Healthcare'];
+            if (riskySectors.includes(clientData.sector)) {
+                factors.risk_indicators += 10;
+                if (clientData.company_size === 'large') factors.risk_indicators += 5; // Compound effect
             }
             
-            // Complex sectors require specialized knowledge
-            const resourceIntensiveSectors = ['Finance', 'Healthcare', 'Energy', 'Real Estate'];
-            if (resourceIntensiveSectors.includes(clientData.sector)) factors.resource_demands += 3;
+            // Very complex deal types
+            const complexDeals = ['acquisition', 'investment'];
+            const mediumDeals = ['partnership', 'licensing'];
             
-            // Complex negotiation types
-            if (['acquisition', 'investment'].includes(clientData.negotiation_type)) factors.resource_demands += 3;
+            if (complexDeals.includes(clientData.negotiation_type)) {
+                factors.risk_indicators += 8;
+            } else if (mediumDeals.includes(clientData.negotiation_type)) {
+                factors.risk_indicators += 4;
+            }
+            
+            factors.risk_indicators = Math.min(20, factors.risk_indicators);
         }
         
-        // Calculate total complexity score
-        complexityScore = Object.values(factors).reduce((sum, val) => sum + val, 0);
+        // Calculate total with weighted factors
+        const weightedScore = 
+            factors.company_size_impact * 0.8 +
+            factors.sector_complexity * 0.7 +
+            factors.client_profile * 0.6 +
+            factors.manipulation_density * 1.2 +
+            factors.manipulation_frequency * 1.1 +
+            factors.manipulation_severity * 1.5 +
+            factors.communication_style * 1.0 +
+            factors.negotiation_type * 0.9 +
+            factors.stakes_level * 1.3 +
+            factors.time_pressure * 0.8 +
+            factors.risk_indicators * 1.1 +
+            factors.power_dynamics * 0.9;
         
-        // Enhanced complexity labels and scoring
+        complexityScore = Math.round(weightedScore);
+        
+        // More realistic and less optimistic scoring ranges
         let label, normalizedScore, description;
-        if (complexityScore <= 20) {
-            label = 'Easy Mode';
-            normalizedScore = Math.min(20, complexityScore);
-            description = 'Прості переговори з мінімальними ризиками';
-        } else if (complexityScore <= 40) {
-            label = 'Clear Client';
-            normalizedScore = 20 + Math.min(20, (complexityScore - 20) * 1.0);
-            description = 'Стандартні переговори з прозорими умовами';
-        } else if (complexityScore <= 65) {
-            label = 'Medium';
-            normalizedScore = 40 + Math.min(25, (complexityScore - 40) * 1.0);
-            description = 'Помірно складні переговори, потрібна обережність';
-        } else if (complexityScore <= 90) {
-            label = 'High Stakes';
-            normalizedScore = 65 + Math.min(20, (complexityScore - 65) * 0.8);
-            description = 'Високоризикові переговори з серйозними викликами';
-        } else if (complexityScore <= 110) {
-            label = 'Bloody Hell';
-            normalizedScore = 85 + Math.min(10, (complexityScore - 90) * 0.5);
-            description = 'Надскладні переговори з множинними загрозами';
+        if (complexityScore <= 30) {
+            label = 'Manageable';
+            normalizedScore = Math.min(25, complexityScore * 0.8);
+            description = 'Стандартні переговори, базова підготовка';
+        } else if (complexityScore <= 60) {
+            label = 'Challenging';
+            normalizedScore = 25 + Math.min(25, (complexityScore - 30) * 0.8);
+            description = 'Складні переговори, потрібна ретельна підготовка';
+        } else if (complexityScore <= 100) {
+            label = 'High Risk';
+            normalizedScore = 50 + Math.min(25, (complexityScore - 60) * 0.6);
+            description = 'Високоризикові переговори, критична підготовка';
+        } else if (complexityScore <= 150) {
+            label = 'Danger Zone';
+            normalizedScore = 75 + Math.min(15, (complexityScore - 100) * 0.3);
+            description = 'Вкрай небезпечні переговори, максимальна обережність';
         } else {
-            label = 'Mission Impossible';
-            normalizedScore = 95 + Math.min(5, (complexityScore - 110) * 0.1);
-            description = 'Екстремально складні переговори, максимальна готовність';
+            label = 'Minefield';
+            normalizedScore = 90 + Math.min(10, (complexityScore - 150) * 0.1);
+            description = 'Екстремально небезпечні переговори, розгляньте відмову';
         }
         
         return {
@@ -1398,27 +1454,76 @@
             description,
             factors,
             rawScore: complexityScore,
-            recommendations: generateComplexityRecommendations(label, factors)
+            recommendations: generateAdvancedComplexityRecommendations(label, factors, clientData)
         };
     }
     
-    function generateComplexityRecommendations(label, factors) {
+    function generateAdvancedComplexityRecommendations(label, factors, clientData) {
         const recommendations = [];
         
+        // Manipulation-based recommendations
         if (factors.manipulation_density > 15) {
-            recommendations.push('Високий рівень маніпуляцій - готуйте контраргументи');
+            recommendations.push('🚨 Критично високий рівень маніпуляцій - підготуйте детальні контраргументи');
         }
-        if (factors.manipulation_severity > 12) {
-            recommendations.push('Агресивні техніки впливу - розгляньте залучення юристів');
+        if (factors.manipulation_severity > 20) {
+            recommendations.push('⚖️ Агресивні техніки впливу - розгляньте залучення юристів');
         }
-        if (factors.stakes_level > 10) {
-            recommendations.push('Високі ставки - детальна підготовка критично важлива');
+        if (factors.manipulation_frequency > 6) {
+            recommendations.push('🎭 Різноманітні техніки маніпуляцій - вивчіть кожну категорію');
         }
-        if (factors.time_pressure > 5) {
-            recommendations.push('Тиск часу - не поспішайте з рішеннями');
+        
+        // Company and sector-based recommendations
+        if (factors.company_size_impact > 20) {
+            recommendations.push('🏢 Велика корпорація - очікуйте складну ієрархію та довгі процеси');
         }
-        if (factors.communication_complexity > 8) {
-            recommendations.push('Складна комунікація - документуйте всі домовленості');
+        if (factors.sector_complexity > 20) {
+            recommendations.push('🏭 Складна галузь - залучіть галузевих експертів');
+        }
+        
+        // Communication style recommendations
+        if (factors.communication_style > 15) {
+            recommendations.push('💬 Агресивний стиль спілкування - зберігайте спокій та професіоналізм');
+        }
+        if (factors.power_dynamics > 5) {
+            recommendations.push('⚡ Складна динаміка влади - визначте справжніх осіб, що приймають рішення');
+        }
+        
+        // Stakes and pressure recommendations
+        if (factors.stakes_level > 18) {
+            recommendations.push('🎯 Критично високі ставки - максимальна підготовка обов\'язкова');
+        }
+        if (factors.time_pressure > 10) {
+            recommendations.push('⏰ Сильний тиск часу - не поспішайте з важливими рішеннями');
+        }
+        if (factors.risk_indicators > 15) {
+            recommendations.push('⚠️ Високі ризики - розробіть план виходу з переговорів');
+        }
+        
+        // Label-based strategic recommendations
+        switch (label) {
+            case 'Manageable':
+                recommendations.push('✅ Стандартна підготовка буде достатньою');
+                break;
+            case 'Challenging':
+                recommendations.push('📚 Поглиблена підготовка та дослідження контрагента');
+                break;
+            case 'High Risk':
+                recommendations.push('🛡️ Залучіть команду експертів та юридичну підтримку');
+                break;
+            case 'Danger Zone':
+                recommendations.push('🚨 Розгляньте можливість відмови або кардинальної зміни умов');
+                break;
+            case 'Minefield':
+                recommendations.push('💀 Серйозно розгляньте відмову від цих переговорів');
+                break;
+        }
+        
+        // Deal value specific recommendations
+        if (clientData?.deal_value) {
+            const dealStr = clientData.deal_value.toLowerCase();
+            if (dealStr.includes('m') || dealStr.includes('мільйон')) {
+                recommendations.push('💰 Великі суми - обов\'язкова юридична експертиза');
+            }
         }
         
         return recommendations;
