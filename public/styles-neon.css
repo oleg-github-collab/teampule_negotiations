@@ -652,8 +652,10 @@ body::before {
 .client-actions {
     display: flex;
     gap: var(--spacing-xs);
-    opacity: 0;
+    opacity: 0.7;
     transition: var(--transition-fast);
+    position: relative;
+    z-index: 10;
 }
 
 .client-item:hover .client-actions {
@@ -661,11 +663,21 @@ body::before {
 }
 
 .client-actions .btn-icon {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     padding: 0;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    z-index: 11;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.client-actions .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
 }
 
 /* ===== Analysis Dashboard ===== */

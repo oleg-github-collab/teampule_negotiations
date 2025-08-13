@@ -5463,3 +5463,139 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-13 11:30:49'
 }
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:18'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:18'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:18'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:18'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:18'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:14:29 +0000] "GET /api/clients HTTP/1.1" 200 9073 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:29'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/logout',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-13 14:14:36'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:14:36 +0000] "POST /api/logout HTTP/1.1" 200 16 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:36'
+}
+{
+  service: 'teampulse-turbo',
+  event: 'Unauthorized access attempt',
+  details: {
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1',
+    path: '/',
+    method: 'GET'
+  },
+  timestamp: '2025-08-13 14:14:42',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:14:42 +0000] "GET /api/clients HTTP/1.1" 302 28 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:42'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/login',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 19,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-13 14:14:50'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:14:50 +0000] "POST /api/login HTTP/1.1" 200 16 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:50'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:14:57 +0000] "GET /api/clients HTTP/1.1" 200 9073 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:14:57'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:15:05 +0000] "PUT /api/clients/16 HTTP/1.1" 200 553 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:15:05'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:15:11 +0000] "POST /api/clients HTTP/1.1" 200 582 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:15:11'
+}
+{
+  service: 'teampulse-turbo',
+  event: 'Client deletion',
+  details: {
+    clientId: 19,
+    company: 'UI Test Company',
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1'
+  },
+  timestamp: '2025-08-13 14:15:17',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:15:17 +0000] "DELETE /api/clients/19 HTTP/1.1" 200 78 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:15:17'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:12:15:24 +0000] "GET /api/clients HTTP/1.1" 200 9081 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 14:15:24'
+}

@@ -521,9 +521,22 @@
                         <i class="${emptyIcon}"></i>
                     </div>
                     <p>${emptyMessage}</p>
-                    ${!searchTerm ? '<button class="btn-primary" onclick="window.showClientForm()">Створити першого клієнта</button>' : ''}
+                    ${!searchTerm ? '<button class="btn-primary" id="empty-new-client-btn">Створити першого клієнта</button>' : ''}
                 </div>
             `;
+            
+            // Add event listener for empty state button
+            if (!searchTerm) {
+                const emptyNewBtn = document.getElementById('empty-new-client-btn');
+                if (emptyNewBtn) {
+                    emptyNewBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('🎯 Empty state new client button clicked');
+                        showClientForm();
+                    });
+                }
+            }
             return;
         }
 
@@ -542,8 +555,7 @@
             
             return `
                 <div class="client-item ${isActive ? 'active' : ''}" 
-                     data-client-id="${client.id}"
-                     onclick="window.selectClient(${client.id})">
+                     data-client-id="${client.id}">
                     <div class="client-avatar">${avatar}</div>
                     <div class="client-info">
                         <div class="client-name">${escapeHtml(client.company || 'Без назви')}</div>
@@ -553,10 +565,10 @@
                         </div>
                     </div>
                     <div class="client-actions">
-                        <button class="btn-icon" onclick="window.editClient(${client.id}, event)" title="Редагувати">
+                        <button class="btn-icon edit-client-btn" data-client-id="${client.id}" title="Редагувати">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn-icon" onclick="window.deleteClient(${client.id}, event)" title="Видалити">
+                        <button class="btn-icon delete-client-btn" data-client-id="${client.id}" title="Видалити">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -564,7 +576,44 @@
             `;
         }).join('');
         
-        console.log('🎨 Client list rendered successfully');
+        // Add event listeners to all client items
+        const clientItems = elements.clientList.querySelectorAll('.client-item');
+        clientItems.forEach(item => {
+            const clientId = parseInt(item.dataset.clientId);
+            
+            // Client selection - click on main area (not buttons)
+            item.addEventListener('click', (e) => {
+                // Only handle clicks that are not on buttons
+                if (!e.target.closest('.client-actions')) {
+                    console.log('🎯 Client item clicked:', clientId);
+                    selectClient(clientId);
+                }
+            });
+            
+            // Edit button
+            const editBtn = item.querySelector('.edit-client-btn');
+            if (editBtn) {
+                editBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('✏️ Edit button clicked for client:', clientId);
+                    editClient(clientId, e);
+                });
+            }
+            
+            // Delete button
+            const deleteBtn = item.querySelector('.delete-client-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🗑️ Delete button clicked for client:', clientId);
+                    deleteClient(clientId, e);
+                });
+            }
+        });
+        
+        console.log('🎨 Client list rendered successfully with event listeners');
     }
 
     function updateClientCount() {

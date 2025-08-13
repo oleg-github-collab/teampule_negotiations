@@ -705,3 +705,21 @@
 {"details":{"clientId":18,"company":"Edited Test Client","ip":"127.0.0.1","userAgent":"curl/8.7.1"},"event":"Client deletion","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-13 11:30:17"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:09:30:17 +0000] \"DELETE /api/clients/18 HTTP/1.1\" 200 78 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 11:30:17"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:09:30:49 +0000] \"GET /api/clients HTTP/1.1\" 200 9073 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 11:30:49"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (production)","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:18"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:18"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:18"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:18"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:18"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:14:29 +0000] \"GET /api/clients HTTP/1.1\" 200 9073 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:29"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-13 14:14:36","url":"/api/logout","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:14:36 +0000] \"POST /api/logout HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:36"}
+{"details":{"ip":"127.0.0.1","method":"GET","path":"/","userAgent":"curl/8.7.1"},"event":"Unauthorized access attempt","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:42"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:14:42 +0000] \"GET /api/clients HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:42"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":19,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-13 14:14:50","url":"/api/login","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:14:50 +0000] \"POST /api/login HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:50"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:14:57 +0000] \"GET /api/clients HTTP/1.1\" 200 9073 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:14:57"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:15:05 +0000] \"PUT /api/clients/16 HTTP/1.1\" 200 553 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:15:05"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:15:11 +0000] \"POST /api/clients HTTP/1.1\" 200 582 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:15:11"}
+{"details":{"clientId":19,"company":"UI Test Company","ip":"127.0.0.1","userAgent":"curl/8.7.1"},"event":"Client deletion","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-13 14:15:17"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:15:17 +0000] \"DELETE /api/clients/19 HTTP/1.1\" 200 78 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:15:17"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:15:24 +0000] \"GET /api/clients HTTP/1.1\" 200 9081 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:15:24"}
