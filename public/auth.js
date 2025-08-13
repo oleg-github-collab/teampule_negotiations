@@ -126,23 +126,9 @@
         sessionStorage.removeItem('teampulse-auth');
         localStorage.clear(); // Clear all app state
         
-        // Show login screen and hide app
-        const loginScreen = $('#login-screen');
-        const appContainer = $('#app-container');
-        
-        if (loginScreen) loginScreen.style.display = 'flex';
-        if (appContainer) appContainer.style.display = 'none';
-        
-        console.log('🔐 Logout complete, showing login screen');
-        
-        // Clear form fields
-        const usernameField = $('#username');
-        const passwordField = $('#password');
-        const errorDiv = $('#login-error');
-        
-        if (usernameField) usernameField.value = '';
-        if (passwordField) passwordField.value = '';
-        if (errorDiv) errorDiv.style.display = 'none';
+        // Redirect to login page
+        console.log('🔐 Logout complete, redirecting to login page');
+        window.location.href = '/login.html';
     }
 
     async function initAuth() {

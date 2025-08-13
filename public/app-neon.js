@@ -921,6 +921,7 @@
                                 analysisData.summary = data;
                                 updateSummaryDisplay(data);
                             } else if (data.type === 'barometer') {
+                                console.log('📊 Received barometer data:', data);
                                 analysisData.barometer = data;
                                 updateBarometerDisplay(data);
                             } else if (data.type === 'analysis_saved') {
@@ -1375,7 +1376,13 @@
         const score = Math.round(barometer.score);
         const label = barometer.label || 'Medium';
         
-        console.log('Updating barometer:', score, label, barometer);
+        console.log('🔍 Updating barometer:', score, label, barometer);
+        console.log('🔍 Elements check:', {
+            barometerScore: !!elements.barometerScore,
+            barometerLabel: !!elements.barometerLabel,
+            barometerComment: !!elements.barometerComment,
+            gaugeCircle: !!$('#gauge-circle')
+        });
         
         // Update barometer display with animation
         if (elements.barometerScore) {
@@ -1462,7 +1469,10 @@
 
         // Update full text view
         if (analysis.highlighted_text) {
+            console.log('🔍 Loading analysis with highlighted text, length:', analysis.highlighted_text.length);
             updateFullTextView(analysis.highlighted_text);
+        } else {
+            console.log('🔍 No highlighted text found in analysis');
         }
     }
 
@@ -1617,8 +1627,9 @@
             elements.fulltextContent.style.display = view === 'text' ? 'block' : 'none';
             
             // Update full text view when switching to text view
-            if (view === 'text') {
-                updateFullTextView();
+            if (view === 'text' && state.currentAnalysis?.highlighted_text) {
+                console.log('🔍 Updating full text view with highlighted text');
+                updateFullTextView(state.currentAnalysis.highlighted_text);
             }
         }
     }
@@ -2517,8 +2528,35 @@
                     const latestAnalysis = data.analyses[0]; // Analyses should be sorted by date descending
                     await loadAnalysis(latestAnalysis.id);
                 } else {
-                    // No analyses for this client - show clean dashboard state
-                    clearAnalysisDisplay();
+                    // No analyses for this client - show clean dashboard state but preserve UI
+                    console.log('🔍 No analyses found for current client - showing empty state');
+                    state.currentAnalysis = null;
+                    state.originalText = '';
+                    state.selectedFragments = [];
+                    
+                    // Clear text input only
+                    if (elements.negotiationText) {
+                        elements.negotiationText.value = '';
+                        updateTextStats();
+                    }
+                    
+                    // Show empty highlights
+                    if (elements.highlightsList) {
+                        elements.highlightsList.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <p>Проблемні моменти з'являться тут після аналізу</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // Update workspace but DON'T reset counters and barometer
+                    updateWorkspaceFragments();
+                    updateWorkspaceActions();
+                    updateAnalysisSteps('input');
+                    
                     showNotification(`Клієнт ${state.currentClient.company} обраний. Додайте текст для аналізу.`, 'info');
                 }
             }
