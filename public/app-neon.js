@@ -231,46 +231,106 @@
     // ===== Token Management =====
     async function loadTokenUsage() {
         try {
-            const response = await fetch('/api/usage');
+            // Add timestamp and cache busting for reliable daily updates
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            const response = await fetch(`/api/usage?date=${today}&_=${Date.now()}`);
             const data = await response.json();
             
             if (data.success) {
-                state.tokenUsage.used = data.used_tokens;
-                state.tokenUsage.total = data.total_tokens;
-                state.tokenUsage.percentage = data.percentage;
+                const newUsage = {
+                    used: data.used_tokens || 0,
+                    total: data.total_tokens || 512000,
+                    percentage: data.percentage || 0,
+                    daily_used: data.daily_used || 0,
+                    daily_limit: data.daily_limit || 50000,
+                    daily_percentage: data.daily_percentage || 0,
+                    last_updated: new Date().toISOString(),
+                    date: today
+                };
+                
+                // Store in state with validation
+                state.tokenUsage = { ...state.tokenUsage, ...newUsage };
+                
+                // Cache in localStorage for offline resilience
+                localStorage.setItem('teampulse-token-usage', JSON.stringify({
+                    ...newUsage,
+                    cached_at: Date.now()
+                }));
+                
                 updateTokenDisplay();
+                console.log('📊 Token usage updated:', newUsage);
             }
         } catch (error) {
             console.error('Error loading token usage:', error);
+            
+            // Fallback to cached data if available
+            const cached = localStorage.getItem('teampulse-token-usage');
+            if (cached) {
+                try {
+                    const cachedData = JSON.parse(cached);
+                    const cacheAge = Date.now() - cachedData.cached_at;
+                    
+                    // Use cached data if less than 1 hour old
+                    if (cacheAge < 3600000) {
+                        state.tokenUsage = { ...state.tokenUsage, ...cachedData };
+                        updateTokenDisplay();
+                        console.log('📊 Using cached token usage:', cachedData);
+                    }
+                } catch (e) {
+                    console.error('Error parsing cached token usage:', e);
+                }
+            }
+            
+            // Show user-friendly error notification
+            showNotification('Помилка завантаження даних про токени. Використовуємо кеш.', 'warning');
         }
     }
 
     function updateTokenDisplay() {
-        const { used, total, percentage } = state.tokenUsage;
+        const { used, total, percentage, dailyUsed, dailyLimit, dailyPercentage } = state.tokenUsage;
         
-        // Top nav token counter
-        if (elements.usedTokens) elements.usedTokens.textContent = formatNumber(used);
-        if (elements.totalTokens) elements.totalTokens.textContent = formatNumber(total);
+        // Calculate display values
+        const displayUsed = dailyUsed || used;
+        const displayTotal = dailyLimit || total;
+        const displayPercentage = dailyPercentage || percentage;
+        
+        // Top nav token counter - show daily usage primarily
+        if (elements.usedTokens) {
+            elements.usedTokens.textContent = formatNumber(displayUsed);
+            elements.usedTokens.title = `Сьогодні: ${formatNumber(dailyUsed || 0)}/${formatNumber(dailyLimit || 0)} | Всього: ${formatNumber(used)}/${formatNumber(total)}`;
+        }
+        if (elements.totalTokens) {
+            elements.totalTokens.textContent = formatNumber(displayTotal);
+        }
         if (elements.tokenProgressFill) {
-            elements.tokenProgressFill.style.width = `${percentage}%`;
+            elements.tokenProgressFill.style.width = `${displayPercentage}%`;
             
-            // Color coding
-            if (percentage > 90) {
+            // Color coding based on daily usage
+            if (displayPercentage > 90) {
                 elements.tokenProgressFill.style.background = 'linear-gradient(90deg, var(--danger), var(--neon-pink))';
-            } else if (percentage > 70) {
+            } else if (displayPercentage > 70) {
                 elements.tokenProgressFill.style.background = 'linear-gradient(90deg, var(--warning), var(--neon-yellow))';
             } else {
                 elements.tokenProgressFill.style.background = 'var(--gradient-accent)';
             }
         }
 
-        // Workspace token display
-        if (elements.workspaceUsedTokens) elements.workspaceUsedTokens.textContent = formatNumber(used);
-        if (elements.workspaceTotalTokens) elements.workspaceTotalTokens.textContent = formatNumber(total);
-        if (elements.workspaceTokenPercentage) elements.workspaceTokenPercentage.textContent = `${Math.round(percentage)}%`;
+        // Workspace token display - show daily usage
+        if (elements.workspaceUsedTokens) {
+            elements.workspaceUsedTokens.textContent = formatNumber(displayUsed);
+            elements.workspaceUsedTokens.title = `Денне використання: ${formatNumber(dailyUsed || 0)}`;
+        }
+        if (elements.workspaceTotalTokens) {
+            elements.workspaceTotalTokens.textContent = formatNumber(displayTotal);
+            elements.workspaceTotalTokens.title = `Денний ліміт: ${formatNumber(dailyLimit || 0)}`;
+        }
+        if (elements.workspaceTokenPercentage) {
+            elements.workspaceTokenPercentage.textContent = `${Math.round(displayPercentage)}%`;
+            elements.workspaceTokenPercentage.title = `Сьогодні використано: ${Math.round(displayPercentage)}%`;
+        }
         if (elements.workspaceTokenProgress) {
-            elements.workspaceTokenProgress.style.width = `${percentage}%`;
-            if (percentage > 90) {
+            elements.workspaceTokenProgress.style.width = `${displayPercentage}%`;
+            if (displayPercentage > 90) {
                 elements.workspaceTokenProgress.style.background = 'var(--danger)';
             } else if (percentage > 70) {
                 elements.workspaceTokenProgress.style.background = 'var(--warning)';
@@ -1261,6 +1321,22 @@
                                 updateBarometerDisplay(data);
                             } else if (data.type === 'analysis_saved') {
                                 state.currentAnalysis = { id: data.id, ...analysisData };
+                                
+                                // Increment client analysis count
+                                if (state.currentClient) {
+                                    // Update in state.clients array
+                                    const clientIndex = state.clients.findIndex(c => c.id === state.currentClient.id);
+                                    if (clientIndex !== -1) {
+                                        state.clients[clientIndex].analyses_count = (state.clients[clientIndex].analyses_count || 0) + 1;
+                                    }
+                                    
+                                    // Update current client object
+                                    state.currentClient.analyses_count = (state.currentClient.analyses_count || 0) + 1;
+                                    
+                                    // Update UI displays
+                                    updateWorkspaceClientInfo(state.currentClient);
+                                    updateClientsList();
+                                }
                                 
                                 // Create proper analysis object with all needed data for history
                                 const analysisForHistory = {
@@ -4095,80 +4171,187 @@
             recommendationsHistory: state.recommendationsHistory,
             originalText: state.originalText,
             ui: state.ui,
-            timestamp: new Date().toISOString()
+            clients: state.clients, // Include clients for backup
+            tokenUsage: state.tokenUsage,
+            timestamp: new Date().toISOString(),
+            version: '1.0' // For future migration compatibility
         };
         
         try {
-            localStorage.setItem('teampulse-app-state', JSON.stringify(appState));
+            const serialized = JSON.stringify(appState);
+            
+            // Check localStorage availability and space
+            if (typeof Storage === "undefined") {
+                throw new Error('LocalStorage не підтримується');
+            }
+            
+            // Try to save main state
+            localStorage.setItem('teampulse-app-state', serialized);
+            
+            // Create rotating backup (keep last 3 saves)
+            const backupKey = `teampulse-backup-${Date.now() % 3}`;
+            localStorage.setItem(backupKey, serialized);
+            
+            // Clean old backups
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('teampulse-backup-') && 
+                    !['teampulse-backup-0', 'teampulse-backup-1', 'teampulse-backup-2'].includes(key)) {
+                    localStorage.removeItem(key);
+                }
+            }
+            
         } catch (e) {
             console.warn('Failed to save app state:', e);
+            
+            // Try to free up space by removing old data
+            try {
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith('teampulse-old-') || key.includes('temp'))) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                
+                // Try saving again
+                localStorage.setItem('teampulse-app-state', JSON.stringify(appState));
+            } catch (e2) {
+                showNotification('Помилка збереження даних. Місце на диску вичерпано.', 'error');
+            }
         }
     }
 
     function loadAppState() {
+        let appState = null;
+        let attempts = 0;
+        
+        // Try to load main state, then backups if main fails
+        const stateKeys = ['teampulse-app-state', 'teampulse-backup-0', 'teampulse-backup-1', 'teampulse-backup-2'];
+        
+        for (const key of stateKeys) {
+            attempts++;
+            try {
+                const savedState = localStorage.getItem(key);
+                if (!savedState) continue;
+                
+                const parsedState = JSON.parse(savedState);
+                
+                // Validate required properties
+                if (!parsedState.timestamp) continue;
+                
+                // Check if state is not too old (max 7 days for backups, 24 hours for main)
+                const savedTime = new Date(parsedState.timestamp);
+                const now = new Date();
+                const hoursDiff = (now - savedTime) / (1000 * 60 * 60);
+                const maxAge = key === 'teampulse-app-state' ? 24 : 168; // 7 days for backups
+                
+                if (hoursDiff > maxAge) {
+                    if (key === 'teampulse-app-state') {
+                        localStorage.removeItem(key);
+                    }
+                    continue;
+                }
+                
+                // Found valid state
+                appState = parsedState;
+                if (key !== 'teampulse-app-state') {
+                    console.log(`🔄 Recovered from backup: ${key}`);
+                    showNotification('Відновлено з резервної копії', 'success');
+                }
+                break;
+                
+            } catch (e) {
+                console.warn(`Failed to load state from ${key}:`, e);
+                continue;
+            }
+        }
+        
+        if (!appState) {
+            console.log('No valid app state found');
+            return false;
+        }
+        
         try {
-            const savedState = localStorage.getItem('teampulse-app-state');
-            if (!savedState) return false;
+            // Safely restore state with validation
             
-            const appState = JSON.parse(savedState);
-            
-            // Check if state is not too old (max 24 hours)
-            const savedTime = new Date(appState.timestamp);
-            const now = new Date();
-            const hoursDiff = (now - savedTime) / (1000 * 60 * 60);
-            
-            if (hoursDiff > 24) {
-                localStorage.removeItem('teampulse-app-state');
-                return false;
-            }
-            
-            // Restore state
-            if (appState.currentClient) {
+            // Restore client info
+            if (appState.currentClient && typeof appState.currentClient === 'object') {
                 state.currentClient = appState.currentClient;
-                updateNavClientInfo(state.currentClient);
-                updateWorkspaceClientInfo(state.currentClient);
+                try {
+                    updateNavClientInfo(state.currentClient);
+                    updateWorkspaceClientInfo(state.currentClient);
+                } catch (e) {
+                    console.warn('Error updating client info:', e);
+                }
             }
             
-            if (appState.currentAnalysis) {
+            // Restore clients list if available
+            if (appState.clients && Array.isArray(appState.clients)) {
+                state.clients = appState.clients;
+            }
+            
+            // Restore token usage if available
+            if (appState.tokenUsage && typeof appState.tokenUsage === 'object') {
+                state.tokenUsage = { ...state.tokenUsage, ...appState.tokenUsage };
+                updateTokenDisplay();
+            }
+            
+            // Restore analysis
+            if (appState.currentAnalysis && typeof appState.currentAnalysis === 'object') {
                 state.currentAnalysis = appState.currentAnalysis;
-                state.originalText = appState.originalText;
-                
-                // Restore analysis UI
-                if (elements.negotiationText) {
-                    elements.negotiationText.value = state.originalText || '';
-                    updateTextStats();
+                if (appState.originalText && typeof appState.originalText === 'string') {
+                    state.originalText = appState.originalText;
                 }
                 
-                if (elements.resultsSection) {
-                    elements.resultsSection.style.display = 'block';
+                // Restore analysis UI safely
+                try {
+                    if (elements.negotiationText) {
+                        elements.negotiationText.value = state.originalText || '';
+                        updateTextStats();
+                    }
+                    
+                    if (elements.resultsSection) {
+                        elements.resultsSection.style.display = 'block';
+                    }
+                    
+                    // Restore displays with error handling
+                    if (state.currentAnalysis.highlights) {
+                        updateHighlightsDisplay(state.currentAnalysis.highlights);
+                    }
+                    if (state.currentAnalysis.summary) {
+                        updateSummaryDisplay(state.currentAnalysis.summary);
+                    }
+                    if (state.currentAnalysis.barometer) {
+                        updateBarometerDisplay(state.currentAnalysis.barometer);
+                    }
+                    
+                    updateAnalysisSteps('completed');
+                    showSection('analysis-dashboard');
+                } catch (e) {
+                    console.warn('Error restoring analysis UI:', e);
                 }
-                
-                // Restore displays
-                if (state.currentAnalysis.highlights) {
-                    updateHighlightsDisplay(state.currentAnalysis.highlights);
-                }
-                if (state.currentAnalysis.summary) {
-                    updateSummaryDisplay(state.currentAnalysis.summary);
-                }
-                if (state.currentAnalysis.barometer) {
-                    updateBarometerDisplay(state.currentAnalysis.barometer);
-                }
-                
-                updateAnalysisSteps('completed');
-                showSection('analysis-dashboard');
             }
             
-            if (appState.selectedFragments) {
+            // Restore selected fragments
+            if (appState.selectedFragments && Array.isArray(appState.selectedFragments)) {
                 state.selectedFragments = appState.selectedFragments;
-                updateWorkspaceFragments();
-                updateWorkspaceActions();
+                try {
+                    updateWorkspaceFragments();
+                    updateWorkspaceActions();
+                } catch (e) {
+                    console.warn('Error updating workspace fragments:', e);
+                }
             }
             
-            if (appState.recommendationsHistory) {
+            // Restore recommendations history
+            if (appState.recommendationsHistory && typeof appState.recommendationsHistory === 'object') {
                 state.recommendationsHistory = appState.recommendationsHistory;
             }
             
-            if (appState.ui) {
+            // Restore UI state
+            if (appState.ui && typeof appState.ui === 'object') {
                 Object.assign(state.ui, appState.ui);
             }
             
