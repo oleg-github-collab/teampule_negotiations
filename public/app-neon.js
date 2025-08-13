@@ -2531,6 +2531,11 @@
             'logical_fallacy': 'fallacy'
         };
         return categoryMap[category] || 'manipulation';
+    }
+    
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
 
     // ===== View Controls =====
     function switchHighlightsView(view) {
@@ -4424,9 +4429,82 @@
         scheduleStateSave.timeout = setTimeout(saveAppState, 1000);
     }
 
+    // Re-initialize DOM elements (in case they weren't available during initial load)
+    function reinitializeElements() {
+        // Re-initialize key elements that might have been null
+        Object.assign(elements, {
+            // Layout
+            sidebarLeft: $('#sidebar-left'),
+            sidebarRight: $('#sidebar-right'),
+            mainContent: $('#main-content'),
+            sidebarRightToggle: $('#sidebar-right-toggle'),
+            mobileMenuToggle: $('#mobile-menu-toggle'),
+            workspaceToggle: $('#workspace-toggle'),
+            
+            // Client Management
+            clientList: $('#client-list'),
+            clientSearch: $('#client-search'),
+            clientCount: $('#client-count'),
+            newClientBtn: $('#new-client-btn'),
+            welcomeNewClient: $('#welcome-new-client'),
+            welcomeHelp: $('#welcome-help'),
+            
+            // Navigation
+            navClientInfo: $('#nav-client-info'),
+            navClientAvatar: $('#nav-client-avatar'),
+            navClientName: $('#nav-client-name'),
+            navClientSector: $('#nav-client-sector'),
+            
+            // Token Counter
+            tokenCounter: $('#token-counter'),
+            usedTokens: $('#used-tokens'),
+            totalTokens: $('#total-tokens'),
+            tokenProgressFill: $('#token-progress-fill'),
+            workspaceUsedTokens: $('#workspace-used-tokens'),
+            workspaceTotalTokens: $('#workspace-total-tokens'),
+            workspaceTokenProgress: $('#workspace-token-progress'),
+            workspaceTokenPercentage: $('#workspace-token-percentage'),
+            
+            // Tabs & Content
+            welcomeScreen: $('#welcome-screen'),
+            clientForm: $('#client-form'),
+            analysisDashboard: $('#analysis-dashboard'),
+            
+            // Client Form
+            clientFormTitle: $('#client-form-title'),
+            saveClientBtn: $('#save-client-btn'),
+            cancelClientBtn: $('#cancel-client-btn'),
+            
+            // Analysis
+            startAnalysisBtn: $('#start-analysis-btn'),
+            newAnalysisBtn: $('#new-analysis-btn'),
+            negotiationText: $('#negotiation-text'),
+            charCount: $('#char-count'),
+            wordCount: $('#word-count'),
+            
+            // Statistics
+            manipulationsCount: $('#manipulations-count'),
+            biasesCount: $('#biases-count'),
+            fallaciesCount: $('#fallacies-count'),
+            recommendationsCount: $('#recommendations-count'),
+            
+            // Analysis History
+            analysisCount: $('#analysis-count'),
+            
+            // Workspace
+            fragmentsCount: $('#fragments-count'),
+            getAdviceBtn: $('#get-advice-btn'),
+            exportSelectedBtn: $('#export-selected-btn'),
+            clearWorkspaceBtn: $('#clear-workspace-btn')
+        });
+    }
+
     // ===== Initialization =====
     function init() {
         console.log('🚀 TeamPulse Turbo Neon - Initializing...');
+        
+        // Re-initialize DOM elements to ensure they are available
+        reinitializeElements();
         
         // Load saved UI state
         const savedState = localStorage.getItem('teampulse-ui-state');
@@ -4498,7 +4576,12 @@
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }
 
-    // Start when authenticated
-    window.addEventListener('auth-success', init);
+    // Initialize immediately if already authenticated, or wait for auth-success event
+    if (sessionStorage.getItem('teampulse-auth') === 'true') {
+        init();
+    } else {
+        // Start when authenticated
+        window.addEventListener('auth-success', init);
+    }
 
 })();
