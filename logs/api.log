@@ -744,3 +744,30 @@
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:36:18 +0000] \"POST /api/logout HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:36:18"}
 {"details":{"ip":"127.0.0.1","method":"GET","path":"/","userAgent":"curl/8.7.1"},"event":"Unauthorized access attempt","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-13 14:36:26"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:36:26 +0000] \"GET /api/clients HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:36:26"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (production)","service":"teampulse-turbo","timestamp":"2025-08-13 14:42:12"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 14:42:12"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 14:42:12"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-13 14:42:12"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 14:42:12"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":114,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-13 14:42:41","url":"/api/login","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:42:41 +0000] \"POST /api/login HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:42:41"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":3,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-13 14:42:58","url":"/api/logout","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:42:58 +0000] \"POST /api/logout HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:42:58"}
+{"details":{"ip":"127.0.0.1","method":"GET","path":"/","userAgent":"curl/8.7.1"},"event":"Unauthorized access attempt","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-13 14:43:16"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:43:16 +0000] \"GET /api/clients HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:43:16"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:43:31 +0000] \"GET /login.html HTTP/1.1\" 200 3551 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:43:31"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:43:46 +0000] \"GET / HTTP/1.1\" 200 45665 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:43:46"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:44:27 +0000] \"GET / HTTP/1.1\" 200 45665 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:44:27"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:44:35 +0000] \"HEAD / HTTP/1.1\" 200 45665 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:44:35"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (production)","service":"teampulse-turbo","timestamp":"2025-08-13 14:45:48"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 14:45:48"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 14:45:48"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-13 14:45:48"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 14:45:48"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:46:04 +0000] \"HEAD / HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:46:04"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":28,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-13 14:46:16","url":"/api/login","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:46:16 +0000] \"POST /api/login HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:46:16"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:46:27 +0000] \"HEAD / HTTP/1.1\" 200 45665 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:46:27"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-13 14:46:39","url":"/api/logout","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:46:39 +0000] \"POST /api/logout HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:46:39"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:46:49 +0000] \"HEAD / HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:46:49"}

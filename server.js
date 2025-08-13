@@ -141,10 +141,7 @@ app.use(cookieParser());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Static files
-app.use(express.static(join(__dirname, 'public')));
-
-// Enhanced auth middleware with security logging
+// Enhanced auth middleware with security logging (moved before static files)
 const authMiddleware = (req, res, next) => {
   const isAuthenticated = req.cookies?.auth === 'authorized';
   
@@ -398,6 +395,9 @@ app.get('/', (req, res) => {
     res.redirect('/login');
   }
 });
+
+// Static files (moved after routes to prevent bypassing auth)
+app.use(express.static(join(__dirname, 'public')));
 
 // Enhanced global error handler with recovery mechanisms
 app.use((err, req, res, next) => {

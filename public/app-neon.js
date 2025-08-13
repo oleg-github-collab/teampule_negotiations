@@ -933,6 +933,30 @@
                                     const customBarometer = calculateComplexityBarometer(state.currentClient, analysisData);
                                     updateBarometerDisplay(customBarometer);
                                 }
+                            } else if (data.type === 'complete') {
+                                console.log('📋 Analysis complete signal received');
+                                
+                                // Ensure barometer is displayed
+                                if (analysisData.barometer) {
+                                    console.log('📊 Triggering barometer display on complete');
+                                    updateBarometerDisplay(analysisData.barometer);
+                                } else {
+                                    console.log('📊 No barometer from AI, calculating custom barometer');
+                                    const customBarometer = calculateComplexityBarometer(state.currentClient, analysisData);
+                                    updateBarometerDisplay(customBarometer);
+                                }
+                                
+                                // Generate and display highlighted text
+                                if (state.originalText && analysisData.highlights?.length > 0) {
+                                    console.log('🔍 Generating highlighted text from highlights');
+                                    const highlightedText = generateHighlightedText(state.originalText, analysisData.highlights);
+                                    state.currentAnalysis.highlighted_text = highlightedText;
+                                    
+                                    // Update full text view if currently viewing text
+                                    if (state.ui.highlightsView === 'text') {
+                                        updateFullTextView(highlightedText);
+                                    }
+                                }
                             }
                         } catch (e) {
                             // Skip invalid JSON lines
@@ -2402,11 +2426,18 @@
         $('#help-toggle')?.addEventListener('click', showOnboarding);
         $('#logout-btn')?.addEventListener('click', () => {
             if (confirm('Ви впевнені, що хочете вийти із системи?')) {
-                // Clear authentication cookie and redirect to login
-                document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                localStorage.removeItem('teampulse-app-state');
-                localStorage.removeItem('teampulse-ui-state');
-                window.location.href = '/';
+                console.log('🔐 Logout button clicked, calling logout function');
+                // Use the proper logout function from auth.js
+                if (window.logout) {
+                    window.logout();
+                } else {
+                    console.error('🔐 logout function not available, falling back to manual logout');
+                    // Fallback manual logout
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    window.location.href = '/login.html';
+                }
             }
         });
 

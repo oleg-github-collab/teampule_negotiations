@@ -115,6 +115,7 @@ r.get('/:id/analysis/:analysisId', (req, res) => {
         highlights: JSON.parse(analysis.highlights_json || '[]'),
         summary: JSON.parse(analysis.summary_json || '{}'),
         barometer: JSON.parse(analysis.barometer_json || '{}'),
+        highlighted_text: analysis.highlighted_text || null,
       },
     });
   } catch (e) {

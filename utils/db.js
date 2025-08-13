@@ -91,6 +91,13 @@ try {
   // Column already exists
 }
 
+try {
+  db.exec(`ALTER TABLE analyses ADD COLUMN highlighted_text TEXT;`);
+  console.log('✅ Added highlighted_text column to analyses');
+} catch (e) {
+  // Column already exists
+}
+
 // Add new client fields
 const newClientFields = [
   'company_size TEXT',
