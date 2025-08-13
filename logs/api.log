@@ -771,3 +771,9 @@
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":1,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-13 14:46:39","url":"/api/logout","userAgent":"curl/8.7.1"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:46:39 +0000] \"POST /api/logout HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:46:39"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:12:46:49 +0000] \"HEAD / HTTP/1.1\" 302 28 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 14:46:49"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:15:04:17 +0000] \"GET /health HTTP/1.1\" 200 401 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-13 17:04:17"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-13 17:07:09"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-13 17:07:09"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-13 17:07:09"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-13 17:07:09"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-13 17:07:09"}

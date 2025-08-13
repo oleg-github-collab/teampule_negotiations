@@ -126,8 +126,10 @@
         gaugeCircle: $('#gauge-circle'),
         highlightsList: $('#highlights-list'),
         fulltextContent: $('#fulltext-content'),
+        fragmentsContent: $('#fragments-content'),
         listView: $('#list-view'),
         textView: $('#text-view'),
+        highlightsView: $('#highlights-view'),
         filterView: $('#filter-view'),
         filtersPanel: $('#filters-panel'),
         filterManipulation: $('#filter-manipulation'),
@@ -326,6 +328,24 @@
         if (elements.fileInputContent) {
             elements.fileInputContent.style.display = method === 'file' ? 'block' : 'none';
         }
+        
+        // Ensure textarea is interactive when text method is active
+        if (method === 'text' && elements.negotiationText) {
+            // Remove any potential disable states
+            elements.negotiationText.disabled = false;
+            elements.negotiationText.readOnly = false;
+            
+            // Ensure proper styles
+            elements.negotiationText.style.pointerEvents = 'auto';
+            elements.negotiationText.style.userSelect = 'text';
+            
+            // Force focus after a brief delay to ensure element is visible
+            setTimeout(() => {
+                if (elements.negotiationText && method === 'text') {
+                    elements.negotiationText.focus();
+                }
+            }, 100);
+        }
     }
 
     // ===== Onboarding System =====
@@ -415,10 +435,12 @@
     }
 
     // ===== Client Management =====
-    async function loadClients() {
-        console.log('🔄 Loading clients...');
+    async function loadClients(forceRefresh = false) {
+        console.log('🔄 Loading clients...', { forceRefresh, currentCount: state.clients?.length || 0 });
         try {
-            const response = await fetch('/api/clients');
+            // Add cache busting if forcing refresh
+            const cacheBuster = forceRefresh ? `?_=${Date.now()}` : '';
+            const response = await fetch(`/api/clients${cacheBuster}`);
             console.log('📡 Response status:', response.status);
             
             if (response.status === 401) {
@@ -434,12 +456,15 @@
                 throw new Error(data.error || `HTTP Error: ${response.status}`);
             }
             
+            const previousCount = state.clients?.length || 0;
             state.clients = data.clients || [];
-            console.log('✅ Set state.clients:', state.clients.length, 'clients');
+            console.log('✅ Set state.clients:', state.clients.length, 'clients', { previousCount, newCount: state.clients.length });
             
-            // Force immediate UI update
-            renderClientsList();
-            updateClientCount();
+            // Force immediate UI update with animation
+            setTimeout(() => {
+                renderClientsList();
+                updateClientCount();
+            }, 100);
             
             // Validate and fix data integrity
             validateDataIntegrity();
@@ -789,11 +814,13 @@
             state.currentClient = data.client;
             
             // Force refresh the clients list to ensure it appears
-            await loadClients();
+            await loadClients(true); // Force refresh with cache busting
             
-            // Make sure the client appears in UI
-            renderClientsList();
-            updateClientCount();
+            // Make sure the client appears in UI with delay for better UX
+            setTimeout(() => {
+                renderClientsList();
+                updateClientCount();
+            }, 200);
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
             
@@ -950,12 +977,21 @@
                                 if (state.originalText && analysisData.highlights?.length > 0) {
                                     console.log('🔍 Generating highlighted text from highlights');
                                     const highlightedText = generateHighlightedText(state.originalText, analysisData.highlights);
-                                    state.currentAnalysis.highlighted_text = highlightedText;
                                     
-                                    // Update full text view if currently viewing text
-                                    if (state.ui.highlightsView === 'text') {
-                                        updateFullTextView(highlightedText);
-                                    }
+                                    // Ensure state.currentAnalysis exists
+                                    if (!state.currentAnalysis) state.currentAnalysis = {};
+                                    state.currentAnalysis.highlighted_text = highlightedText;
+                                    state.currentAnalysis.highlights = analysisData.highlights;
+                                    
+                                    console.log('🎨 Generated highlighted text, length:', highlightedText.length);
+                                    
+                                    // Always update full text view so it's ready when user switches to text view
+                                    updateFullTextView(highlightedText);
+                                    
+                                    // Also update fragments view so it's ready
+                                    updateFragmentsView(analysisData.highlights);
+                                    
+                                    console.log('🔍 Full text view and fragments view updated and ready');
                                 }
                             }
                         } catch (e) {
@@ -998,19 +1034,50 @@
         const currentStep = steps[step];
         if (!currentStep) return;
 
-        // Update step elements
+        // Update step elements with better animation
         ['step-input', 'step-analysis', 'step-results'].forEach((id, index) => {
             const element = $(`#${id}`);
             if (element) {
                 const stepNumber = index + 1;
+                const stepContent = element.querySelector('.step-content p');
+                
+                // Remove all status classes
                 element.classList.remove('active', 'completed', 'error');
                 
                 if (stepNumber < currentStep.step) {
                     element.classList.add('completed');
+                    if (stepContent) {
+                        stepContent.textContent = 'Завершено';
+                    }
                 } else if (stepNumber === currentStep.step) {
                     element.classList.add(currentStep.status);
+                    if (stepContent) {
+                        if (currentStep.status === 'active') {
+                            stepContent.textContent = 'В процесі';
+                        } else if (currentStep.status === 'completed') {
+                            stepContent.textContent = 'Завершено';
+                        } else if (currentStep.status === 'error') {
+                            stepContent.textContent = 'Помилка';
+                        }
+                    }
+                } else {
+                    // Future steps
+                    if (stepContent) {
+                        if (stepNumber === 1) {
+                            stepContent.textContent = 'Очікування';
+                        } else if (stepNumber === 2) {
+                            stepContent.textContent = 'Очікування';
+                        } else if (stepNumber === 3) {
+                            stepContent.textContent = 'Готові дані';
+                        }
+                    }
                 }
             }
+        });
+        
+        // Force repaint for animations
+        requestAnimationFrame(() => {
+            document.body.offsetHeight;
         });
     }
 
@@ -1642,6 +1709,7 @@
         // Update button states
         elements.listView?.classList.toggle('active', view === 'list');
         elements.textView?.classList.toggle('active', view === 'text');
+        elements.highlightsView?.classList.toggle('active', view === 'highlights');
         
         // Show/hide content
         if (elements.highlightsList) {
@@ -1656,6 +1724,133 @@
                 updateFullTextView(state.currentAnalysis.highlighted_text);
             }
         }
+        if (elements.fragmentsContent) {
+            elements.fragmentsContent.style.display = view === 'highlights' ? 'block' : 'none';
+            
+            // Update fragments view when switching to highlights view
+            if (view === 'highlights' && state.currentAnalysis?.highlights) {
+                console.log('🔍 Updating fragments view with highlights');
+                updateFragmentsView(state.currentAnalysis.highlights);
+            }
+        }
+    }
+
+    function updateFragmentsView(highlights) {
+        if (!elements.fragmentsContent) return;
+        
+        if (!highlights || highlights.length === 0) {
+            elements.fragmentsContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-highlighter"></i></div>
+                    <p>Виділені маніпулятивні фрагменти з'являться тут після аналізу</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Apply filters if they exist
+        const filteredHighlights = filterHighlights(highlights);
+        
+        if (filteredHighlights.length === 0) {
+            elements.fragmentsContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-filter"></i></div>
+                    <p>Жодних фрагментів не знайдено за вашими фільтрами</p>
+                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort highlights by severity (high to low)
+        const sortedHighlights = [...filteredHighlights].sort((a, b) => 
+            (b.severity || 2) - (a.severity || 2)
+        );
+        
+        elements.fragmentsContent.innerHTML = sortedHighlights.map(highlight => {
+            const categoryClass = getCategoryClass(highlight.category);
+            const categoryLabel = getCategoryLabel(highlight.category);
+            const severityText = getSeverityText(highlight.severity);
+            
+            return `
+                <div class="fragment-item" data-category="${highlight.category}">
+                    <div class="fragment-header">
+                        <div class="fragment-category ${categoryClass}">
+                            <i class="fas ${getCategoryIcon(highlight.category)}"></i>
+                            ${categoryLabel}
+                        </div>
+                        <div class="highlight-severity">${severityText}</div>
+                    </div>
+                    <div class="fragment-text">
+                        "${escapeHtml(highlight.text)}"
+                    </div>
+                    <div class="fragment-explanation">
+                        <strong>${escapeHtml(highlight.label || highlight.title || 'Проблемний момент')}:</strong>
+                        ${escapeHtml(highlight.explanation || 'Пояснення недоступне')}
+                        ${highlight.suggestion ? `<br><br><strong>Рекомендація:</strong> ${escapeHtml(highlight.suggestion)}` : ''}
+                    </div>
+                    <div class="fragment-actions">
+                        <button class="btn-icon add-fragment-btn" data-fragment='${JSON.stringify(highlight).replace(/'/g, "&#39;")}' title="Додати до робочої області">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="btn-icon copy-fragment-btn" data-text="${escapeHtml(highlight.text)}" title="Скопіювати текст">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Add event listeners
+        elements.fragmentsContent.querySelectorAll('.add-fragment-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const fragment = JSON.parse(e.target.closest('.add-fragment-btn').dataset.fragment);
+                addToSelectedFragments(fragment);
+            });
+        });
+        
+        elements.fragmentsContent.querySelectorAll('.copy-fragment-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const text = e.target.closest('.copy-fragment-btn').dataset.text;
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showNotification('Фрагмент скопійовано в буфер обміну', 'success');
+                } catch (err) {
+                    showNotification('Помилка копіювання', 'error');
+                }
+            });
+        });
+    }
+    
+    function getCategoryLabel(category) {
+        const labels = {
+            'manipulation': 'Маніпуляція',
+            'cognitive_bias': 'Когнітивне викривлення',
+            'rhetological_fallacy': 'Софізм',
+            'logical_fallacy': 'Логічна помилка'
+        };
+        return labels[category] || 'Проблемний момент';
+    }
+    
+    function getCategoryIcon(category) {
+        const icons = {
+            'manipulation': 'fa-exclamation-triangle',
+            'cognitive_bias': 'fa-brain',
+            'rhetological_fallacy': 'fa-comments',
+            'logical_fallacy': 'fa-times-circle'
+        };
+        return icons[category] || 'fa-exclamation-triangle';
+    }
+    
+    function getSeverityText(severity) {
+        const severities = {
+            1: 'Легкий',
+            2: 'Помірний', 
+            3: 'Серйозний'
+        };
+        return severities[severity] || 'Помірний';
     }
 
     function toggleFilters() {
@@ -1673,6 +1868,7 @@
         if (state.ui.filtersVisible) {
             if (elements.highlightsList) elements.highlightsList.style.display = 'none';
             if (elements.fulltextContent) elements.fulltextContent.style.display = 'none';
+            if (elements.fragmentsContent) elements.fragmentsContent.style.display = 'none';
         } else {
             // Restore previous view
             switchHighlightsView(state.ui.highlightsView || 'list');
@@ -2453,6 +2649,20 @@
 
         // Text analysis
         elements.negotiationText?.addEventListener('input', debouncedUpdateTextStats);
+        
+        // Ensure textarea wrapper is clickable and transfers focus
+        const textWrapper = document.querySelector('.text-input-wrapper');
+        if (textWrapper && elements.negotiationText) {
+            textWrapper.addEventListener('click', (e) => {
+                // If clicking on the wrapper but not the textarea, focus the textarea
+                if (e.target === textWrapper || e.target.closest('.input-actions')) {
+                    return; // Don't interfere with button clicks
+                }
+                if (e.target !== elements.negotiationText) {
+                    elements.negotiationText.focus();
+                }
+            });
+        }
         elements.startAnalysisBtn?.addEventListener('click', startAnalysis);
         elements.newAnalysisBtn?.addEventListener('click', createNewAnalysis);
         elements.clearTextBtn?.addEventListener('click', () => {
@@ -2477,6 +2687,7 @@
         // View controls
         elements.listView?.addEventListener('click', () => switchHighlightsView('list'));
         elements.textView?.addEventListener('click', () => switchHighlightsView('text'));
+        elements.highlightsView?.addEventListener('click', () => switchHighlightsView('highlights'));
         elements.filterView?.addEventListener('click', () => toggleFilters());
 
         // Filter controls

@@ -2019,6 +2019,96 @@ mark.cognitive {
     font-family: 'Georgia', serif;
 }
 
+/* Fragments content view */
+.fragments-content {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: var(--spacing-lg);
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.fragment-item {
+    background: var(--card-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    position: relative;
+    transition: var(--transition-fast);
+}
+
+.fragment-item:hover {
+    background: var(--glass-bg);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.fragment-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm);
+}
+
+.fragment-category {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.fragment-category.manipulation {
+    background: rgba(255, 0, 128, 0.2);
+    color: var(--neon-pink);
+}
+
+.fragment-category.cognitive_bias {
+    background: rgba(255, 234, 0, 0.2);
+    color: var(--neon-yellow);
+}
+
+.fragment-category.fallacy {
+    background: rgba(0, 255, 136, 0.2);
+    color: var(--neon-green);
+}
+
+.fragment-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text);
+    padding: var(--spacing-md);
+    background: var(--glass-bg);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--accent);
+    margin: var(--spacing-sm) 0;
+    font-style: italic;
+}
+
+.fragment-explanation {
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: var(--spacing-sm);
+}
+
+.fragment-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.fragment-actions .btn-icon {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+}
+
 .fulltext-content mark {
     padding: 0.15rem 0.3rem;
     border-radius: 4px;
@@ -3050,6 +3140,158 @@ textarea:focus-visible {
     color: var(--text-muted);
     margin: 0;
     font-size: 0.8rem;
+}
+
+/* ===== Standalone Login Page ===== */
+.login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-lg);
+    background: var(--gradient-bg);
+    position: relative;
+    overflow: hidden;
+}
+
+.login-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 2.5rem;
+    max-width: 420px;
+    width: 100%;
+    backdrop-filter: blur(20px);
+    box-shadow: var(--glass-shadow);
+    position: relative;
+    z-index: 2;
+    animation: slideUp 0.6s ease-out;
+}
+
+.login-card h1 {
+    color: var(--text);
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    text-align: center;
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.login-card .muted {
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+}
+
+.login-card .row {
+    margin-bottom: 1.5rem;
+}
+
+.login-card .row label {
+    display: block;
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.login-card .row input {
+    width: 100%;
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.875rem 1rem;
+    color: var(--text);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.login-card .row input:focus {
+    border-color: var(--neon-purple);
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+    outline: none;
+}
+
+.login-card .row input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.login-actions {
+    margin-top: 2rem;
+}
+
+.login-actions .btn-primary {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.login-error {
+    background: rgba(255, 0, 128, 0.1);
+    border: 1px solid var(--neon-pink);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    color: var(--neon-pink);
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    display: none;
+    text-align: center;
+}
+
+.badge {
+    background: linear-gradient(135deg, var(--neon-purple), var(--neon-cyan));
+    color: var(--bg-dark);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+/* Particles animation for login page */
+.particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--neon-purple);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+    opacity: 0.6;
+}
+
+.particle:nth-child(1) { top: 20%; left: 20%; animation-delay: 0s; }
+.particle:nth-child(2) { top: 60%; left: 80%; animation-delay: 1s; }
+.particle:nth-child(3) { top: 40%; left: 60%; animation-delay: 2s; }
+.particle:nth-child(4) { top: 80%; left: 30%; animation-delay: 3s; }
+.particle:nth-child(5) { top: 10%; left: 70%; animation-delay: 4s; }
+.particle:nth-child(6) { top: 70%; left: 10%; animation-delay: 5s; }
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px) scale(1);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translateY(-20px) scale(1.2);
+        opacity: 1;
+    }
 }
 
 /* ===== Advice Modal ===== */
