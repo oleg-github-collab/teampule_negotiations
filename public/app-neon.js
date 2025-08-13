@@ -122,6 +122,7 @@
         recommendationsCount: $('#recommendations-count'),
         barometerScore: $('#barometer-score'),
         barometerLabel: $('#barometer-label'),
+        barometerComment: $('#barometer-comment'),
         gaugeCircle: $('#gauge-circle'),
         highlightsList: $('#highlights-list'),
         fulltextContent: $('#fulltext-content'),
@@ -556,8 +557,10 @@
 
     async function selectClient(clientId) {
         const client = state.clients.find(c => c.id === clientId);
-        if (!client) return;
-
+        if (!client) {
+            showNotification('Клієнт не знайдений', 'error');
+            return;
+        }
         state.currentClient = client;
         
         // Update UI
@@ -1209,6 +1212,40 @@
         return recommendations;
     }
 
+    function getHumorousBarometerComment(score, label, clientName) {
+        const comments = {
+            'Very Low': [
+                `${clientName || 'Цей клієнт'} як теплий літній вечір - все спокійно та передбачувано ☕`,
+                'Схоже на зустріч з найкращим другом. Насолоджуйтесь процесом! 😊',
+                'Легше буває хіба що у спа-салоні. Берите блокнот для записів! 📝'
+            ],
+            'Low': [
+                `З ${clientName || 'цим клієнтом'} буде приємно працювати. Майже як відпустка! 🏖️`,
+                'Рівень стресу: як вибрати що подивитись на Netflix. Relaxed! 🎬',
+                'Це той випадок, коли переговори можуть закінчитись дружбою! 🤝'
+            ],
+            'Medium': [
+                `${clientName || 'Цей клієнт'} тримає вас у тонусі, але без фанатизму ⚡`,
+                'Як квест середньої складності - цікаво, але не смертельно! 🎮',
+                'Потрібна концентрація, але кава ще не обов\'язкова ☕'
+            ],
+            'High': [
+                `${clientName || 'Цей клієнт'} витисне з вас всі соки, але воно того варте! 💪`,
+                'Рівень босу в Dark Souls. Приготуйте валер\'янку! 😅',
+                'Після таких переговорів можна писати мемуари "Як я вижив" 📚'
+            ],
+            'Very High': [
+                `${clientName || 'Цей клієнт'} - це переговорна версія екстремального спорту! 🎢`,
+                'Підтримайте родичів - може знадобиться моральна підтримка 😱',
+                'Якщо переживете це, вам точно підвищать зарплату! 💰',
+                'Легенди складають про таких клієнтів. Ви увійдете в історію! 🏆'
+            ]
+        };
+        
+        const levelComments = comments[label] || comments['Medium'];
+        return levelComments[Math.floor(Math.random() * levelComments.length)];
+    }
+
     function updateBarometerDisplay(barometer) {
         // Use custom barometer if none provided by AI
         if (!barometer || typeof barometer.score === 'undefined') {
@@ -1226,6 +1263,13 @@
         }
         if (elements.barometerLabel) {
             elements.barometerLabel.textContent = label;
+        }
+        
+        // Add humorous comment
+        if (elements.barometerComment) {
+            const clientName = state.currentClient?.company;
+            const comment = getHumorousBarometerComment(score, label, clientName);
+            elements.barometerComment.textContent = comment;
         }
         
         // Update gauge with smooth animation
@@ -2225,8 +2269,14 @@
 
         // Navigation actions
         $('#help-toggle')?.addEventListener('click', showOnboarding);
-        $('#settings-toggle')?.addEventListener('click', () => {
-            showNotification('Налаштування будуть додані в наступній версії', 'info');
+        $('#logout-btn')?.addEventListener('click', () => {
+            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
+                // Clear authentication cookie and redirect to login
+                document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                localStorage.removeItem('teampulse-app-state');
+                localStorage.removeItem('teampulse-ui-state');
+                window.location.href = '/login';
+            }
         });
 
         // Onboarding
@@ -2396,6 +2446,7 @@
         // Reset barometer
         if (elements.barometerScore) elements.barometerScore.textContent = '—';
         if (elements.barometerLabel) elements.barometerLabel.textContent = 'Очікування аналізу...';
+        if (elements.barometerComment) elements.barometerComment.textContent = '';
         
         // Update workspace
         updateWorkspaceFragments();
@@ -2424,16 +2475,97 @@
             return;
         }
 
-        elements.analysisHistory.innerHTML = analyses.map(analysis => `
-            <div class="analysis-history-item" onclick="window.loadAnalysis(${analysis.id})">
-                <div class="analysis-date">${formatDate(analysis.created_at)}</div>
-                <div class="analysis-preview">${escapeHtml(analysis.text_preview || 'Аналіз')}</div>
-                <div class="analysis-stats">
-                    <span class="stat-item">${analysis.issues_count || 0} проблем</span>
-                    <span class="stat-item">Рівень: ${analysis.complexity_score || '—'}</span>
+        elements.analysisHistory.innerHTML = analyses.map((analysis, index) => {
+            const isLatest = index === 0;
+            const date = new Date(analysis.created_at);
+            const timeAgo = getTimeAgo(date);
+            const issuesCount = analysis.issues_count || 0;
+            const complexityScore = analysis.complexity_score || 0;
+            
+            return `
+                <div class="analysis-history-item ${isLatest ? 'latest' : ''}" 
+                     onclick="window.loadAnalysis(${analysis.id})"
+                     title="Натисніть для перегляду аналізу">
+                    <div class="analysis-header">
+                        <div class="analysis-date">
+                            ${isLatest ? '<i class="fas fa-star" title="Останній"></i> ' : ''}
+                            ${timeAgo}
+                        </div>
+                        <div class="analysis-actions">
+                            <button class="btn-micro" onclick="event.stopPropagation(); confirmDeleteAnalysis(${analysis.id})" title="Видалити аналіз">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="analysis-preview">${escapeHtml(analysis.text_preview || 'Аналіз переговорів')}</div>
+                    <div class="analysis-stats">
+                        <span class="stat-item ${issuesCount > 0 ? 'has-issues' : ''}">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ${issuesCount} проблем
+                        </span>
+                        <span class="stat-item complexity-${getComplexityLevel(complexityScore)}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            ${complexityScore}/100
+                        </span>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
+    }
+
+    function getTimeAgo(date) {
+        const now = new Date();
+        const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+        
+        if (diffInMinutes < 1) return 'Щойно';
+        if (diffInMinutes < 60) return `${diffInMinutes} хв тому`;
+        
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        if (diffInHours < 24) return `${diffInHours} год тому`;
+        
+        const diffInDays = Math.floor(diffInHours / 24);
+        if (diffInDays < 7) return `${diffInDays} дн тому`;
+        
+        return formatDate(date);
+    }
+
+    function getComplexityLevel(score) {
+        if (score >= 80) return 'high';
+        if (score >= 50) return 'medium';
+        return 'low';
+    }
+
+    async function confirmDeleteAnalysis(analysisId) {
+        try {
+            if (!confirm('Видалити цей аналіз? Цю дію неможливо скасувати.')) {
+                return;
+            }
+
+            const response = await fetch(`/api/analyses/${analysisId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Помилка видалення аналізу');
+            }
+
+            // If deleted analysis was current, clear it
+            if (state.currentAnalysis?.id === analysisId) {
+                clearAnalysisDisplay();
+            }
+
+            // Reload analysis history for current client
+            if (state.currentClient) {
+                await loadAnalysisHistoryAndLatest(state.currentClient.id);
+            }
+
+            showNotification('Аналіз видалено успішно', 'success');
+
+        } catch (error) {
+            console.error('Delete analysis error:', error);
+            showNotification(error.message || 'Помилка при видаленні аналізу', 'error');
+        }
     }
 
     function formatDate(dateStr) {
@@ -2608,10 +2740,12 @@
     window.editClient = editClient;
     window.deleteClient = deleteClient;
     window.addToWorkspace = addToWorkspace;
+    window.removeFromWorkspace = removeFromWorkspace;
     window.shareHighlight = (id) => console.log('Share highlight:', id);
     window.loadAnalysis = loadAnalysis;
     window.createNewAnalysis = createNewAnalysis;
     window.clearFilters = clearFilters;
+    window.confirmDeleteAnalysis = confirmDeleteAnalysis;
 
     // ===== State Persistence =====
     function saveAppState() {

@@ -992,6 +992,19 @@ body::before {
     font-weight: 600;
 }
 
+.barometer-comment {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: rgba(168, 85, 247, 0.05);
+    border-radius: var(--border-radius);
+    border-left: 3px solid var(--accent);
+    line-height: 1.4;
+}
+
 /* Statistics Grid */
 .stats-grid {
     display: grid;
