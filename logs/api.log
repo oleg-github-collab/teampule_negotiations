@@ -842,3 +842,38 @@
 {"details":{"clientId":20,"company":"Test Corp","ip":"127.0.0.1","userAgent":"curl/8.7.1"},"event":"Client deletion","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-14 00:04:09"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:04:09 +0000] \"DELETE /api/clients/20 HTTP/1.1\" 200 78 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:04:09"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:04:17 +0000] \"GET /api/clients HTTP/1.1\" 200 65 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:04:17"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)","service":"teampulse-turbo","timestamp":"2025-08-14 00:11:07"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:11:07"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:11:07"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-14 00:11:07"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:11:07"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)","service":"teampulse-turbo","timestamp":"2025-08-14 00:14:12"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:14:12"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:14:12"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-14 00:14:12"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:14:12"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":22,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:14:39","url":"/api/login","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:14:39 +0000] \"POST /api/login HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:14:39"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:14:49 +0000] \"POST /api/clients HTTP/1.1\" 200 611 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:14:49"}
+{"level":"info","message":"AI Usage","model":"gpt-4o","operation":"text_analysis","service":"teampulse-turbo","timestamp":"2025-08-14 00:15:29","tokens":12881}
+{"details":{"clientId":21,"highlightsFound":4,"textLength":129,"tokensUsed":12881},"duration":28055.415125999993,"level":"info","message":"Performance Metric","operation":"Complete Analysis","service":"teampulse-turbo","timestamp":"2025-08-14 00:15:29"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:15:29 +0000] \"POST /api/analyze HTTP/1.1\" 200 - \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:15:29"}
+{"level":"info","message":"AI Usage","model":"gpt-4o","operation":"advice_generation","service":"teampulse-turbo","timestamp":"2025-08-14 00:15:50","tokens":1113}
+{"details":{"itemsCount":2,"tokensUsed":1113},"duration":8874.27986899999,"level":"info","message":"Performance Metric","operation":"Advice Generation","service":"teampulse-turbo","timestamp":"2025-08-14 00:15:50"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:15:50 +0000] \"POST /api/advice HTTP/1.1\" 200 2146 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:15:50"}
+{"details":{"clientId":21,"company":"Тестова компанія","ip":"127.0.0.1","userAgent":"curl/8.7.1"},"event":"Client deletion","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-14 00:16:02"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:16:02 +0000] \"DELETE /api/clients/21 HTTP/1.1\" 200 78 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:16:02"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)","service":"teampulse-turbo","timestamp":"2025-08-14 00:23:21"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-14 00:23:22"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-14 00:23:22"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-14 00:23:22"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-14 00:23:22"}
+{"ip":"127.0.0.1","level":"info","message":"API Request","method":"POST","responseTime":23,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-14 00:23:39","url":"/api/login","userAgent":"curl/8.7.1"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:23:39 +0000] \"POST /api/login HTTP/1.1\" 200 16 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:23:39"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:23:49 +0000] \"POST /api/clients HTTP/1.1\" 200 589 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:23:49"}
+{"level":"info","message":"AI Usage","model":"gpt-4o","operation":"text_analysis","service":"teampulse-turbo","timestamp":"2025-08-14 00:24:39","tokens":13215}
+{"details":{"clientId":22,"highlightsFound":6,"textLength":281,"tokensUsed":13215},"duration":38223.679830999994,"level":"info","message":"Performance Metric","operation":"Complete Analysis","service":"teampulse-turbo","timestamp":"2025-08-14 00:24:39"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:24:39 +0000] \"POST /api/analyze HTTP/1.1\" 200 - \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:24:39"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:24:48 +0000] \"GET /api/clients/22/analysis/9 HTTP/1.1\" 200 15799 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:24:48"}
+{"details":{"clientId":22,"company":"Test Highlight Company","ip":"127.0.0.1","userAgent":"curl/8.7.1"},"event":"Client deletion","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-14 00:25:03"}
+{"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:25:03 +0000] \"DELETE /api/clients/22 HTTP/1.1\" 200 78 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:25:03"}

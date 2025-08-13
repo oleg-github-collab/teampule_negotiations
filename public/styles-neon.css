@@ -2275,6 +2275,39 @@ mark.cognitive {
     color: var(--neon-green);
 }
 
+/* Text content container */
+.text-content {
+    line-height: 1.8;
+    font-size: 1rem;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    padding: var(--spacing-md);
+    background: var(--glass-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+}
+
+.fulltext-container {
+    max-height: 600px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) transparent;
+}
+
+.fulltext-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.fulltext-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fulltext-container::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 3px;
+}
+
 /* Workspace drag & drop */
 .drop-zone {
     border: 2px dashed var(--border);
@@ -3025,7 +3058,8 @@ textarea:focus-visible {
     border: 1px solid rgba(255, 0, 128, 0.3);
 }
 
-.text-highlight.cognitive_bias {
+.text-highlight.cognitive_bias,
+.text-highlight.bias {
     background: rgba(255, 234, 0, 0.2);
     color: var(--neon-yellow);
     border: 1px solid rgba(255, 234, 0, 0.3);
@@ -3047,7 +3081,8 @@ textarea:focus-visible {
     box-shadow: 0 4px 12px rgba(255, 0, 128, 0.3);
 }
 
-.text-highlight.cognitive_bias:hover {
+.text-highlight.cognitive_bias:hover,
+.text-highlight.bias:hover {
     background: rgba(255, 234, 0, 0.3);
     box-shadow: 0 4px 12px rgba(255, 234, 0, 0.3);
 }
