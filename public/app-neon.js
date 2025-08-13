@@ -712,11 +712,18 @@
     function updateClientCount() {
         const count = state.clients.length;
         console.log('📊 Updating client count:', count);
-        if (elements.clientCount) {
-            elements.clientCount.textContent = count;
+        
+        // Try to find element dynamically if not cached
+        const clientCountElement = elements.clientCount || document.getElementById('client-count');
+        if (clientCountElement) {
+            clientCountElement.textContent = count;
             console.log('📊 Client count updated to:', count);
+            // Update cache if found dynamically
+            if (!elements.clientCount) {
+                elements.clientCount = clientCountElement;
+            }
         } else {
-            console.warn('📊 Client count element not found');
+            console.warn('📊 Client count element not found, element:', clientCountElement);
         }
     }
 
@@ -1769,33 +1776,51 @@
     }
 
     function updateCountersFromHighlights(highlights) {
-        if (!highlights || highlights.length === 0) return;
+        // Count by category - handle empty highlights
+        const counts = {
+            manipulation: 0,
+            cognitive_bias: 0,
+            rhetological_fallacy: 0
+        };
         
-        // Count by category
-        const counts = highlights.reduce((acc, highlight) => {
-            const category = highlight.category || 'manipulation';
-            acc[category] = (acc[category] || 0) + 1;
-            return acc;
-        }, {});
-        
-        // Update counters
-        if (elements.manipulationsCount) {
-            animateNumber(elements.manipulationsCount, counts.manipulation || 0);
-        }
-        if (elements.biasesCount) {
-            animateNumber(elements.biasesCount, counts.cognitive_bias || 0);
-        }
-        if (elements.fallaciesCount) {
-            animateNumber(elements.fallaciesCount, counts.rhetological_fallacy || 0);
+        if (highlights && highlights.length > 0) {
+            highlights.forEach(highlight => {
+                const category = highlight.category || 'manipulation';
+                if (counts.hasOwnProperty(category)) {
+                    counts[category]++;
+                } else {
+                    counts.manipulation++; // fallback
+                }
+            });
         }
         
-        // Calculate total recommendations
-        const totalCount = highlights.length;
-        if (elements.recommendationsCount) {
-            animateNumber(elements.recommendationsCount, totalCount);
+        // Find and update counters (with fallback element finding)
+        const manipulationsElement = elements.manipulationsCount || document.getElementById('manipulations-count');
+        const biasesElement = elements.biasesCount || document.getElementById('biases-count');
+        const fallaciesElement = elements.fallaciesCount || document.getElementById('fallacies-count');
+        const recommendationsElement = elements.recommendationsCount || document.getElementById('recommendations-count');
+        
+        if (manipulationsElement) {
+            animateNumber(manipulationsElement, counts.manipulation);
+            if (!elements.manipulationsCount) elements.manipulationsCount = manipulationsElement;
+        }
+        if (biasesElement) {
+            animateNumber(biasesElement, counts.cognitive_bias);
+            if (!elements.biasesCount) elements.biasesCount = biasesElement;
+        }
+        if (fallaciesElement) {
+            animateNumber(fallaciesElement, counts.rhetological_fallacy);
+            if (!elements.fallaciesCount) elements.fallaciesCount = fallaciesElement;
         }
         
-        console.log('Updated counters:', counts, 'Total:', totalCount);
+        // Calculate total
+        const totalCount = highlights ? highlights.length : 0;
+        if (recommendationsElement) {
+            animateNumber(recommendationsElement, totalCount);
+            if (!elements.recommendationsCount) elements.recommendationsCount = recommendationsElement;
+        }
+        
+        console.log('📊 Updated analysis counters:', counts, 'Total:', totalCount);
     }
 
     // ===== Enhanced Custom Barometer Logic =====
@@ -2431,286 +2456,81 @@
             `;
         }
         
-        // Add some basic styling for better readability
+        // Add scrollable class for proper styling
         const fulltextBody = elements.fulltextContent.querySelector('.fulltext-body');
         if (fulltextBody) {
-            fulltextBody.style.cssText = `
-                max-height: 600px;
-                overflow-y: auto;
-                padding: 15px;
-                line-height: 1.6;
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                font-size: 14px;
-                border: 1px solid #e0e0e0;
-                border-radius: 8px;
-                background: #fafafa;
-            `;
+            fulltextBody.classList.add('scrollable-content');
         }
     }
 
     function generateHighlightedText(originalText, highlights) {
         if (!originalText || !highlights || highlights.length === 0) {
-            return escapeHtml(originalText || '');
+            return `<div class="text-content">${escapeHtml(originalText || '')}</div>`;
         }
 
         console.log('🔍 Generating highlighted text, originalText length:', originalText.length);
         console.log('🔍 Number of highlights:', highlights.length);
 
-        // Create a list of all highlight positions
-        const positions = [];
+        // Simple and reliable approach: replace all occurrences
+        let result = originalText;
+        const replacements = [];
         
+        // Build a list of replacements with their positions
         for (const highlight of highlights) {
-            // Strategy A: Use position information if available (from paragraph_index, char_start, char_end)
-            if (highlight.paragraph_index !== undefined && highlight.char_start !== undefined && highlight.char_end !== undefined) {
-                // Try to map paragraph positions to absolute positions
-                const paragraphs = originalText.split(/\n{2,}/);
-                let absoluteStart = 0;
-                
-                for (let i = 0; i < highlight.paragraph_index && i < paragraphs.length; i++) {
-                    absoluteStart += paragraphs[i].length + 2; // +2 for double newline
-                }
-                
-                const paragraphText = paragraphs[highlight.paragraph_index];
-                if (paragraphText) {
-                    const highlightStart = absoluteStart + highlight.char_start;
-                    const highlightEnd = absoluteStart + highlight.char_end;
-                    
-                    if (highlightStart < originalText.length && highlightEnd <= originalText.length) {
-                        const extractedText = originalText.substring(highlightStart, highlightEnd);
-                        positions.push({
-                            start: highlightStart,
-                            end: highlightEnd,
-                            highlight: highlight,
-                            strategy: 'position-based',
-                            text: extractedText
-                        });
-                        console.log(`🔍 Used position-based match for paragraph ${highlight.paragraph_index}: "${extractedText}"`);
-                        continue;
-                    }
-                }
-            }
-            
-            // Strategy B: Search by text content
             const searchText = highlight.text?.trim();
-            if (!searchText) {
-                console.warn('🔍 Empty highlight text, skipping:', highlight);
-                continue;
-            }
+            if (!searchText) continue;
             
-            console.log('🔍 Processing highlight:', searchText);
+            // Find all occurrences of this text (case insensitive)
+            const regex = new RegExp(escapeRegExp(searchText), 'gi');
+            let match;
             
-            // Multiple search strategies for finding text
-            const foundPositions = findTextPositions(originalText, searchText, highlight);
-            
-            if (foundPositions.length > 0) {
-                positions.push(...foundPositions);
-                console.log(`🔍 Found ${foundPositions.length} position(s) for: "${searchText}"`);
-            } else {
-                console.warn(`🔍 Could not find text in original: "${searchText}"`);
+            while ((match = regex.exec(originalText)) !== null) {
+                const category = getCategoryClass(highlight.category || 'manipulation');
+                const tooltip = escapeHtml(highlight.explanation || highlight.description || highlight.label || '');
                 
-                // Fallback: try to find a partial match
-                const words = searchText.split(/\s+/).filter(w => w.length > 3);
-                if (words.length > 0) {
-                    const firstWord = words[0];
-                    const partialMatches = findTextPositions(originalText, firstWord, highlight);
-                    if (partialMatches.length > 0) {
-                        console.log(`🔍 Using partial match for "${firstWord}" from "${searchText}"`);
-                        // Extend the match to try to capture more context
-                        const match = partialMatches[0];
-                        const contextStart = Math.max(0, match.start - 50);
-                        const contextEnd = Math.min(originalText.length, match.end + 50);
-                        const context = originalText.substring(contextStart, contextEnd);
-                        
-                        // Try to find the full phrase in this context
-                        const contextMatch = context.toLowerCase().indexOf(searchText.toLowerCase());
-                        if (contextMatch !== -1) {
-                            positions.push({
-                                start: contextStart + contextMatch,
-                                end: contextStart + contextMatch + searchText.length,
-                                highlight: highlight,
-                                strategy: 'context-fallback'
-                            });
-                            console.log(`🔍 Found context match for: "${searchText}"`);
-                        }
-                    }
-                }
+                replacements.push({
+                    start: match.index,
+                    end: match.index + match[0].length,
+                    originalText: match[0],
+                    replacement: `<span class="text-highlight ${category}" title="${tooltip}">${escapeHtml(match[0])}</span>`,
+                    highlight: highlight
+                });
+                
+                // Reset regex lastIndex to avoid infinite loop
+                if (!regex.global) break;
             }
         }
         
-        // Sort positions by start index to avoid conflicts
-        positions.sort((a, b) => a.start - b.start);
+        // Sort replacements by position (reverse order to avoid index shifting)
+        replacements.sort((a, b) => b.start - a.start);
         
-        // Remove overlapping positions - keep the first one
-        const cleanPositions = [];
-        for (const pos of positions) {
-            const hasOverlap = cleanPositions.some(existing => 
-                (pos.start >= existing.start && pos.start < existing.end) ||
-                (pos.end > existing.start && pos.end <= existing.end) ||
-                (pos.start <= existing.start && pos.end >= existing.end)
+        // Remove overlapping replacements (keep the first one found)
+        const cleanReplacements = [];
+        for (const replacement of replacements) {
+            const hasOverlap = cleanReplacements.some(existing => 
+                (replacement.start >= existing.start && replacement.start < existing.end) ||
+                (replacement.end > existing.start && replacement.end <= existing.end) ||
+                (replacement.start <= existing.start && replacement.end >= existing.end)
             );
             
             if (!hasOverlap) {
-                cleanPositions.push(pos);
+                cleanReplacements.push(replacement);
             }
         }
         
-        console.log(`🔍 Final positions after cleanup: ${cleanPositions.length}`);
+        console.log(`🔍 Found ${cleanReplacements.length} non-overlapping highlights`);
         
-        // Generate HTML with highlights
-        return generateHighlightedHTML(originalText, cleanPositions);
-    }
-    
-    function findTextPositions(originalText, searchText, highlight) {
-        const positions = [];
-        
-        // Strategy 1: Exact case-sensitive match
-        let index = originalText.indexOf(searchText);
-        while (index !== -1) {
-            positions.push({
-                start: index,
-                end: index + searchText.length,
-                highlight: highlight,
-                strategy: 'exact'
-            });
-            index = originalText.indexOf(searchText, index + 1);
-        }
-        
-        // Strategy 2: Case-insensitive match
-        if (positions.length === 0) {
-            const lowerOriginal = originalText.toLowerCase();
-            const lowerSearch = searchText.toLowerCase();
-            let index = lowerOriginal.indexOf(lowerSearch);
-            while (index !== -1) {
-                positions.push({
-                    start: index,
-                    end: index + searchText.length,
-                    highlight: highlight,
-                    strategy: 'case-insensitive'
-                });
-                index = lowerOriginal.indexOf(lowerSearch, index + 1);
-            }
-        }
-        
-        // Strategy 3: Normalized whitespace match - fix whitespace issues
-        if (positions.length === 0) {
-            const normalizedOriginal = originalText.replace(/\s+/g, ' ').trim();
-            const normalizedSearch = searchText.replace(/\s+/g, ' ').trim();
-            
-            // Map positions in normalized text back to original
-            const originalWords = originalText.split(/(\s+)/);
-            const normalizedWords = normalizedOriginal.split(' ');
-            
-            let normalizedIndex = normalizedOriginal.toLowerCase().indexOf(normalizedSearch.toLowerCase());
-            while (normalizedIndex !== -1) {
-                // Find the corresponding position in original text
-                const wordsBeforeMatch = normalizedOriginal.substring(0, normalizedIndex).split(' ').length - 1;
-                
-                let originalIndex = 0;
-                let wordCount = 0;
-                
-                for (let i = 0; i < originalWords.length && wordCount <= wordsBeforeMatch; i++) {
-                    if (originalWords[i].trim() !== '') {
-                        if (wordCount === wordsBeforeMatch) break;
-                        wordCount++;
-                    }
-                    originalIndex += originalWords[i].length;
-                }
-                
-                if (originalIndex < originalText.length) {
-                    // Find the actual match starting from this position
-                    const searchStart = originalText.toLowerCase().indexOf(searchText.toLowerCase(), Math.max(0, originalIndex - 50));
-                    if (searchStart !== -1) {
-                        positions.push({
-                            start: searchStart,
-                            end: searchStart + searchText.length,
-                            highlight: highlight,
-                            strategy: 'normalized-mapped'
-                        });
-                    }
-                }
-                
-                normalizedIndex = normalizedOriginal.toLowerCase().indexOf(normalizedSearch.toLowerCase(), normalizedIndex + 1);
-            }
-        }
-        
-        // Strategy 4: Word boundary search for key terms
-        if (positions.length === 0 && searchText.length > 5) {
-            // Extract meaningful words (longer than 3 characters)
-            const words = searchText.match(/\b\w{4,}\b/g);
-            if (words && words.length > 0) {
-                // Use the longest word as anchor
-                const keyWord = words.sort((a, b) => b.length - a.length)[0];
-                const regex = new RegExp(`\\b${escapeRegExp(keyWord)}\\b`, 'gi');
-                let match;
-                
-                while ((match = regex.exec(originalText)) !== null) {
-                    // Try to find the full phrase around this word
-                    const contextRadius = searchText.length * 2;
-                    const contextStart = Math.max(0, match.index - contextRadius);
-                    const contextEnd = Math.min(originalText.length, match.index + keyWord.length + contextRadius);
-                    const context = originalText.substring(contextStart, contextEnd);
-                    
-                    // Look for the full search text in this context
-                    const contextIndex = context.toLowerCase().indexOf(searchText.toLowerCase());
-                    if (contextIndex !== -1) {
-                        const actualStart = contextStart + contextIndex;
-                        const actualEnd = actualStart + searchText.length;
-                        
-                        // Avoid duplicates
-                        const isDuplicate = positions.some(pos => 
-                            Math.abs(pos.start - actualStart) < 3
-                        );
-                        
-                        if (!isDuplicate) {
-                            positions.push({
-                                start: actualStart,
-                                end: actualEnd,
-                                highlight: highlight,
-                                strategy: 'context-word'
-                            });
-                        }
-                    }
-                }
-            }
-        }
-        
-        return positions;
-    }
-    
-    function generateHighlightedHTML(originalText, positions) {
-        if (positions.length === 0) {
-            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
-        }
-        
-        let result = '';
-        let lastIndex = 0;
-        
-        for (const pos of positions) {
-            // Add text before highlight
-            if (pos.start > lastIndex) {
-                result += escapeHtml(originalText.substring(lastIndex, pos.start));
-            }
-            
-            // Add highlighted text
-            const highlightedText = originalText.substring(pos.start, pos.end);
-            const category = pos.highlight.category || 'unknown';
-            const cssClass = getCategoryClass(category);
-            const tooltip = escapeHtml(pos.highlight.explanation || pos.highlight.description || '');
-            const label = escapeHtml(pos.highlight.label || '');
-            
-            result += `<span class="text-highlight ${cssClass}" data-category="${category}" data-label="${label}" title="${tooltip}">${escapeHtml(highlightedText)}</span>`;
-            
-            lastIndex = pos.end;
-        }
-        
-        // Add remaining text
-        if (lastIndex < originalText.length) {
-            result += escapeHtml(originalText.substring(lastIndex));
+        // Apply replacements (from end to start to avoid index issues)
+        for (const replacement of cleanReplacements) {
+            result = result.substring(0, replacement.start) + 
+                    replacement.replacement + 
+                    result.substring(replacement.end);
         }
         
         return `<div class="text-content">${result}</div>`;
     }
     
+    // Simplified helper function for category CSS classes
     function getCategoryClass(category) {
         const categoryMap = {
             'manipulation': 'manipulation',
@@ -3996,9 +3816,16 @@
         if (!elements.analysisHistory) return;
 
         console.log('📊 Updating analysis count:', analyses.length);
-        if (elements.analysisCount) {
-            elements.analysisCount.textContent = analyses.length;
+        
+        // Try to find element dynamically if not cached
+        const analysisCountElement = elements.analysisCount || document.getElementById('analysis-count');
+        if (analysisCountElement) {
+            analysisCountElement.textContent = analyses.length;
             console.log('📊 Analysis count updated to:', analyses.length);
+            // Update cache if found dynamically
+            if (!elements.analysisCount) {
+                elements.analysisCount = analysisCountElement;
+            }
         } else {
             console.warn('📊 Analysis count element not found');
         }
@@ -4767,12 +4594,28 @@
         
         // Always load initial data
         console.log('🚀 Starting loadClients...');
+        
+        // Force initial counter display to 0 
+        setTimeout(() => {
+            console.log('🚀 Force updating counters on startup');
+            console.log('🚀 DOM elements check:', {
+                clientCount: !!document.getElementById('client-count'),
+                analysisCount: !!document.getElementById('analysis-count'),
+                clientList: !!document.getElementById('client-list'),
+                analysisHistory: !!document.getElementById('analysis-history')
+            });
+            updateClientCount();
+            renderAnalysisHistory([]);
+        }, 100);
+        
         loadClients().then(() => {
             console.log('🚀 loadClients completed, clients loaded:', state.clients.length);
             
-            // Force update counters even if empty
-            updateClientCount();
-            renderAnalysisHistory(state.analyses || []);
+            // Force update counters with real data
+            setTimeout(() => {
+                updateClientCount();
+                renderAnalysisHistory(state.analyses || []);
+            }, 200);
             
             loadTokenUsage();
             
