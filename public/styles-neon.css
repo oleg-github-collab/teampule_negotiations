@@ -2348,6 +2348,12 @@ mark.cognitive {
     overflow-y: auto;
 }
 
+#recommendations-history-section h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .recommendation-item {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(168, 85, 247, 0.2);
@@ -2365,20 +2371,49 @@ mark.cognitive {
 .recommendation-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 8px;
+    gap: 8px;
 }
 
 .recommendation-date {
-    font-size: 0.8em;
+    font-size: 0.75em;
     color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.recommendation-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.recommendation-item:hover .recommendation-actions {
+    opacity: 1;
 }
 
 .recommendation-content {
-    font-size: 0.9em;
+    font-size: 0.85em;
     line-height: 1.4;
     color: var(--text-secondary);
     margin-bottom: 6px;
+    position: relative;
+    overflow: hidden;
+}
+
+.recommendation-content:hover {
+    color: var(--text);
+}
+
+.recommendation-full-content {
+    font-size: 0.9em;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
 .recommendation-meta {
@@ -2405,6 +2440,53 @@ mark.cognitive {
     background: rgba(255, 0, 128, 0.2);
     border-color: var(--neon-pink);
     color: var(--neon-pink);
+}
+
+.btn-micro.btn-danger:hover {
+    background: rgba(255, 0, 0, 0.2);
+    border-color: #ff4444;
+    color: #ff4444;
+}
+
+.advice-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 0.8em;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+
+.advice-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.advice-footer {
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* Scrollbar for recommendations list */
+.recommendations-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.recommendations-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+}
+
+.recommendations-list::-webkit-scrollbar-thumb {
+    background: rgba(168, 85, 247, 0.3);
+    border-radius: 2px;
+}
+
+.recommendations-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 85, 247, 0.5);
 }
 
 /* ===== Accessibility Improvements ===== */

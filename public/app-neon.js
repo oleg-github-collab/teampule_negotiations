@@ -795,6 +795,12 @@
             elements.recommendationsCount.textContent = recommendations.length;
         }
         
+        // Show/hide clear button
+        const clearBtn = document.getElementById('clear-recommendations-btn');
+        if (clearBtn) {
+            clearBtn.style.display = recommendations.length > 0 ? 'block' : 'none';
+        }
+        
         if (recommendations.length === 0) {
             elements.recommendationsHistory.innerHTML = `
                 <div class="empty-state">
@@ -807,18 +813,44 @@
             return;
         }
         
-        elements.recommendationsHistory.innerHTML = recommendations.map((rec, index) => `
-            <div class="recommendation-item">
+        elements.recommendationsHistory.innerHTML = recommendations.map((rec, index) => {
+            // Truncate long recommendations for preview
+            const maxLength = 150;
+            const shortContent = rec.advice.length > maxLength 
+                ? rec.advice.substring(0, maxLength) + '...' 
+                : rec.advice;
+            
+            return `
+            <div class="recommendation-item" data-recommendation-id="${rec.id}">
                 <div class="recommendation-header">
-                    <div class="recommendation-date">${getTimeAgo(new Date(rec.created_at))}</div>
-                    <button class="btn-micro" onclick="removeRecommendation('${clientId}', ${index})" title="Видалити рекомендацію">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <div class="recommendation-date">
+                        <i class="fas fa-clock"></i>
+                        ${getTimeAgo(new Date(rec.created_at))}
+                    </div>
+                    <div class="recommendation-actions">
+                        <button class="btn-micro" onclick="expandRecommendation('${clientId}', ${index})" title="Переглянути повністю">
+                            <i class="fas fa-expand-alt"></i>
+                        </button>
+                        <button class="btn-micro" onclick="copyRecommendation('${clientId}', ${index})" title="Копіювати">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="btn-micro btn-danger" onclick="removeRecommendation('${clientId}', ${index})" title="Видалити рекомендацію">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="recommendation-content">${escapeHtml(rec.advice)}</div>
-                ${rec.fragments_count ? `<div class="recommendation-meta">Базується на ${rec.fragments_count} фрагментах</div>` : ''}
+                <div class="recommendation-content" onclick="expandRecommendation('${clientId}', ${index})" style="cursor: pointer;">
+                    ${escapeHtml(shortContent)}
+                </div>
+                ${rec.fragments_count ? `
+                    <div class="recommendation-meta">
+                        <i class="fas fa-bookmark"></i>
+                        Базується на ${rec.fragments_count} фрагментах
+                    </div>
+                ` : ''}
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
     
     function saveRecommendation(clientId, advice, fragmentsCount = 0) {
@@ -850,6 +882,148 @@
             updateRecommendationsHistory(clientId);
             scheduleStateSave();
             showNotification('Рекомендацію видалено', 'info');
+        }
+    }
+    
+    function expandRecommendation(clientId, index) {
+        const recommendations = state.recommendationsHistory[clientId];
+        if (!recommendations || !recommendations[index]) return;
+        
+        const rec = recommendations[index];
+        
+        // Create modal for full recommendation view
+        const modal = document.createElement('div');
+        modal.className = 'advice-modal';
+        modal.innerHTML = `
+            <div class="advice-content" style="max-width: 700px;">
+                <div class="advice-header">
+                    <h3>
+                        <i class="fas fa-lightbulb"></i> 
+                        Персональна рекомендація
+                    </h3>
+                    <div class="advice-meta">
+                        <span><i class="fas fa-clock"></i> ${getTimeAgo(new Date(rec.created_at))}</span>
+                        ${rec.fragments_count ? `<span><i class="fas fa-bookmark"></i> ${rec.fragments_count} фрагментів</span>` : ''}
+                    </div>
+                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="advice-body" style="max-height: 500px; overflow-y: auto;">
+                    <div class="recommendation-full-content">
+                        ${escapeHtml(rec.advice).replace(/\\n/g, '<br>')}
+                    </div>
+                </div>
+                <div class="advice-footer">
+                    <button class="btn-secondary" onclick="copyRecommendation('${clientId}', ${index})">
+                        <i class="fas fa-copy"></i> Копіювати
+                    </button>
+                    <button class="btn-danger" onclick="removeRecommendation('${clientId}', ${index}); this.closest('.advice-modal').remove();">
+                        <i class="fas fa-trash"></i> Видалити
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close on click outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+    
+    function copyRecommendation(clientId, index) {
+        const recommendations = state.recommendationsHistory[clientId];
+        if (!recommendations || !recommendations[index]) return;
+        
+        const rec = recommendations[index];
+        
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(rec.advice).then(() => {
+                showNotification('Рекомендацію скопійовано до буферу обміну', 'success');
+            }).catch(() => {
+                // Fallback
+                copyToClipboardFallback(rec.advice);
+            });
+        } else {
+            copyToClipboardFallback(rec.advice);
+        }
+    }
+    
+    function copyToClipboardFallback(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            showNotification('Рекомендацію скопійовано до буферу обміну', 'success');
+        } catch (err) {
+            showNotification('Помилка копіювання до буферу обміну', 'error');
+        }
+        
+        document.body.removeChild(textArea);
+    }
+    
+    function clearRecommendationsHistory() {
+        if (!state.currentClient) return;
+        
+        const clientId = state.currentClient.id;
+        const recommendations = state.recommendationsHistory[clientId];
+        
+        if (!recommendations || recommendations.length === 0) {
+            showNotification('Історія рекомендацій вже порожня', 'info');
+            return;
+        }
+        
+        // Create confirmation modal
+        const modal = document.createElement('div');
+        modal.className = 'advice-modal';
+        modal.innerHTML = `
+            <div class="advice-content" style="max-width: 450px;">
+                <div class="advice-header">
+                    <h3>
+                        <i class="fas fa-exclamation-triangle" style="color: var(--neon-pink);"></i> 
+                        Підтвердження
+                    </h3>
+                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="advice-body">
+                    <p><strong>Ви дійсно хочете видалити всю історію рекомендацій для цього клієнта?</strong></p>
+                    <p>Буде видалено <strong>${recommendations.length}</strong> рекомендацій. Цю дію неможливо скасувати.</p>
+                </div>
+                <div class="advice-footer">
+                    <button class="btn-secondary" onclick="this.closest('.advice-modal').remove()">
+                        <i class="fas fa-times"></i> Скасувати
+                    </button>
+                    <button class="btn-danger" onclick="confirmClearRecommendations('${clientId}'); this.closest('.advice-modal').remove();">
+                        <i class="fas fa-trash"></i> Видалити все
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close on click outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+    
+    function confirmClearRecommendations(clientId) {
+        if (state.recommendationsHistory[clientId]) {
+            const count = state.recommendationsHistory[clientId].length;
+            state.recommendationsHistory[clientId] = [];
+            updateRecommendationsHistory(clientId);
+            scheduleStateSave();
+            showNotification(`Видалено ${count} рекомендацій з історії`, 'success');
         }
     }
 
@@ -1087,6 +1261,41 @@
                                 updateBarometerDisplay(data);
                             } else if (data.type === 'analysis_saved') {
                                 state.currentAnalysis = { id: data.id, ...analysisData };
+                                
+                                // Create proper analysis object with all needed data for history
+                                const analysisForHistory = {
+                                    id: data.id,
+                                    created_at: new Date().toISOString(),
+                                    text_preview: state.originalText ? state.originalText.substring(0, 100) : 'Аналіз переговорів',
+                                    highlights: analysisData.highlights || [],
+                                    issues_count: analysisData.highlights ? analysisData.highlights.length : 0,
+                                    complexity_score: analysisData.barometer ? analysisData.barometer.score : 0,
+                                    barometer: analysisData.barometer
+                                };
+                                
+                                console.log('💾 Saving analysis with data:', {
+                                    id: data.id,
+                                    issues_count: analysisForHistory.issues_count,
+                                    complexity_score: analysisForHistory.complexity_score,
+                                    barometer: analysisForHistory.barometer
+                                });
+                                
+                                // Update currentAnalysis with complete data
+                                state.currentAnalysis = {
+                                    id: data.id,
+                                    ...analysisData,
+                                    created_at: analysisForHistory.created_at,
+                                    text_preview: analysisForHistory.text_preview,
+                                    issues_count: analysisForHistory.issues_count,
+                                    complexity_score: analysisForHistory.complexity_score
+                                };
+                                
+                                // Update analysis history immediately with current data
+                                if (!state.analyses) state.analyses = [];
+                                state.analyses.unshift(analysisForHistory);
+                                renderAnalysisHistory(state.analyses);
+                                
+                                // Also load from server to sync
                                 await loadAnalysisHistory(state.currentClient.id);
                                 
                                 // Update client analysis count by refreshing client data
@@ -1172,6 +1381,13 @@
             // Update token usage
             await loadTokenUsage();
             updateAnalysisSteps('completed');
+            
+            // Update analysis history in sidebar if we have all the data
+            if (state.currentClient && analysisData.highlights) {
+                console.log('🔄 Updating analysis history after completion');
+                await loadAnalysisHistory(state.currentClient.id);
+            }
+            
             showNotification('Аналіз завершено успішно! ✨', 'success');
             
             // Save state
@@ -1939,7 +2155,8 @@
         console.log('🔍 Generating highlighted text, originalText length:', originalText.length);
         console.log('🔍 Number of highlights:', highlights.length);
 
-        // Create positions array with better text matching
+        // Normalize text for better matching
+        const normalizedOriginal = originalText.replace(/\s+/g, ' ').trim();
         const positions = [];
         
         for (const highlight of highlights) {
@@ -1951,10 +2168,11 @@
             
             console.log('🔍 Searching for highlight text:', searchText);
             
-            // Try multiple search strategies
+            // Normalize search text
+            const normalizedSearch = searchText.replace(/\s+/g, ' ').trim();
             let foundPositions = [];
             
-            // Strategy 1: Exact match (case sensitive)
+            // Strategy 1: Exact match in original text
             let startIndex = 0;
             let index;
             while ((index = originalText.indexOf(searchText, startIndex)) !== -1) {
@@ -1962,12 +2180,28 @@
                     start: index,
                     end: index + searchText.length,
                     highlight: highlight,
-                    matchType: 'exact'
+                    matchType: 'exact',
+                    priority: 1
                 });
                 startIndex = index + 1;
             }
             
-            // Strategy 2: Case insensitive if no exact matches
+            // Strategy 2: Exact match in normalized text
+            if (foundPositions.length === 0 && normalizedSearch !== searchText) {
+                startIndex = 0;
+                while ((index = normalizedOriginal.indexOf(normalizedSearch, startIndex)) !== -1) {
+                    foundPositions.push({
+                        start: index,
+                        end: index + normalizedSearch.length,
+                        highlight: highlight,
+                        matchType: 'normalized',
+                        priority: 2
+                    });
+                    startIndex = index + 1;
+                }
+            }
+            
+            // Strategy 3: Case insensitive match
             if (foundPositions.length === 0) {
                 const lowerOriginal = originalText.toLowerCase();
                 const lowerSearch = searchText.toLowerCase();
@@ -1977,48 +2211,167 @@
                         start: index,
                         end: index + searchText.length,
                         highlight: highlight,
-                        matchType: 'case-insensitive'
+                        matchType: 'case-insensitive',
+                        priority: 3
                     });
                     startIndex = index + 1;
                 }
             }
             
-            // Strategy 3: Fuzzy match with word boundaries if still no matches
+            // Strategy 4: Word-by-word matching for partial matches
             if (foundPositions.length === 0) {
                 const words = searchText.split(/\s+/).filter(w => w.length > 2);
-                if (words.length > 0) {
-                    const firstWord = words[0];
-                    const regex = new RegExp(`\\b${escapeRegExp(firstWord)}`, 'gi');
+                for (const word of words) {
+                    const regex = new RegExp(`\\b${escapeRegExp(word)}\\b`, 'gi');
                     let match;
                     while ((match = regex.exec(originalText)) !== null) {
-                        // Check if we can find the full phrase nearby
-                        const contextStart = Math.max(0, match.index - 50);
-                        const contextEnd = Math.min(originalText.length, match.index + searchText.length + 50);
+                        // Look for the full phrase in a larger context around this word
+                        const contextRadius = Math.max(searchText.length * 2, 100);
+                        const contextStart = Math.max(0, match.index - contextRadius);
+                        const contextEnd = Math.min(originalText.length, match.index + contextRadius);
                         const context = originalText.substring(contextStart, contextEnd);
                         
-                        if (context.toLowerCase().includes(searchText.toLowerCase())) {
-                            const localIndex = context.toLowerCase().indexOf(searchText.toLowerCase());
-                            const actualStart = contextStart + localIndex;
-                            foundPositions.push({
-                                start: actualStart,
-                                end: actualStart + searchText.length,
-                                highlight: highlight,
-                                matchType: 'fuzzy'
-                            });
+                        // Try different variations of the search text in this context
+                        const variations = [
+                            searchText,
+                            searchText.toLowerCase(),
+                            normalizedSearch,
+                            normalizedSearch.toLowerCase()
+                        ];
+                        
+                        for (const variation of variations) {
+                            const localIndex = context.toLowerCase().indexOf(variation.toLowerCase());
+                            if (localIndex !== -1) {
+                                const actualStart = contextStart + localIndex;
+                                const actualEnd = actualStart + variation.length;
+                                
+                                // Make sure we don't already have this position
+                                const isDuplicate = foundPositions.some(pos => 
+                                    Math.abs(pos.start - actualStart) < 5
+                                );
+                                
+                                if (!isDuplicate) {
+                                    foundPositions.push({
+                                        start: actualStart,
+                                        end: actualEnd,
+                                        highlight: highlight,
+                                        matchType: 'context-based',
+                                        priority: 4
+                                    });
+                                }
+                                break; // Found one variation, move to next word
+                            }
                         }
                     }
                 }
             }
             
+            // Strategy 5: Flexible text search ignoring punctuation and extra spaces
+            if (foundPositions.length === 0) {
+                const cleanSearch = searchText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+                const cleanOriginal = originalText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').toLowerCase();
+                
+                if (cleanSearch !== searchText.toLowerCase()) {
+                    const cleanIndex = cleanOriginal.indexOf(cleanSearch);
+                    if (cleanIndex !== -1) {
+                        // Map back to original text position
+                        let originalPos = 0;
+                        let cleanPos = 0;
+                        
+                        while (cleanPos < cleanIndex && originalPos < originalText.length) {
+                            const origChar = originalText[originalPos].toLowerCase();
+                            const cleanChar = cleanOriginal[cleanPos];
+                            
+                            if (origChar === cleanChar) {
+                                cleanPos++;
+                            }
+                            originalPos++;
+                        }
+                        
+                        // Find the end position
+                        const searchEnd = cleanIndex + cleanSearch.length;
+                        let endPos = originalPos;
+                        while (cleanPos < searchEnd && endPos < originalText.length) {
+                            const origChar = originalText[endPos].toLowerCase();
+                            const cleanChar = cleanOriginal[cleanPos];
+                            
+                            if (origChar === cleanChar) {
+                                cleanPos++;
+                            }
+                            endPos++;
+                        }
+                        
+                        foundPositions.push({
+                            start: originalPos,
+                            end: endPos,
+                            highlight: highlight,
+                            matchType: 'flexible',
+                            priority: 4
+                        });
+                    }
+                }
+            }
+            
+            // Strategy 6: Fuzzy search with Levenshtein-like approach for typos
+            if (foundPositions.length === 0 && searchText.length > 10) {
+                const searchLength = searchText.length;
+                const tolerance = Math.floor(searchLength * 0.15); // 15% tolerance
+                
+                for (let i = 0; i <= originalText.length - searchLength + tolerance; i += 5) { // Skip every 5 chars for performance
+                    const candidate = originalText.substring(i, i + searchLength);
+                    const similarity = calculateSimilarity(searchText.toLowerCase(), candidate.toLowerCase());
+                    
+                    if (similarity > 0.75) { // 75% similarity threshold
+                        foundPositions.push({
+                            start: i,
+                            end: i + candidate.length,
+                            highlight: highlight,
+                            matchType: 'fuzzy',
+                            priority: 6,
+                            similarity: similarity
+                        });
+                    }
+                }
+            }
+            
+            // Strategy 7: Last resort - search for key words from the highlight
+            if (foundPositions.length === 0) {
+                const keywords = searchText.split(/\s+/).filter(w => w.length > 3);
+                if (keywords.length > 0) {
+                    const mainKeyword = keywords.sort((a, b) => b.length - a.length)[0]; // Longest word
+                    const regex = new RegExp(`\\b${escapeRegExp(mainKeyword)}\\b`, 'gi');
+                    let match;
+                    while ((match = regex.exec(originalText)) !== null) {
+                        // Expand around the keyword to try to capture the full phrase
+                        const expandRadius = searchText.length;
+                        const expandStart = Math.max(0, match.index - expandRadius);
+                        const expandEnd = Math.min(originalText.length, match.index + mainKeyword.length + expandRadius);
+                        
+                        foundPositions.push({
+                            start: expandStart,
+                            end: expandEnd,
+                            highlight: highlight,
+                            matchType: 'keyword-expanded',
+                            priority: 7
+                        });
+                    }
+                }
+            }
+            
             console.log(`🔍 Found ${foundPositions.length} positions for "${searchText}"`);
+            if (foundPositions.length === 0) {
+                console.warn(`🔍 No matches found for: "${searchText}"`);
+                console.warn(`🔍 First 200 chars of original text:`, originalText.substring(0, 200));
+            }
+            
             positions.push(...foundPositions);
         }
         
-        // Sort by position and remove overlaps
-        positions.sort((a, b) => a.start - b.start);
+        // Sort by priority first, then by position
+        positions.sort((a, b) => a.priority - b.priority || a.start - b.start);
         console.log('🔍 Total positions found:', positions.length);
         
-        // Remove overlapping highlights (keep the first one)
+        // Remove overlapping highlights (keep the highest priority one)
         const cleanPositions = [];
         for (const pos of positions) {
             const overlaps = cleanPositions.some(existing => 
@@ -2050,7 +2403,7 @@
             const categoryClass = getCategoryClass(pos.highlight.category);
             const tooltip = escapeHtml(pos.highlight.explanation || pos.highlight.label || '');
             
-            result += `<span class="text-highlight ${categoryClass}" data-tooltip="${tooltip}">${escapeHtml(actualText)}</span>`;
+            result += `<span class="text-highlight ${categoryClass}" data-tooltip="${tooltip}" title="Match type: ${pos.matchType}">${escapeHtml(actualText)}</span>`;
             
             lastPos = pos.end;
         }
@@ -2061,7 +2414,49 @@
         }
         
         console.log('🔍 Generated highlighted text length:', result.length);
+        console.log('🔍 Highlighted', cleanPositions.length, 'out of', highlights.length, 'total highlights');
+        
         return result;
+    }
+    
+    // Helper function to calculate text similarity
+    function calculateSimilarity(str1, str2) {
+        const longer = str1.length > str2.length ? str1 : str2;
+        const shorter = str1.length > str2.length ? str2 : str1;
+        
+        if (longer.length === 0) return 1.0;
+        
+        const editDistance = levenshteinDistance(longer, shorter);
+        return (longer.length - editDistance) / longer.length;
+    }
+    
+    // Simple Levenshtein distance implementation
+    function levenshteinDistance(str1, str2) {
+        const matrix = [];
+        
+        for (let i = 0; i <= str2.length; i++) {
+            matrix[i] = [i];
+        }
+        
+        for (let j = 0; j <= str1.length; j++) {
+            matrix[0][j] = j;
+        }
+        
+        for (let i = 1; i <= str2.length; i++) {
+            for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1, // substitution
+                        matrix[i][j - 1] + 1,     // insertion
+                        matrix[i - 1][j] + 1      // deletion
+                    );
+                }
+            }
+        }
+        
+        return matrix[str2.length][str1.length];
     }
 
     function getCategoryClass(category) {
@@ -2652,8 +3047,31 @@
             saveAdviceToHistory(advice);
             
             // Save recommendation to new history system
-            if (state.currentClient && typeof advice === 'string') {
-                saveRecommendation(state.currentClient.id, advice, state.selectedFragments.length);
+            if (state.currentClient) {
+                let adviceText = '';
+                if (typeof advice === 'string') {
+                    adviceText = advice;
+                } else if (advice && typeof advice === 'object') {
+                    // Extract text from structured advice object
+                    const parts = [];
+                    if (advice.recommended_replies) {
+                        parts.push('РЕКОМЕНДОВАНІ ВІДПОВІДІ:\n' + advice.recommended_replies.join('\n• '));
+                    }
+                    if (advice.strategies) {
+                        parts.push('СТРАТЕГІЇ:\n' + advice.strategies.join('\n• '));
+                    }
+                    if (advice.warnings) {
+                        parts.push('ПОПЕРЕДЖЕННЯ:\n' + advice.warnings.join('\n• '));
+                    }
+                    if (advice.next_steps) {
+                        parts.push('НАСТУПНІ КРОКИ:\n' + advice.next_steps.join('\n• '));
+                    }
+                    adviceText = parts.join('\n\n');
+                }
+                
+                if (adviceText) {
+                    saveRecommendation(state.currentClient.id, adviceText, state.selectedFragments.length);
+                }
             }
             
             // Show advice in a modal or notification
@@ -3127,10 +3545,13 @@
     // ===== Analysis History =====
     async function loadAnalysisHistory(clientId) {
         try {
+            console.log('🔄 Loading analysis history for client:', clientId);
             const response = await fetch(`/api/clients/${clientId}`);
             const data = await response.json();
             
             if (data.success && data.analyses) {
+                console.log('📊 Received', data.analyses.length, 'analyses from server');
+                state.analyses = data.analyses; // Store in state
                 renderAnalysisHistory(data.analyses);
             }
         } catch (error) {
@@ -3144,6 +3565,8 @@
             const data = await response.json();
             
             if (data.success && data.analyses) {
+                console.log('📊 Loading history and latest - received', data.analyses.length, 'analyses');
+                state.analyses = data.analyses; // Store in state
                 renderAnalysisHistory(data.analyses);
                 
                 // If there are analyses, automatically load the latest one
@@ -3272,6 +3695,8 @@
             if (complexityScore === 0 && analysis.barometer?.score) {
                 complexityScore = analysis.barometer.score;
             }
+            
+            console.log(`📊 Rendering analysis ${analysis.id}: ${issuesCount} issues, ${complexityScore}/100 complexity`);
             
             return `
                 <div class="analysis-history-item ${isLatest ? 'latest' : ''}" 
@@ -3633,6 +4058,10 @@
     window.clearFilters = clearFilters;
     window.confirmDeleteAnalysis = confirmDeleteAnalysis;
     window.removeRecommendation = removeRecommendation;
+    window.expandRecommendation = expandRecommendation;
+    window.copyRecommendation = copyRecommendation;
+    window.clearRecommendationsHistory = clearRecommendationsHistory;
+    window.confirmClearRecommendations = confirmClearRecommendations;
     
     // ===== Debug Testing Functions =====
     window.testClientFunctions = function() {
