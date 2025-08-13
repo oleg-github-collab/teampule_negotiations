@@ -432,15 +432,36 @@
             
             state.clients = data.clients || [];
             
-            // Ensure UI updates even if there were issues
-            setTimeout(() => {
-                renderClientsList();
-                updateClientCount();
-            }, 100);
+            // Force immediate UI update
+            renderClientsList();
+            updateClientCount();
+            
+            // Validate and fix data integrity
+            validateDataIntegrity();
             
         } catch (error) {
             console.error('Failed to load clients:', error);
             showNotification('Помилка завантаження клієнтів', 'error');
+        }
+    }
+
+    async function validateDataIntegrity() {
+        try {
+            // Check if there's a current analysis without a current client
+            if (state.currentAnalysis && !state.currentClient) {
+                state.currentAnalysis = null;
+                state.originalText = '';
+                state.selectedFragments = [];
+                clearAnalysisDisplay();
+            }
+            
+            // If we have clients but none is selected, but there's analysis data visible
+            if (state.clients.length > 0 && !state.currentClient && elements.resultsSection?.style.display === 'block') {
+                clearAnalysisDisplay();
+            }
+            
+        } catch (error) {
+            console.error('Error validating data integrity:', error);
         }
     }
 
@@ -2872,25 +2893,23 @@
         updateInputMethod('text');
         switchHighlightsView('list');
         
-        // Load initial data if onboarding completed
-        if (state.onboardingCompleted) {
-            loadClients().then(() => {
-                loadTokenUsage();
-                
-                // Try to restore previous app state
-                const stateRestored = loadAppState();
-                
-                // Load current client's analysis history if we have a current client
-                if (state.currentClient) {
-                    loadAnalysisHistory(state.currentClient.id);
-                }
-                
-                console.log('App state restored:', stateRestored);
-            });
+        // Always load initial data
+        loadClients().then(() => {
+            loadTokenUsage();
             
-            // Auto-refresh token usage
-            setInterval(loadTokenUsage, 30000);
-        }
+            // Try to restore previous app state
+            const stateRestored = loadAppState();
+            
+            // Load current client's analysis history if we have a current client
+            if (state.currentClient) {
+                loadAnalysisHistory(state.currentClient.id);
+            }
+            
+            console.log('App state restored:', stateRestored);
+        });
+        
+        // Auto-refresh token usage
+        setInterval(loadTokenUsage, 30000);
         
         // Handle initial resize
         handleResize();

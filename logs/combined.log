@@ -4688,3 +4688,63 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-13 01:40:14'
 }
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:29:52'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:29:52'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:29:52'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:29:52'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:29:52'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:07:31:57 +0000] "GET /api/clients HTTP/1.1" 200 9681 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:31:57'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:07:33:26 +0000] "GET / HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:33:26'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:07:33:26 +0000] "GET /auth.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:33:26'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:07:33:26 +0000] "GET /styles-neon.css HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:33:26'
+}
+{
+  message: '127.0.0.1 - - [13/Aug/2025:07:33:26 +0000] "GET /app-neon.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-13 09:33:26'
+}
