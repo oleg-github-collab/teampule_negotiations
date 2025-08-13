@@ -389,3 +389,53 @@
   message: 'Detailed Error Report',
   timestamp: '2025-08-12 20:24:35'
 }
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: 'FOREIGN KEY constraint failed',
+    stack: 'SqliteError: FOREIGN KEY constraint failed\n' +
+      '    at run (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/utils/db.js:119:45)\n' +
+      '    at file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/clients.js:256:20\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:149:13)\n' +
+      '    at handleValidationErrors (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/middleware/validators.js:26:3)\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:149:13)\n' +
+      '    at middleware (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express-validator/lib/middlewares/check.js:16:13)\n' +
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)',
+    name: 'SqliteError'
+  },
+  context: {
+    endpoint: 'DELETE /api/clients/:id',
+    clientId: '16',
+    ip: '127.0.0.1'
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-13 11:27:10'
+}
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: 'FOREIGN KEY constraint failed',
+    stack: 'SqliteError: FOREIGN KEY constraint failed\n' +
+      '    at run (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/utils/db.js:119:45)\n' +
+      '    at file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/routes/clients.js:256:20\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:149:13)\n' +
+      '    at handleValidationErrors (file:///Users/olehkaminskyi/Desktop/Teampulse%20Negotiations/middleware/validators.js:26:3)\n' +
+      '    at Layer.handle [as handle_request] (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at next (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express/lib/router/route.js:149:13)\n' +
+      '    at middleware (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/express-validator/lib/middlewares/check.js:16:13)\n' +
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)',
+    name: 'SqliteError'
+  },
+  context: {
+    endpoint: 'DELETE /api/clients/:id',
+    clientId: '16',
+    ip: '127.0.0.1'
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-13 11:27:18'
+}

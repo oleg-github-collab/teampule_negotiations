@@ -456,14 +456,29 @@
         try {
             // Check if there's a current analysis without a current client
             if (state.currentAnalysis && !state.currentClient) {
+                console.log('🔄 Clearing orphaned analysis data');
                 state.currentAnalysis = null;
                 state.originalText = '';
                 state.selectedFragments = [];
                 clearAnalysisDisplay();
             }
             
+            // Check if current client still exists in clients array
+            if (state.currentClient && !state.clients.find(c => c.id === state.currentClient.id)) {
+                console.log('🔄 Current client no longer exists, clearing state');
+                state.currentClient = null;
+                state.currentAnalysis = null;
+                state.originalText = '';
+                state.selectedFragments = [];
+                updateNavClientInfo(null);
+                updateWorkspaceClientInfo(null);
+                clearAnalysisDisplay();
+                showNotification('Поточний клієнт більше не існує', 'warning');
+            }
+            
             // If we have clients but none is selected, but there's analysis data visible
             if (state.clients.length > 0 && !state.currentClient && elements.resultsSection?.style.display === 'block') {
+                console.log('🔄 Clearing analysis display - no client selected');
                 clearAnalysisDisplay();
             }
             
@@ -538,10 +553,10 @@
                         </div>
                     </div>
                     <div class="client-actions">
-                        <button class="btn-icon" onclick="event.stopPropagation(); window.editClient(${client.id})" title="Редагувати">
+                        <button class="btn-icon" onclick="window.editClient(${client.id}, event)" title="Редагувати">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn-icon" onclick="event.stopPropagation(); window.deleteClient(${client.id})" title="Видалити">
+                        <button class="btn-icon" onclick="window.deleteClient(${client.id}, event)" title="Видалити">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -671,10 +686,10 @@
             <div class="client-item active">
                 <div class="client-avatar">${avatar}</div>
                 <div class="client-info">
-                    <div class="client-name">${escapeHtml(client.company || 'Без назві')}</div>
+                    <div class="client-name">${escapeHtml(client.company || 'Без назви')}</div>
                     <div class="client-meta">
                         ${client.sector ? escapeHtml(client.sector) + ' • ' : ''}
-                        ${client.analysisCount || 0} аналізів
+                        ${client.analyses_count || 0} аналізів
                     </div>
                 </div>
             </div>
@@ -2728,8 +2743,15 @@
         showNotification('Новий аналіз створено. Введіть текст для початку.', 'info');
     }
 
-    async function editClient(clientId) {
+    async function editClient(clientId, event) {
         console.log('✏️ editClient called with ID:', clientId);
+        console.log('✏️ Event object:', event);
+        
+        // Stop event propagation to prevent client selection
+        if (event) {
+            event.stopPropagation();
+        }
+        
         try {
             const client = state.clients.find(c => c.id === clientId);
             console.log('✏️ Found client for editing:', client ? client.company : 'NOT FOUND');
@@ -2748,23 +2770,85 @@
         }
     }
 
-    async function deleteClient(clientId) {
+    function showDeleteClientModal(clientId) {
+        console.log('🗑️ showDeleteClientModal called with ID:', clientId);
+        
+        const client = state.clients.find(c => c.id === clientId);
+        if (!client) {
+            console.error('❌ Client not found for deletion with ID:', clientId);
+            showNotification('Клієнт не знайдений', 'error');
+            return;
+        }
+
+        // Create delete confirmation modal
+        const modal = document.createElement('div');
+        modal.className = 'advice-modal'; // Reuse existing modal styles
+        modal.innerHTML = `
+            <div class="advice-content" style="max-width: 500px;">
+                <div class="advice-header">
+                    <h3><i class="fas fa-exclamation-triangle" style="color: var(--neon-pink);"></i> Підтвердження видалення</h3>
+                    <button class="close-advice" aria-label="Закрити">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="advice-body">
+                    <p><strong>Ви дійсно хочете видалити клієнта?</strong></p>
+                    <div class="client-info-preview">
+                        <div class="client-avatar">${(client.company || 'C')[0].toUpperCase()}</div>
+                        <div>
+                            <div class="client-name"><strong>${client.company || 'Без назви'}</strong></div>
+                            <div class="client-meta">${client.sector || 'Без сектору'}</div>
+                        </div>
+                    </div>
+                    <p style="color: var(--neon-pink); margin-top: 1rem;">
+                        <i class="fas fa-warning"></i> 
+                        <strong>Увага:</strong> Всі аналізи цього клієнта також будуть видалені. Цю дію неможливо скасувати.
+                    </p>
+                </div>
+                <div class="advice-actions">
+                    <button class="btn-secondary cancel-delete-btn">
+                        <i class="fas fa-times"></i> Скасувати
+                    </button>
+                    <button class="btn-danger confirm-delete-btn" data-client-id="${clientId}">
+                        <i class="fas fa-trash"></i> Видалити клієнта
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add event listeners
+        modal.querySelector('.close-advice').addEventListener('click', () => modal.remove());
+        modal.querySelector('.cancel-delete-btn').addEventListener('click', () => modal.remove());
+        modal.querySelector('.confirm-delete-btn').addEventListener('click', () => {
+            modal.remove();
+            performDeleteClient(clientId);
+        });
+
+        // Close when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+
+    async function deleteClient(clientId, event) {
         console.log('🗑️ deleteClient called with ID:', clientId);
+        
+        // Stop event propagation to prevent client selection
+        if (event) {
+            event.stopPropagation();
+        }
+        
+        // Show confirmation modal instead of browser confirm
+        showDeleteClientModal(clientId);
+    }
+
+    async function performDeleteClient(clientId) {
+        console.log('🗑️ performDeleteClient called with ID:', clientId);
         try {
             const client = state.clients.find(c => c.id === clientId);
             console.log('🗑️ Found client for deletion:', client ? client.company : 'NOT FOUND');
-            
-            if (!client) {
-                console.error('❌ Client not found for deletion with ID:', clientId);
-                showNotification('Клієнт не знайдений', 'error');
-                return;
-            }
-
-            console.log('🗑️ Showing confirmation dialog...');
-            if (!confirm(`Видалити клієнта "${client.company}"? Всі аналізи також будуть видалені. Цю дію неможливо скасувати.`)) {
-                console.log('🗑️ User cancelled deletion');
-                return;
-            }
 
             console.log('🗑️ Sending delete request...');
             const response = await fetch(`/api/clients/${clientId}`, {

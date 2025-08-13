@@ -252,7 +252,10 @@ r.delete('/:id', validateClientId, async (req, res) => {
       userAgent: req.get('User-Agent')
     });
     
-    // Cascade delete will remove analyses too
+    // Delete analyses first to avoid foreign key constraint
+    const analysesResult = run(`DELETE FROM analyses WHERE client_id=?`, [id]);
+    
+    // Then delete the client
     const result = run(`DELETE FROM clients WHERE id=?`, [id]);
     
     const duration = performance.now() - startTime;
@@ -260,6 +263,7 @@ r.delete('/:id', validateClientId, async (req, res) => {
       success: true,
       meta: {
         deletedRows: result.changes,
+        deletedAnalyses: analysesResult.changes,
         responseTime: Math.round(duration)
       }
     });

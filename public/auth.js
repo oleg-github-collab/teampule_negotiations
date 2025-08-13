@@ -15,43 +15,44 @@
     async function checkAuth() {
         console.log('🔐 Checking authentication status...');
         
-        // First check if we have a server-side cookie by making a simple API call
+        // Check if we have valid server-side authentication
         try {
-            const response = await fetch('/api/usage');
+            const response = await fetch('/api/clients');
             console.log('🔐 Auth check response status:', response.status);
             
             if (response.ok) {
-                console.log('🔐 Server authentication successful');
-                // Server auth is good, update sessionStorage to match
-                sessionStorage.setItem('teampulse-auth', 'true');
-                
-                const loginScreen = $('#login-screen');
-                const appContainer = $('#app-container');
-                
-                if (loginScreen) loginScreen.style.display = 'none';
-                if (appContainer) appContainer.style.display = 'block';
-                return true;
+                const data = await response.json();
+                if (data.success) {
+                    console.log('🔐 Server authentication successful');
+                    // Server auth is good, update sessionStorage to match
+                    sessionStorage.setItem('teampulse-auth', 'true');
+                    
+                    const loginScreen = $('#login-screen');
+                    const appContainer = $('#app-container');
+                    
+                    if (loginScreen) loginScreen.style.display = 'none';
+                    if (appContainer) appContainer.style.display = 'block';
+                    return true;
+                } else {
+                    console.log('🔐 Server returned unsuccessful response');
+                }
+            } else if (response.status === 401) {
+                console.log('🔐 Server authentication failed - 401 Unauthorized');
             }
         } catch (error) {
             console.log('🔐 Server auth check failed:', error);
         }
         
-        // Fallback to sessionStorage check
-        const isAuthenticated = sessionStorage.getItem('teampulse-auth') === 'true';
-        console.log('🔐 SessionStorage auth status:', isAuthenticated);
+        // If server auth failed, clear any stale sessionStorage
+        sessionStorage.removeItem('teampulse-auth');
+        console.log('🔐 Authentication failed, showing login screen');
         
         const loginScreen = $('#login-screen');
         const appContainer = $('#app-container');
         
-        if (isAuthenticated) {
-            if (loginScreen) loginScreen.style.display = 'none';
-            if (appContainer) appContainer.style.display = 'block';
-            return true;
-        } else {
-            if (loginScreen) loginScreen.style.display = 'flex';
-            if (appContainer) appContainer.style.display = 'none';
-            return false;
-        }
+        if (loginScreen) loginScreen.style.display = 'flex';
+        if (appContainer) appContainer.style.display = 'none';
+        return false;
     }
 
     async function handleLogin(e) {
@@ -109,8 +110,24 @@
         }
     }
 
-    function logout() {
+    async function logout() {
+        console.log('🔐 Logout initiated...');
+        try {
+            // Call server logout endpoint
+            const response = await fetch('/api/logout', {
+                method: 'POST'
+            });
+            console.log('🔐 Server logout response:', response.status);
+        } catch (error) {
+            console.log('🔐 Server logout failed, proceeding with client cleanup:', error);
+        }
+        
+        // Clear client-side auth state
         sessionStorage.removeItem('teampulse-auth');
+        localStorage.clear(); // Clear all app state
+        
+        // Force page reload to show login screen
+        console.log('🔐 Logout complete, reloading page');
         location.reload();
     }
 
