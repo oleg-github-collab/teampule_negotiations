@@ -9,6 +9,7 @@
         clients: [],
         analyses: [],
         selectedFragments: [],
+        recommendationsHistory: {}, // clientId -> array of recommendations
         originalText: null,
         onboardingCompleted: false,
         onboardingStep: 1,
@@ -143,6 +144,9 @@
         
         // Workspace
         workspaceClientInfo: $('#workspace-client-info'),
+        recommendationsHistorySection: $('#recommendations-history-section'),
+        recommendationsHistory: $('#recommendations-history'),
+        recommendationsCount: $('#recommendations-count'),
         fragmentsCount: $('#fragments-count'),
         fragmentsDropZone: $('#fragments-drop-zone'),
         selectedFragments: $('#selected-fragments'),
@@ -751,6 +755,10 @@
                     <p>Оберіть клієнта для роботи</p>
                 </div>
             `;
+            // Hide recommendations history
+            if (elements.recommendationsHistorySection) {
+                elements.recommendationsHistorySection.style.display = 'none';
+            }
             return;
         }
 
@@ -770,6 +778,79 @@
                 </div>
             </div>
         `;
+        
+        // Show and update recommendations history
+        if (elements.recommendationsHistorySection) {
+            elements.recommendationsHistorySection.style.display = 'block';
+            updateRecommendationsHistory(client.id);
+        }
+    }
+    
+    function updateRecommendationsHistory(clientId) {
+        if (!elements.recommendationsHistory) return;
+        
+        const recommendations = state.recommendationsHistory[clientId] || [];
+        
+        if (elements.recommendationsCount) {
+            elements.recommendationsCount.textContent = recommendations.length;
+        }
+        
+        if (recommendations.length === 0) {
+            elements.recommendationsHistory.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <p>Історія рекомендацій з'явиться тут після їх генерації</p>
+                </div>
+            `;
+            return;
+        }
+        
+        elements.recommendationsHistory.innerHTML = recommendations.map((rec, index) => `
+            <div class="recommendation-item">
+                <div class="recommendation-header">
+                    <div class="recommendation-date">${getTimeAgo(new Date(rec.created_at))}</div>
+                    <button class="btn-micro" onclick="removeRecommendation('${clientId}', ${index})" title="Видалити рекомендацію">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="recommendation-content">${escapeHtml(rec.advice)}</div>
+                ${rec.fragments_count ? `<div class="recommendation-meta">Базується на ${rec.fragments_count} фрагментах</div>` : ''}
+            </div>
+        `).join('');
+    }
+    
+    function saveRecommendation(clientId, advice, fragmentsCount = 0) {
+        if (!state.recommendationsHistory[clientId]) {
+            state.recommendationsHistory[clientId] = [];
+        }
+        
+        const recommendation = {
+            id: Date.now(),
+            advice,
+            fragments_count: fragmentsCount,
+            created_at: new Date().toISOString()
+        };
+        
+        state.recommendationsHistory[clientId].unshift(recommendation);
+        
+        // Keep only last 20 recommendations per client
+        if (state.recommendationsHistory[clientId].length > 20) {
+            state.recommendationsHistory[clientId] = state.recommendationsHistory[clientId].slice(0, 20);
+        }
+        
+        updateRecommendationsHistory(clientId);
+        scheduleStateSave();
+    }
+    
+    function removeRecommendation(clientId, index) {
+        if (state.recommendationsHistory[clientId] && state.recommendationsHistory[clientId][index]) {
+            state.recommendationsHistory[clientId].splice(index, 1);
+            updateRecommendationsHistory(clientId);
+            scheduleStateSave();
+            showNotification('Рекомендацію видалено', 'info');
+        }
     }
 
     async function saveClient() {
@@ -892,20 +973,24 @@
 
         try {
             // Show analysis has started with clear visual feedback
-            showNotification('🚀 Аналіз розпочато! Прокрутіть вниз для перегляду результатів...', 'info', 3000);
+            showNotification('🚀 Аналіз розпочато! Слідкуйте за прогресом...', 'info', 3000);
             
             // Show results section and update steps
             if (elements.resultsSection) {
                 elements.resultsSection.style.display = 'block';
                 
-                // Smooth scroll to results section with delay for better UX
+                // Progressive auto-scroll: Stage 1 - Scroll to counters
                 setTimeout(() => {
-                    elements.resultsSection.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start',
-                        inline: 'nearest'
-                    });
-                }, 500);
+                    const statsGrid = document.querySelector('.stats-grid');
+                    if (statsGrid) {
+                        statsGrid.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center',
+                            inline: 'nearest'
+                        });
+                        showNotification('📊 Підраховуємо проблеми...', 'info', 2000);
+                    }
+                }, 1000);
             }
             
             updateAnalysisSteps('analysis');
@@ -981,8 +1066,18 @@
                                 updateHighlightsDisplay(analysisData.highlights);
                                 updateCountersFromHighlights(analysisData.highlights);
                                 
-                                // Show progress feedback
-                                showNotification(`✨ Знайдено ${data.items.length} проблемних моментів`, 'info', 2000);
+                                // Progressive auto-scroll: Stage 2 - Scroll to problems
+                                setTimeout(() => {
+                                    const highlightsSection = document.querySelector('.highlights-section');
+                                    if (highlightsSection) {
+                                        highlightsSection.scrollIntoView({ 
+                                            behavior: 'smooth', 
+                                            block: 'start',
+                                            inline: 'nearest'
+                                        });
+                                        showNotification(`🔍 Знайдено ${data.items.length} проблемних моментів`, 'success', 2500);
+                                    }
+                                }, 1000);
                             } else if (data.type === 'summary') {
                                 analysisData.summary = data;
                                 updateSummaryDisplay(data);
@@ -1030,6 +1125,21 @@
                                 // Ensure barometer is saved in currentAnalysis
                                 if (!state.currentAnalysis) state.currentAnalysis = {};
                                 state.currentAnalysis.barometer = analysisData.barometer;
+                                
+                                // Progressive auto-scroll: Stage 3 - Scroll to barometer (final)
+                                setTimeout(() => {
+                                    const barometerCard = document.querySelector('.barometer-card');
+                                    if (barometerCard) {
+                                        barometerCard.scrollIntoView({ 
+                                            behavior: 'smooth', 
+                                            block: 'center',
+                                            inline: 'nearest'
+                                        });
+                                        const score = analysisData.barometer?.score || 0;
+                                        const label = analysisData.barometer?.label || 'Невизначено';
+                                        showNotification(`🎯 Аналіз завершено! Складність: ${score}/100 (${label})`, 'success', 4000);
+                                    }
+                                }, 2000);
                                 
                                 // Generate and display highlighted text
                                 if (state.originalText && analysisData.highlights?.length > 0) {
@@ -1826,62 +1936,121 @@
             return escapeHtml(originalText || '');
         }
 
-        // Create an array of text positions with highlight information
-        const textParts = [];
-        let currentPos = 0;
+        console.log('🔍 Generating highlighted text, originalText length:', originalText.length);
+        console.log('🔍 Number of highlights:', highlights.length);
+
+        // Create positions array with better text matching
+        const positions = [];
         
-        // Find all highlight positions in the original text
-        const highlightPositions = [];
         for (const highlight of highlights) {
-            let searchPos = 0;
-            let foundPos;
-            
-            // Find all occurrences of this highlight text
-            while ((foundPos = originalText.indexOf(highlight.text, searchPos)) !== -1) {
-                highlightPositions.push({
-                    start: foundPos,
-                    end: foundPos + highlight.text.length,
-                    highlight: highlight,
-                    text: highlight.text
-                });
-                searchPos = foundPos + 1; // Continue searching for overlapping matches
+            const searchText = highlight.text?.trim();
+            if (!searchText) {
+                console.warn('🔍 Empty highlight text, skipping:', highlight);
+                continue;
             }
+            
+            console.log('🔍 Searching for highlight text:', searchText);
+            
+            // Try multiple search strategies
+            let foundPositions = [];
+            
+            // Strategy 1: Exact match (case sensitive)
+            let startIndex = 0;
+            let index;
+            while ((index = originalText.indexOf(searchText, startIndex)) !== -1) {
+                foundPositions.push({
+                    start: index,
+                    end: index + searchText.length,
+                    highlight: highlight,
+                    matchType: 'exact'
+                });
+                startIndex = index + 1;
+            }
+            
+            // Strategy 2: Case insensitive if no exact matches
+            if (foundPositions.length === 0) {
+                const lowerOriginal = originalText.toLowerCase();
+                const lowerSearch = searchText.toLowerCase();
+                startIndex = 0;
+                while ((index = lowerOriginal.indexOf(lowerSearch, startIndex)) !== -1) {
+                    foundPositions.push({
+                        start: index,
+                        end: index + searchText.length,
+                        highlight: highlight,
+                        matchType: 'case-insensitive'
+                    });
+                    startIndex = index + 1;
+                }
+            }
+            
+            // Strategy 3: Fuzzy match with word boundaries if still no matches
+            if (foundPositions.length === 0) {
+                const words = searchText.split(/\s+/).filter(w => w.length > 2);
+                if (words.length > 0) {
+                    const firstWord = words[0];
+                    const regex = new RegExp(`\\b${escapeRegExp(firstWord)}`, 'gi');
+                    let match;
+                    while ((match = regex.exec(originalText)) !== null) {
+                        // Check if we can find the full phrase nearby
+                        const contextStart = Math.max(0, match.index - 50);
+                        const contextEnd = Math.min(originalText.length, match.index + searchText.length + 50);
+                        const context = originalText.substring(contextStart, contextEnd);
+                        
+                        if (context.toLowerCase().includes(searchText.toLowerCase())) {
+                            const localIndex = context.toLowerCase().indexOf(searchText.toLowerCase());
+                            const actualStart = contextStart + localIndex;
+                            foundPositions.push({
+                                start: actualStart,
+                                end: actualStart + searchText.length,
+                                highlight: highlight,
+                                matchType: 'fuzzy'
+                            });
+                        }
+                    }
+                }
+            }
+            
+            console.log(`🔍 Found ${foundPositions.length} positions for "${searchText}"`);
+            positions.push(...foundPositions);
         }
         
-        // Sort positions by start position
-        highlightPositions.sort((a, b) => a.start - b.start);
+        // Sort by position and remove overlaps
+        positions.sort((a, b) => a.start - b.start);
+        console.log('🔍 Total positions found:', positions.length);
         
-        // Remove overlapping highlights (keep the first one found)
-        const nonOverlappingHighlights = [];
-        for (const pos of highlightPositions) {
-            const isOverlapping = nonOverlappingHighlights.some(existing => 
+        // Remove overlapping highlights (keep the first one)
+        const cleanPositions = [];
+        for (const pos of positions) {
+            const overlaps = cleanPositions.some(existing => 
                 (pos.start >= existing.start && pos.start < existing.end) ||
                 (pos.end > existing.start && pos.end <= existing.end) ||
                 (pos.start <= existing.start && pos.end >= existing.end)
             );
             
-            if (!isOverlapping) {
-                nonOverlappingHighlights.push(pos);
+            if (!overlaps) {
+                cleanPositions.push(pos);
             }
         }
         
-        // Sort again to ensure proper order
-        nonOverlappingHighlights.sort((a, b) => a.start - b.start);
+        cleanPositions.sort((a, b) => a.start - b.start);
+        console.log('🔍 Clean positions after overlap removal:', cleanPositions.length);
         
         // Build the highlighted text
         let result = '';
         let lastPos = 0;
         
-        for (const pos of nonOverlappingHighlights) {
+        for (const pos of cleanPositions) {
             // Add text before highlight
             if (pos.start > lastPos) {
                 result += escapeHtml(originalText.substring(lastPos, pos.start));
             }
             
-            // Add highlighted text
+            // Get the actual text from original (in case of case differences)
+            const actualText = originalText.substring(pos.start, pos.end);
             const categoryClass = getCategoryClass(pos.highlight.category);
             const tooltip = escapeHtml(pos.highlight.explanation || pos.highlight.label || '');
-            result += `<span class="text-highlight ${categoryClass}" data-tooltip="${tooltip}">${escapeHtml(pos.text)}</span>`;
+            
+            result += `<span class="text-highlight ${categoryClass}" data-tooltip="${tooltip}">${escapeHtml(actualText)}</span>`;
             
             lastPos = pos.end;
         }
@@ -1891,6 +2060,7 @@
             result += escapeHtml(originalText.substring(lastPos));
         }
         
+        console.log('🔍 Generated highlighted text length:', result.length);
         return result;
     }
 
@@ -2480,6 +2650,11 @@
             // Save the advice for future reference
             const advice = data.advice || data;
             saveAdviceToHistory(advice);
+            
+            // Save recommendation to new history system
+            if (state.currentClient && typeof advice === 'string') {
+                saveRecommendation(state.currentClient.id, advice, state.selectedFragments.length);
+            }
             
             // Show advice in a modal or notification
             showAdviceModal(advice);
@@ -3457,6 +3632,7 @@
     window.createNewAnalysis = createNewAnalysis;
     window.clearFilters = clearFilters;
     window.confirmDeleteAnalysis = confirmDeleteAnalysis;
+    window.removeRecommendation = removeRecommendation;
     
     // ===== Debug Testing Functions =====
     window.testClientFunctions = function() {
@@ -3487,6 +3663,7 @@
             currentClient: state.currentClient,
             currentAnalysis: state.currentAnalysis,
             selectedFragments: state.selectedFragments,
+            recommendationsHistory: state.recommendationsHistory,
             originalText: state.originalText,
             ui: state.ui,
             timestamp: new Date().toISOString()
@@ -3556,6 +3733,10 @@
                 state.selectedFragments = appState.selectedFragments;
                 updateWorkspaceFragments();
                 updateWorkspaceActions();
+            }
+            
+            if (appState.recommendationsHistory) {
+                state.recommendationsHistory = appState.recommendationsHistory;
             }
             
             if (appState.ui) {

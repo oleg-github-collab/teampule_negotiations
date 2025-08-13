@@ -633,6 +633,23 @@
                     </div>
                 </div>
 
+                <!-- Recommendations History -->
+                <div class="workspace-section" id="recommendations-history-section" style="display: none;">
+                    <h4>
+                        <i class="fas fa-history"></i>
+                        Історія рекомендацій
+                        <span class="fragment-counter" id="recommendations-count">0</span>
+                    </h4>
+                    <div class="recommendations-list" id="recommendations-history">
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <p>Історія рекомендацій з'явиться тут після їх генерації</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Selected Fragments -->
                 <div class="workspace-section">
                     <h4>
@@ -658,7 +675,7 @@
                 <div class="workspace-section">
                     <h4>
                         <i class="fas fa-magic"></i>
-                        Дії
+                        Дії з обраними фрагментами
                     </h4>
                     <button class="btn-primary btn-full" id="get-advice-btn" disabled>
                         <i class="fas fa-lightbulb"></i>
@@ -670,7 +687,7 @@
                     </button>
                     <button class="btn-ghost btn-full" id="clear-workspace-btn" disabled>
                         <i class="fas fa-trash"></i>
-                        Очистити все
+                        Очистити робочу область
                     </button>
                 </div>
 
