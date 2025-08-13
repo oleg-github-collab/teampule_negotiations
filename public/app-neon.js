@@ -416,21 +416,26 @@
 
     // ===== Client Management =====
     async function loadClients() {
+        console.log('🔄 Loading clients...');
         try {
             const response = await fetch('/api/clients');
+            console.log('📡 Response status:', response.status);
             
             if (response.status === 401) {
+                console.log('❌ Unauthorized, redirecting to login');
                 window.location.href = '/login';
                 return;
             }
             
             const data = await response.json();
+            console.log('📦 Received data:', data);
             
             if (!response.ok || !data.success) {
                 throw new Error(data.error || `HTTP Error: ${response.status}`);
             }
             
             state.clients = data.clients || [];
+            console.log('✅ Set state.clients:', state.clients.length, 'clients');
             
             // Force immediate UI update
             renderClientsList();
@@ -438,6 +443,8 @@
             
             // Validate and fix data integrity
             validateDataIntegrity();
+            
+            console.log('🎉 Clients loaded successfully');
             
         } catch (error) {
             console.error('Failed to load clients:', error);
@@ -466,12 +473,18 @@
     }
 
     function renderClientsList() {
+        console.log('🎨 renderClientsList called');
+        console.log('🎨 state.clients.length:', state.clients.length);
+        console.log('🎨 Current client:', state.currentClient ? state.currentClient.company : 'none');
+        
         if (!elements.clientList) {
-            console.warn('Client list element not found');
+            console.warn('❌ Client list element not found');
             return;
         }
 
         const searchTerm = elements.clientSearch?.value.toLowerCase().trim() || '';
+        console.log('🎨 Search term:', searchTerm);
+        
         const filtered = state.clients.filter(client => {
             if (!searchTerm) return true;
             return (
@@ -480,8 +493,11 @@
                 client.negotiator?.toLowerCase().includes(searchTerm)
             );
         });
+        
+        console.log('🎨 Filtered clients count:', filtered.length);
 
         if (filtered.length === 0) {
+            console.log('🎨 Showing empty state');
             const emptyMessage = searchTerm ? 'Нічого не знайдено' : 'Немає клієнтів';
             const emptyIcon = searchTerm ? 'fas fa-search' : 'fas fa-users';
             elements.clientList.innerHTML = `
@@ -499,11 +515,15 @@
         // Sort clients by name
         filtered.sort((a, b) => (a.company || '').localeCompare(b.company || ''));
 
+        console.log('🎨 Rendering', filtered.length, 'client items');
+
         // Render client items
         elements.clientList.innerHTML = filtered.map(client => {
             const isActive = state.currentClient?.id === client.id;
             const avatar = (client.company || 'C')[0].toUpperCase();
-            const analysisCount = client.analysisCount || 0;
+            const analysisCount = client.analyses_count || 0;
+            
+            console.log('🎨 Rendering client:', client.company, 'active:', isActive);
             
             return `
                 <div class="client-item ${isActive ? 'active' : ''}" 
@@ -528,6 +548,8 @@
                 </div>
             `;
         }).join('');
+        
+        console.log('🎨 Client list rendered successfully');
     }
 
     function updateClientCount() {
@@ -577,28 +599,41 @@
     }
 
     async function selectClient(clientId) {
+        console.log('🎯 selectClient called with ID:', clientId);
+        console.log('🎯 Current state.clients:', state.clients.length, 'clients');
+        
         const client = state.clients.find(c => c.id === clientId);
+        console.log('🎯 Found client:', client ? client.company : 'NOT FOUND');
+        
         if (!client) {
+            console.error('❌ Client not found with ID:', clientId);
             showNotification('Клієнт не знайдений', 'error');
             return;
         }
+        
+        console.log('🎯 Setting current client to:', client.company);
         state.currentClient = client;
         
         // Update UI
+        console.log('🎯 Updating UI components...');
         updateNavClientInfo(client);
         updateWorkspaceClientInfo(client);
         renderClientsList(); // Re-render to show active state
         
         // Show analysis dashboard
+        console.log('🎯 Showing analysis dashboard...');
         showSection('analysis-dashboard');
         
         showNotification(`Обрано клієнта: ${client.company}`, 'success');
         
         // Load analysis history for this client and try to load the latest analysis
+        console.log('🎯 Loading analysis history...');
         await loadAnalysisHistoryAndLatest(clientId);
         
         // Save state
+        console.log('🎯 Saving state...');
         scheduleStateSave();
+        console.log('🎯 selectClient completed successfully');
     }
 
     function updateNavClientInfo(client) {
@@ -2296,7 +2331,7 @@
                 document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
                 localStorage.removeItem('teampulse-app-state');
                 localStorage.removeItem('teampulse-ui-state');
-                window.location.href = '/login';
+                window.location.href = '/';
             }
         });
 
@@ -2694,36 +2729,50 @@
     }
 
     async function editClient(clientId) {
+        console.log('✏️ editClient called with ID:', clientId);
         try {
             const client = state.clients.find(c => c.id === clientId);
+            console.log('✏️ Found client for editing:', client ? client.company : 'NOT FOUND');
+            
             if (!client) {
+                console.error('❌ Client not found for editing with ID:', clientId);
                 showNotification('Клієнт не знайдений', 'error');
                 return;
             }
+            
+            console.log('✏️ Opening client form for editing...');
             showClientForm(clientId);
         } catch (error) {
-            console.error('Edit client error:', error);
+            console.error('❌ Edit client error:', error);
             showNotification('Помилка при редагуванні клієнта', 'error');
         }
     }
 
     async function deleteClient(clientId) {
+        console.log('🗑️ deleteClient called with ID:', clientId);
         try {
             const client = state.clients.find(c => c.id === clientId);
+            console.log('🗑️ Found client for deletion:', client ? client.company : 'NOT FOUND');
+            
             if (!client) {
+                console.error('❌ Client not found for deletion with ID:', clientId);
                 showNotification('Клієнт не знайдений', 'error');
                 return;
             }
 
+            console.log('🗑️ Showing confirmation dialog...');
             if (!confirm(`Видалити клієнта "${client.company}"? Всі аналізи також будуть видалені. Цю дію неможливо скасувати.`)) {
+                console.log('🗑️ User cancelled deletion');
                 return;
             }
 
+            console.log('🗑️ Sending delete request...');
             const response = await fetch(`/api/clients/${clientId}`, {
                 method: 'DELETE'
             });
 
             const data = await response.json();
+            console.log('🗑️ Delete response:', data);
 
             if (!response.ok) {
                 throw new Error(data.error || 'Помилка видалення клієнта');
@@ -2767,6 +2816,29 @@
     window.createNewAnalysis = createNewAnalysis;
     window.clearFilters = clearFilters;
     window.confirmDeleteAnalysis = confirmDeleteAnalysis;
+    
+    // ===== Debug Testing Functions =====
+    window.testClientFunctions = function() {
+        console.log('🧪 Testing client functions availability:');
+        console.log('🧪 selectClient:', typeof window.selectClient);
+        console.log('🧪 editClient:', typeof window.editClient);
+        console.log('🧪 deleteClient:', typeof window.deleteClient);
+        console.log('🧪 Current clients:', state.clients.length);
+        if (state.clients.length > 0) {
+            console.log('🧪 Testing selectClient with first client...');
+            window.selectClient(state.clients[0].id);
+        }
+    };
+    
+    window.testEditClient = function(clientId) {
+        console.log('🧪 Testing editClient with ID:', clientId);
+        window.editClient(clientId || (state.clients[0] && state.clients[0].id));
+    };
+    
+    window.testDeleteClient = function(clientId) {
+        console.log('🧪 Testing deleteClient with ID:', clientId);
+        window.deleteClient(clientId || (state.clients[0] && state.clients[0].id));
+    };
 
     // ===== State Persistence =====
     function saveAppState() {
@@ -2894,18 +2966,31 @@
         switchHighlightsView('list');
         
         // Always load initial data
+        console.log('🚀 Starting loadClients...');
         loadClients().then(() => {
+            console.log('🚀 loadClients completed, clients loaded:', state.clients.length);
             loadTokenUsage();
             
             // Try to restore previous app state
+            console.log('🚀 Restoring app state...');
             const stateRestored = loadAppState();
             
             // Load current client's analysis history if we have a current client
             if (state.currentClient) {
+                console.log('🚀 Loading analysis history for current client:', state.currentClient.company);
                 loadAnalysisHistory(state.currentClient.id);
+            } else {
+                console.log('🚀 No current client to load analysis for');
             }
             
-            console.log('App state restored:', stateRestored);
+            console.log('🚀 App initialization completed successfully');
+            console.log('🚀 Final state:', {
+                clientsLoaded: state.clients.length,
+                currentClient: state.currentClient ? state.currentClient.company : 'none',
+                stateRestored
+            });
+        }).catch(error => {
+            console.error('🚀 Failed to initialize app:', error);
         });
         
         // Auto-refresh token usage
