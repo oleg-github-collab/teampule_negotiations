@@ -3093,6 +3093,28 @@
         }
     }
 
+    function toggleMobileMenu() {
+        const isActive = elements.sidebarLeft.classList.contains('active');
+        
+        if (isActive) {
+            // Close mobile menu
+            elements.sidebarLeft.classList.remove('active');
+            document.body.classList.remove('mobile-menu-open');
+        } else {
+            // Open mobile menu
+            elements.sidebarLeft.classList.add('active');
+            document.body.classList.add('mobile-menu-open');
+        }
+        
+        // Update mobile menu toggle icon
+        const icon = elements.mobileMenuToggle?.querySelector('i');
+        if (icon) {
+            icon.className = isActive ? 'fas fa-bars' : 'fas fa-times';
+        }
+        
+        console.log('📱 Mobile menu', isActive ? 'closed' : 'opened');
+    }
+
     function showOnboarding() {
         if (elements.onboardingModal) {
             elements.onboardingModal.style.display = 'flex';
@@ -3688,6 +3710,12 @@
 
     // ===== Event Handlers =====
     function bindEvents() {
+        // Mobile menu toggle
+        elements.mobileMenuToggle?.addEventListener('click', () => {
+            console.log('📱 Mobile menu toggle clicked');
+            toggleMobileMenu();
+        });
+        
         // Sidebar toggles (only right sidebar can be toggled now)
         elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
         elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
@@ -3699,6 +3727,18 @@
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.product-switcher')) {
                 closeProductDropdown();
+            }
+        });
+        
+        // Close mobile menu when clicking outside or on overlay
+        document.addEventListener('click', (e) => {
+            if (document.body.classList.contains('mobile-menu-open')) {
+                // Close if clicking outside sidebar or on overlay
+                if (!e.target.closest('.sidebar-left') || 
+                    e.target.closest('[data-action="select-client"]') ||
+                    e.target.closest('[data-action="load-analysis"]')) {
+                    toggleMobileMenu();
+                }
             }
         });
 
@@ -4013,77 +4053,146 @@
             return;
         }
 
-        elements.analysisHistory.innerHTML = analyses.map((analysis, index) => {
-            const isLatest = index === 0;
-            const date = new Date(analysis.created_at);
-            const timeAgo = getTimeAgo(date);
-            
-            // Calculate issues count from highlights
-            let issuesCount = 0;
-            
-            // First try to get from analysis.issues_count
-            if (analysis.issues_count && analysis.issues_count > 0) {
-                issuesCount = analysis.issues_count;
-            } 
-            // Then try to parse highlights array
-            else if (analysis.highlights && Array.isArray(analysis.highlights)) {
-                issuesCount = analysis.highlights.length;
-            }
-            // Finally try to parse highlights_json string
-            else if (analysis.highlights_json) {
-                try {
-                    const highlights = JSON.parse(analysis.highlights_json);
-                    if (Array.isArray(highlights)) {
-                        issuesCount = highlights.length;
-                    }
-                } catch (e) {
-                    console.warn('Failed to parse highlights_json:', e);
-                }
-            }
-            
-            console.log(`📊 Analysis ${analysis.id}: calculated ${issuesCount} issues from`, {
-                issues_count: analysis.issues_count,
-                highlights: analysis.highlights?.length,
-                highlights_json: analysis.highlights_json ? 'present' : 'missing'
-            });
-            
-            // Calculate complexity score from barometer if not provided
-            let complexityScore = analysis.complexity_score || 0;
-            if (complexityScore === 0 && analysis.barometer?.score) {
-                complexityScore = analysis.barometer.score;
-            }
-            
-            console.log(`📊 Rendering analysis ${analysis.id}: ${issuesCount} issues, ${complexityScore}/100 complexity`);
-            
-            return `
-                <div class="analysis-history-item ${isLatest ? 'latest' : ''}" 
-                     onclick="window.loadAnalysis(${analysis.id})"
-                     title="Натисніть для перегляду аналізу">
-                    <div class="analysis-header">
-                        <div class="analysis-date">
-                            ${isLatest ? '<i class="fas fa-star" title="Останній"></i> ' : ''}
-                            ${timeAgo}
-                        </div>
-                        <div class="analysis-actions">
-                            <button class="btn-micro" onclick="event.stopPropagation(); confirmDeleteAnalysis(${analysis.id})" title="Видалити аналіз">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-preview">${escapeHtml(analysis.text_preview || 'Аналіз переговорів')}</div>
-                    <div class="analysis-stats">
-                        <span class="stat-item ${issuesCount > 0 ? 'has-issues' : ''}">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            ${issuesCount} проблем
-                        </span>
-                        <span class="stat-item complexity-${getComplexityLevel(complexityScore)}">
-                            <i class="fas fa-tachometer-alt"></i>
-                            ${complexityScore}/100
-                        </span>
-                    </div>
+        // Group analyses by date for better navigation
+        const groupedAnalyses = groupAnalysesByDate(analyses);
+        
+        elements.analysisHistory.innerHTML = Object.entries(groupedAnalyses).map(([dateGroup, groupAnalyses]) => `
+            <div class="analysis-date-group">
+                <div class="date-group-header">
+                    <span class="date-group-label">${dateGroup}</span>
+                    <span class="date-group-count">${groupAnalyses.length}</span>
                 </div>
-            `;
-        }).join('');
+                <div class="analysis-group">
+                    ${groupAnalyses.map((analysis, index) => {
+                        const isLatest = analysis.id === analyses[0]?.id;
+                        const date = new Date(analysis.created_at);
+                        const timeAgo = getTimeAgo(date);
+                        
+                        // Calculate issues count from highlights
+                        let issuesCount = 0;
+                        
+                        // First try to get from analysis.issues_count
+                        if (analysis.issues_count && analysis.issues_count > 0) {
+                            issuesCount = analysis.issues_count;
+                        } 
+                        // Then try to parse highlights array
+                        else if (analysis.highlights && Array.isArray(analysis.highlights)) {
+                            issuesCount = analysis.highlights.length;
+                        }
+                        // Finally try to parse highlights_json string
+                        else if (analysis.highlights_json) {
+                            try {
+                                const highlights = JSON.parse(analysis.highlights_json);
+                                if (Array.isArray(highlights)) {
+                                    issuesCount = highlights.length;
+                                }
+                            } catch (e) {
+                                console.warn('Failed to parse highlights_json:', e);
+                            }
+                        }
+                        
+                        // Calculate complexity score from barometer if not provided
+                        let complexityScore = analysis.complexity_score || 0;
+                        if (complexityScore === 0 && analysis.barometer?.score) {
+                            complexityScore = analysis.barometer.score;
+                        }
+                        
+                        // Generate category breakdown for issues
+                        let categoryBreakdown = '';
+                        if (analysis.highlights && Array.isArray(analysis.highlights)) {
+                            const categories = {};
+                            analysis.highlights.forEach(h => {
+                                categories[h.category] = (categories[h.category] || 0) + 1;
+                            });
+                            
+                            const categoryLabels = {
+                                'manipulation': 'Маніп.',
+                                'cognitive_bias': 'Викрив.',
+                                'rhetorical_fallacy': 'Софізми'
+                            };
+                            
+                            categoryBreakdown = Object.entries(categories)
+                                .map(([cat, count]) => `${categoryLabels[cat] || cat}: ${count}`)
+                                .join(' • ');
+                        }
+                        
+                        return `
+                            <div class="analysis-history-item ${isLatest ? 'latest' : ''} ${state.currentAnalysis?.id === analysis.id ? 'active' : ''}" 
+                                 data-action="load-analysis" 
+                                 data-id="${analysis.id}"
+                                 title="Натисніть для перегляду аналізу">
+                                <div class="analysis-header">
+                                    <div class="analysis-date">
+                                        ${isLatest ? '<i class="fas fa-star latest-badge" title="Найновіший"></i> ' : ''}
+                                        <span class="time-label">${date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        ${state.currentAnalysis?.id === analysis.id ? '<i class="fas fa-eye current-indicator" title="Поточний аналіз"></i>' : ''}
+                                    </div>
+                                    <div class="analysis-actions">
+                                        <button class="btn-micro btn-duplicate" data-action="duplicate-analysis" data-id="${analysis.id}" title="Дублювати аналіз">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <button class="btn-micro btn-delete" data-action="delete-analysis" data-id="${analysis.id}" title="Видалити аналіз">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="analysis-preview">
+                                    ${escapeHtml(analysis.text_preview || 'Аналіз переговорів')}
+                                </div>
+                                <div class="analysis-stats">
+                                    <div class="primary-stats">
+                                        <span class="stat-item issues ${issuesCount > 0 ? 'has-issues' : ''}">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <span class="stat-number">${issuesCount}</span>
+                                            <span class="stat-label">проблем</span>
+                                        </span>
+                                        <span class="stat-item complexity complexity-${getComplexityLevel(complexityScore)}">
+                                            <i class="fas fa-tachometer-alt"></i>
+                                            <span class="stat-number">${complexityScore}</span>
+                                            <span class="stat-label">/100</span>
+                                        </span>
+                                    </div>
+                                    ${categoryBreakdown ? `<div class="category-breakdown">${categoryBreakdown}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function groupAnalysesByDate(analyses) {
+        const groups = {};
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        analyses.forEach(analysis => {
+            const date = new Date(analysis.created_at);
+            const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            
+            let groupKey;
+            if (dateOnly.getTime() === today.getTime()) {
+                groupKey = 'Сьогодні';
+            } else if (dateOnly.getTime() === yesterday.getTime()) {
+                groupKey = 'Вчора';
+            } else if (now - dateOnly <= 7 * 24 * 60 * 60 * 1000) {
+                groupKey = date.toLocaleDateString('uk-UA', { weekday: 'long' });
+            } else if (date.getFullYear() === now.getFullYear()) {
+                groupKey = date.toLocaleDateString('uk-UA', { month: 'long', day: 'numeric' });
+            } else {
+                groupKey = date.toLocaleDateString('uk-UA', { year: 'numeric', month: 'long' });
+            }
+            
+            if (!groups[groupKey]) {
+                groups[groupKey] = [];
+            }
+            groups[groupKey].push(analysis);
+        });
+        
+        return groups;
     }
 
     function getTimeAgo(date) {
@@ -4748,6 +4857,9 @@
                 case 'clear-filters':
                     handleClearFilters();
                     break;
+                case 'duplicate-analysis':
+                    handleDuplicateAnalysis(parseInt(id));
+                    break;
                 default:
                     console.warn('🎯 Unknown action:', action);
             }
@@ -4856,6 +4968,37 @@
         closeConfirmModal();
     }
     
+    function handleDuplicateAnalysis(analysisId) {
+        console.log('📋 Duplicate analysis requested:', analysisId);
+        const analysis = state.analyses.find(a => a.id === analysisId);
+        
+        if (!analysis) {
+            showNotification('Аналіз не знайдено', 'error');
+            return;
+        }
+        
+        // Pre-fill the text input with the analysis text
+        if (analysis.original_text && elements.negotiationText) {
+            elements.negotiationText.value = analysis.original_text;
+            updateTextStats();
+            
+            // Switch to analysis dashboard and text input
+            showView('analysis-dashboard');
+            
+            // Switch to text input method
+            if (elements.textMethod && elements.fileMethod) {
+                elements.textMethod.classList.add('active');
+                elements.fileMethod.classList.remove('active');
+                elements.textInputContent.style.display = 'block';
+                elements.fileInputContent.style.display = 'none';
+            }
+            
+            showNotification('Текст аналізу скопійовано для нового аналізу', 'success');
+        } else {
+            showNotification('Неможливо дублювати: оригінальний текст не знайдено', 'error');
+        }
+    }
+
     function handleDeleteAnalysis(analysisId) {
         console.log('🗑️ Delete analysis requested:', analysisId);
         showConfirmModal(
@@ -5145,6 +5288,13 @@
         // Show modal
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
+        
+        // Add click outside to close functionality
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        };
         
         console.log('✅ Modal opened successfully');
     }

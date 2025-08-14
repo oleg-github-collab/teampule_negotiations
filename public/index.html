@@ -891,7 +891,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="counter-modal-title"></h3>
-                <button class="modal-close" id="counter-modal-close">&times;</button>
+                <button class="modal-close" id="counter-modal-close" data-action="close-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="counter-items" id="counter-modal-items"></div>
@@ -901,6 +901,12 @@
 
     <!-- Scripts -->
     <script src="/auth.js"></script>
+    
+    <!-- Choose between monolithic and modular versions -->
+    <!-- Original monolithic version -->
     <script src="/app-neon.js"></script>
+    
+    <!-- Modular version (alternative) - uncomment to use -->
+    <!-- <script type="module" src="/js/app-modular.js"></script> -->
 </body>
 </html>
