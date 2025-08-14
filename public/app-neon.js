@@ -638,7 +638,7 @@
 
         console.log('🎨 Rendering', filtered.length, 'client items');
 
-        // Render client items using data-action attributes for event delegation
+        // Render client items
         elements.clientList.innerHTML = filtered.map(client => {
             const isActive = state.currentClient?.id === client.id;
             const avatar = (client.company || 'C')[0].toUpperCase();
@@ -648,8 +648,7 @@
             
             return `
                 <div class="client-item ${isActive ? 'active' : ''}" 
-                     data-action="select-client"
-                     data-id="${client.id}">
+                     data-client-id="${client.id}">
                     <div class="client-avatar">${avatar}</div>
                     <div class="client-info">
                         <div class="client-name">${escapeHtml(client.company || 'Без назви')}</div>
@@ -659,16 +658,10 @@
                         </div>
                     </div>
                     <div class="client-actions">
-                        <button class="btn-icon" 
-                                data-action="edit-client" 
-                                data-id="${client.id}" 
-                                title="Редагувати">
+                        <button class="btn-icon edit-client-btn" data-client-id="${client.id}" title="Редагувати">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn-icon" 
-                                data-action="delete-client" 
-                                data-id="${client.id}" 
-                                title="Видалити">
+                        <button class="btn-icon delete-client-btn" data-client-id="${client.id}" title="Видалити">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -701,9 +694,6 @@
     }
 
     function showClientForm(clientId = null) {
-        console.log('🔥 ===== SHOW CLIENT FORM CALLED =====');
-        console.log('📝 ClientId:', clientId, 'Type:', typeof clientId);
-        
         const isEdit = clientId !== null;
         
         if (elements.clientFormTitle) {
@@ -731,6 +721,12 @@
                 input.value = '';
             }
         });
+        
+        // Remove hidden client-id input if it exists
+        const idInput = form.querySelector('#client-id');
+        if (idInput) {
+            idInput.remove();
+        }
     }
 
     function populateClientForm(client) {
@@ -740,6 +736,12 @@
                 input.value = client[key];
             }
         });
+        // Store the ID for updates
+        const idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.id = 'client-id';
+        idInput.value = client.id;
+        elements.clientForm.appendChild(idInput);
     }
 
     async function selectClient(clientId) {
@@ -837,6 +839,90 @@
         }
     }
     
+    function updateClientAnalysisCountRealTime(clientId) {
+        if (!state.currentClient || state.currentClient.id !== clientId) return;
+        
+        // Increment the analysis count in current client data
+        if (state.currentClient.analyses_count !== undefined) {
+            state.currentClient.analyses_count++;
+        } else {
+            state.currentClient.analyses_count = 1;
+        }
+        
+        // Update the workspace client info display immediately
+        updateWorkspaceClientInfo(state.currentClient);
+        
+        // Update main clients list if visible
+        if (state.clients) {
+            const clientInList = state.clients.find(c => c.id === clientId);
+            if (clientInList) {
+                if (clientInList.analyses_count !== undefined) {
+                    clientInList.analyses_count++;
+                } else {
+                    clientInList.analyses_count = 1;
+                }
+                // Re-render clients list
+                renderClientsList();
+            }
+        }
+        
+        console.log('📊 Real-time updated analysis count for client:', clientId, 'new count:', state.currentClient.analyses_count);
+    }
+
+    function updateAnalysisResultsRealTime(newHighlight) {
+        console.log('📊 Real-time updating results with new highlight:', newHighlight);
+        
+        if (!newHighlight || !newHighlight.category) return;
+        
+        // Get current counters
+        let currentManipulations = parseInt(elements.manipulationsCount?.textContent || '0');
+        let currentBiases = parseInt(elements.biasesCount?.textContent || '0');
+        let currentFallacies = parseInt(elements.fallaciesCount?.textContent || '0');
+        
+        // Update appropriate counter based on category
+        switch (newHighlight.category) {
+            case 'manipulation':
+            case 'social_manipulation':
+                currentManipulations++;
+                if (elements.manipulationsCount) {
+                    animateNumber(elements.manipulationsCount, currentManipulations);
+                }
+                break;
+            case 'cognitive_bias':
+                currentBiases++;
+                if (elements.biasesCount) {
+                    animateNumber(elements.biasesCount, currentBiases);
+                }
+                break;
+            case 'rhetological_fallacy':
+            case 'logical_fallacy':
+                currentFallacies++;
+                if (elements.fallaciesCount) {
+                    animateNumber(elements.fallaciesCount, currentFallacies);
+                }
+                break;
+        }
+        
+        // Update total recommendations count
+        const totalCount = currentManipulations + currentBiases + currentFallacies;
+        if (elements.recommendationsCount) {
+            animateNumber(elements.recommendationsCount, totalCount);
+        }
+        
+        // Add to highlights list immediately
+        if (state.currentAnalysis && state.currentAnalysis.highlights) {
+            state.currentAnalysis.highlights.push(newHighlight);
+            updateHighlightsDisplay(state.currentAnalysis.highlights);
+        }
+        
+        console.log('📊 Real-time counts updated:', {
+            manipulations: currentManipulations,
+            biases: currentBiases,
+            fallacies: currentFallacies,
+            total: totalCount
+        });
+    }
+
     function updateRecommendationsHistory(clientId) {
         if (!elements.recommendationsHistory) return;
         
@@ -902,53 +988,6 @@
             </div>
         `;
         }).join('');
-        
-        // Add event listeners to recommendation buttons
-        addRecommendationEventListeners();
-    }
-    
-    function addRecommendationEventListeners() {
-        // Remove any existing listeners to prevent duplicates
-        document.querySelectorAll('.expand-rec-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const item = e.target.closest('.recommendation-item');
-                const clientId = item.dataset.clientId;
-                const index = parseInt(item.dataset.index);
-                expandRecommendation(clientId, index);
-            });
-        });
-        
-        document.querySelectorAll('.copy-rec-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const item = e.target.closest('.recommendation-item');
-                const clientId = item.dataset.clientId;
-                const index = parseInt(item.dataset.index);
-                copyRecommendation(clientId, index);
-            });
-        });
-        
-        document.querySelectorAll('.remove-rec-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const item = e.target.closest('.recommendation-item');
-                const clientId = item.dataset.clientId;
-                const index = parseInt(item.dataset.index);
-                if (confirm('Видалити цю рекомендацію?')) {
-                    removeRecommendation(clientId, index);
-                }
-            });
-        });
-        
-        document.querySelectorAll('.expand-content').forEach(content => {
-            content.addEventListener('click', (e) => {
-                const item = e.target.closest('.recommendation-item');
-                const clientId = item.dataset.clientId;
-                const index = parseInt(item.dataset.index);
-                expandRecommendation(clientId, index);
-            });
-        });
     }
     
     function saveRecommendation(clientId, advice, fragmentsCount = 0) {
@@ -1039,15 +1078,23 @@
         modal.querySelector('.remove-modal-btn').addEventListener('click', (e) => {
             const clientId = e.target.dataset.clientId;
             const index = parseInt(e.target.dataset.index);
-            if (confirm('Видалити цю рекомендацію?')) {
-                removeRecommendation(clientId, index);
-                modal.remove();
-            }
+            removeRecommendation(clientId, index);
+            modal.remove();
         });
         
         // Close on click outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
+        });
+
+        // Add delegated event listeners
+        modal.addEventListener('click', (e) => {
+            if (e.target.closest('.close-advice') || e.target.closest('.close-advice-btn')) {
+                modal.remove();
+            } else if (e.target.closest('.confirm-clear-recommendations-btn')) {
+                confirmClearRecommendations(clientId);
+                modal.remove();
+            }
         });
     }
     
@@ -1108,7 +1155,7 @@
                         <i class="fas fa-exclamation-triangle" style="color: var(--neon-pink);"></i> 
                         Підтвердження
                     </h3>
-                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
+                    <button class="btn-icon close-advice">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1117,10 +1164,10 @@
                     <p>Буде видалено <strong>${recommendations.length}</strong> рекомендацій. Цю дію неможливо скасувати.</p>
                 </div>
                 <div class="advice-footer">
-                    <button class="btn-secondary" onclick="this.closest('.advice-modal').remove()">
+                    <button class="btn-secondary close-advice-btn">
                         <i class="fas fa-times"></i> Скасувати
                     </button>
-                    <button class="btn-danger" onclick="confirmClearRecommendations('${clientId}'); this.closest('.advice-modal').remove();">
+                    <button class="btn-danger confirm-clear-recommendations-btn" data-client-id="${clientId}">
                         <i class="fas fa-trash"></i> Видалити все
                     </button>
                 </div>
@@ -1132,6 +1179,16 @@
         // Close on click outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
+        });
+
+        // Add delegated event listeners
+        modal.addEventListener('click', (e) => {
+            if (e.target.closest('.close-advice') || e.target.closest('.close-advice-btn')) {
+                modal.remove();
+            } else if (e.target.closest('.confirm-clear-recommendations-btn')) {
+                confirmClearRecommendations(clientId);
+                modal.remove();
+            }
         });
     }
     
@@ -1146,6 +1203,25 @@
     }
 
     async function saveClient() {
+        const form = elements.clientForm;
+        if (!form) return;
+
+        const idInput = form.querySelector('#client-id');
+        const clientId = idInput ? idInput.value : null;
+        const isEdit = !!clientId;
+
+        const clientData = {};
+        const inputs = $$('#client-form input, #client-form select, #client-form textarea');
+        
+        let hasRequired = false;
+        inputs.forEach(input => {
+            if (input.id && input.value.trim()) {
+                clientData[input.id] = input.value.trim();
+                if (input.id === 'company') hasRequired = true;
+            }
+        });
+
+        
         try {
             const clientData = {};
             const inputs = $$('#client-form input, #client-form select, #client-form textarea');
@@ -1169,22 +1245,16 @@
                 elements.saveClientBtn.disabled = true;
             }
 
-            // Determine if we're creating new or updating existing
-            const isEditing = !!state.editingClientId;
-            const clientId = state.editingClientId;
-            
-            console.log('💾 Operation type:', isEditing ? 'UPDATE' : 'CREATE', isEditing ? `ID: ${clientId}` : '');
+            const url = isEdit ? `/api/clients/${clientId}` : '/api/clients';
+            const method = isEdit ? 'PUT' : 'POST';
 
-            const response = await fetch(
-                isEditing ? `/api/clients/${clientId}` : '/api/clients',
-                {
-                    method: isEditing ? 'PUT' : 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(clientData)
-                }
-            );
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(clientData)
+            });
 
             const data = await response.json();
 
@@ -1192,28 +1262,20 @@
                 throw new Error(data.error || 'Помилка збереження');
             }
 
-            const successMessage = isEditing 
-                ? 'Клієнта оновлено успішно! 🎉' 
-                : 'Клієнта створено успішно! 🎉';
+            showNotification(`Клієнта ${isEdit ? 'оновлено' : 'збережено'} успішно! 🎉`, 'success');
             
-            showNotification(successMessage, 'success');
-            
-            // Update or add client in state
-            if (isEditing) {
-                const clientIndex = state.clients.findIndex(c => c.id === clientId);
-                if (clientIndex >= 0) {
-                    state.clients[clientIndex] = { ...state.clients[clientIndex], ...data.client };
+            if (isEdit) {
+                // Update client in state
+                const index = state.clients.findIndex(c => c.id === parseInt(clientId));
+                if (index !== -1) {
+                    state.clients[index] = data.client;
                 }
-                // Update current client if it's the one being edited
-                if (state.currentClient && state.currentClient.id === clientId) {
-                    state.currentClient = { ...state.currentClient, ...data.client };
+                if (state.currentClient?.id === parseInt(clientId)) {
+                    state.currentClient = data.client;
                 }
-                // Clear editing state
-                state.editingClientId = null;
             } else {
-                // Add new client to state and force refresh
-                await loadClients(true); // Force refresh with cache busting
-                // Set as current client
+                // Add new client to state
+                state.clients.unshift(data.client);
                 state.currentClient = data.client;
             }
             
@@ -1223,32 +1285,16 @@
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
             
-            // Hide form and show appropriate section
-            if (elements.clientForm) {
-                elements.clientForm.style.display = 'none';
-            }
-            
-            if (isEditing) {
-                // Stay on current section when editing
-                if (state.currentClient) {
-                    showSection('analysis-dashboard');
-                } else {
-                    showSection('welcome-screen');
-                }
-            } else {
-                // Show analysis dashboard for new client
-                showSection('analysis-dashboard');
-            }
-            
-            // Clear form
-            inputs.forEach(input => input.value = '');
+            // Show analysis dashboard for the client
+            showSection('analysis-dashboard');
+            clearAnalysisDisplay(); // Ensure a clean slate for analysis
             
             // Save state
             scheduleStateSave();
 
         } catch (error) {
-            console.error('💾 Save client error:', error);
-            showNotification(error.message || 'Помилка збереження клієнта', 'error');
+            console.error('Save client error:', error);
+            showNotification(error.message || 'Помилка при збереженні клієнта', 'error');
         } finally {
             // Remove loading state
             if (elements.saveClientBtn) {
@@ -1315,405 +1361,6 @@
             // Remove warning if text is smaller
             const warning = document.querySelector('.large-text-warning');
             if (warning) warning.remove();
-        }
-    }
-
-    // Debounced version for performance
-    const debouncedUpdateTextStats = debounce(updateTextStats, 300);
-
-    async function startAnalysis() {
-        console.log('🔥 ===== START ANALYSIS CALLED =====');
-        console.log('🔥 Current client:', state.currentClient);
-        
-        if (!state.currentClient) {
-            console.log('🔥 No client selected, showing warning');
-            showNotification('Спочатку оберіть клієнта', 'warning');
-            return;
-        }
-
-        const text = elements.negotiationText?.value?.trim();
-        if (!text) {
-            showNotification('Введіть текст для аналізу', 'warning');
-            return;
-        }
-
-        // Store original text for highlighting
-        state.originalText = text;
-
-        try {
-            // Reset progress bar to starting state
-            resetProgressSteps();
-            updateAnalysisProgressEnhanced(1, 'Ініціалізація аналізу...', 5);
-            
-            // Show analysis has started with clear visual feedback
-            showNotification('🚀 Аналіз розпочато! Слідкуйте за прогресом...', 'info', 3000);
-            
-            // Show results section and update steps
-            if (elements.resultsSection) {
-                elements.resultsSection.style.display = 'block';
-                
-                // Progressive auto-scroll: Stage 1 - Scroll to counters
-                setTimeout(() => {
-                    const statsGrid = document.querySelector('.stats-grid');
-                    if (statsGrid) {
-                        statsGrid.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'center',
-                            inline: 'nearest'
-                        });
-                        showNotification('📊 Підраховуємо проблеми...', 'info', 2000);
-                    }
-                }, 1000);
-            }
-            
-            updateAnalysisSteps('analysis');
-            
-            // Add loading state with more descriptive text based on text size
-            if (elements.startAnalysisBtn) {
-                elements.startAnalysisBtn.classList.add('btn-loading');
-                elements.startAnalysisBtn.disabled = true;
-                
-                const textLength = text.length;
-                let loadingMessage = 'Аналізую текст...';
-                if (textLength > 500000) {
-                    loadingMessage = 'Аналізую великий текст повністю...';
-                } else if (textLength > 100000) {
-                    loadingMessage = 'Аналізую розширений текст...';
-                } else if (textLength > 50000) {
-                    loadingMessage = 'Детальний аналіз тексту...';
-                }
-                
-                elements.startAnalysisBtn.innerHTML = `
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>${loadingMessage}</span>
-                `;
-            }
-            
-            // Show progress in step 2 with context about text size
-            if (elements.stepAnalysis) {
-                const stepContent = elements.stepAnalysis.querySelector('.step-content p');
-                if (stepContent) {
-                    let dots = 0;
-                    const textLength = text.length;
-                    let baseMessage = 'Аналіз в процесі';
-                    
-                    if (textLength > 500000) {
-                        baseMessage = 'Детальна обробка великого тексту';
-                    } else if (textLength > 100000) {
-                        baseMessage = 'Глибокий аналіз розширеного тексту';
-                    }
-                    
-                    const progressInterval = setInterval(() => {
-                        dots = (dots + 1) % 4;
-                        stepContent.textContent = `${baseMessage}${'.'.repeat(dots)}`;
-                    }, 800);
-                    
-                    // Store interval to clear it later
-                    state.progressInterval = progressInterval;
-                }
-            }
-
-            // Prepare form data for streaming analysis
-            const formData = new FormData();
-            formData.append('text', text);
-            formData.append('client_id', state.currentClient.id);
-
-            // Start streaming analysis
-            const response = await fetch('/api/analyze', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Помилка аналізу');
-            }
-
-            // Process streaming response
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let analysisData = {
-                highlights: [],
-                summary: {},
-                barometer: {}
-            };
-
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
-                
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.slice(6));
-                            console.log('📨 Received data:', data.type, data);
-                            
-                            if (data.type === 'analysis_started') {
-                                console.log('🚀 Analysis started with chunks:', data.chunks);
-                                showNotification(`🚀 ${data.message} (${data.chunks} частин)`, 'info', 3000);
-                            } else if (data.type === 'progress') {
-                                console.log('📊 Progress update:', data.progress, data.message);
-                                
-                                // Enhanced progress update with new progress bar
-                                const progressPercentage = data.progress || 0;
-                                const progressMessage = data.message || 'Обробка...';
-                                
-                                // Map progress to step numbers (5 steps total)
-                                let currentStep = 1;
-                                if (progressPercentage >= 80) currentStep = 5;
-                                else if (progressPercentage >= 60) currentStep = 4; 
-                                else if (progressPercentage >= 40) currentStep = 3;
-                                else if (progressPercentage >= 20) currentStep = 2;
-                                else if (progressPercentage > 0) currentStep = 1;
-                                
-                                // Update the enhanced progress bar
-                                updateAnalysisProgressEnhanced(currentStep, progressMessage, progressPercentage);
-                                
-                                // Legacy support - Update old progress indicators if they exist
-                                const stepText = document.querySelector('.step-text');
-                                if (stepText) {
-                                    stepText.textContent = progressMessage;
-                                }
-                            } else if (data.type === 'highlight') {
-                                console.log('🔍 New highlight received:', data);
-                                analysisData.highlights.push(data);
-                                console.log('📊 Total highlights now:', analysisData.highlights.length);
-                                
-                                // Real-time individual highlight display
-                                addHighlightToDisplayRealTime(data, analysisData.highlights.length - 1);
-                                updateCountersFromHighlights(analysisData.highlights);
-                                
-                                // Real-time text highlighting update
-                                updateFullTextHighlightingRealTime(analysisData.highlights);
-                            } else if (data.type === 'merged_highlights') {
-                                analysisData.highlights = data.items;
-                                updateHighlightsDisplay(analysisData.highlights);
-                                updateCountersFromHighlights(analysisData.highlights);
-                                
-                                // Progressive auto-scroll: Stage 2 - Scroll to problems
-                                setTimeout(() => {
-                                    const highlightsSection = document.querySelector('.highlights-section');
-                                    if (highlightsSection) {
-                                        highlightsSection.scrollIntoView({ 
-                                            behavior: 'smooth', 
-                                            block: 'start',
-                                            inline: 'nearest'
-                                        });
-                                        showNotification(`🔍 Знайдено ${data.items.length} проблемних моментів`, 'success', 2500);
-                                    }
-                                }, 1000);
-                            } else if (data.type === 'summary') {
-                                analysisData.summary = data;
-                                updateSummaryDisplay(data);
-                            } else if (data.type === 'barometer') {
-                                console.log('📊 Received barometer data:', data);
-                                analysisData.barometer = data;
-                                updateBarometerDisplay(data);
-                            } else if (data.type === 'analysis_saved') {
-                                state.currentAnalysis = { id: data.id, ...analysisData };
-                                
-                                // Increment client analysis count
-                                if (state.currentClient) {
-                                    // Update in state.clients array
-                                    const clientIndex = state.clients.findIndex(c => c.id === state.currentClient.id);
-                                    if (clientIndex !== -1) {
-                                        state.clients[clientIndex].analyses_count = (state.clients[clientIndex].analyses_count || 0) + 1;
-                                    }
-                                    
-                                    // Update current client object
-                                    state.currentClient.analyses_count = (state.currentClient.analyses_count || 0) + 1;
-                                    
-                                    // Update UI displays
-                                    updateWorkspaceClientInfo(state.currentClient);
-                                    updateClientsList();
-                                }
-                                
-                                // Create proper analysis object with all needed data for history
-                                const analysisForHistory = {
-                                    id: data.id,
-                                    created_at: new Date().toISOString(),
-                                    text_preview: state.originalText ? state.originalText.substring(0, 100) : 'Аналіз переговорів',
-                                    highlights: analysisData.highlights || [],
-                                    issues_count: analysisData.highlights ? analysisData.highlights.length : 0,
-                                    complexity_score: analysisData.barometer ? analysisData.barometer.score : 0,
-                                    barometer: analysisData.barometer
-                                };
-                                
-                                console.log('💾 Saving analysis with data:', {
-                                    id: data.id,
-                                    issues_count: analysisForHistory.issues_count,
-                                    complexity_score: analysisForHistory.complexity_score,
-                                    barometer: analysisForHistory.barometer
-                                });
-                                
-                                // Update currentAnalysis with complete data
-                                state.currentAnalysis = {
-                                    id: data.id,
-                                    ...analysisData,
-                                    created_at: analysisForHistory.created_at,
-                                    text_preview: analysisForHistory.text_preview,
-                                    issues_count: analysisForHistory.issues_count,
-                                    complexity_score: analysisForHistory.complexity_score,
-                                    original_text: data.original_text // Зберігаємо повний оригінальний текст
-                                };
-                                
-                                // Update analysis history immediately with current data
-                                if (!state.analyses) state.analyses = [];
-                                state.analyses.unshift(analysisForHistory);
-                                renderAnalysisHistory(state.analyses);
-                                
-                                // Update analysis counter immediately
-                                const analysisCountElement = document.getElementById('analysis-count');
-                                if (analysisCountElement) {
-                                    analysisCountElement.textContent = state.analyses.length;
-                                    console.log('📊 ✅ Analysis counter updated to:', state.analyses.length);
-                                }
-                                
-                                // Also load from server to sync
-                                await loadAnalysisHistory(state.currentClient.id);
-                                
-                                // Update client analysis count by refreshing client data
-                                await loadClients(true);
-                                
-                                // Update current client data with refreshed info
-                                if (state.currentClient) {
-                                    const updatedClient = state.clients.find(c => c.id === state.currentClient.id);
-                                    if (updatedClient) {
-                                        state.currentClient = updatedClient;
-                                    }
-                                }
-                                
-                                renderClientsList();
-                                updateWorkspaceClientInfo(state.currentClient);
-                                
-                                // Calculate and display custom barometer if none was provided
-                                if (!analysisData.barometer) {
-                                    const customBarometer = calculateComplexityBarometer(state.currentClient, analysisData);
-                                    updateBarometerDisplay(customBarometer);
-                                }
-                            } else if (data.type === 'complete') {
-                                console.log('📋 Analysis complete signal received');
-                                
-                                // Complete the progress bar animation
-                                completeAnalysisProgress();
-                                
-                                // Ensure barometer is displayed and stored
-                                if (analysisData.barometer) {
-                                    console.log('📊 Triggering barometer display on complete');
-                                    updateBarometerDisplay(analysisData.barometer);
-                                } else {
-                                    console.log('📊 No barometer from AI, calculating custom barometer');
-                                    const customBarometer = calculateComplexityBarometer(state.currentClient, analysisData);
-                                    analysisData.barometer = customBarometer; // Store it in analysisData
-                                    updateBarometerDisplay(customBarometer);
-                                }
-                                
-                                // Ensure barometer is saved in currentAnalysis
-                                if (!state.currentAnalysis) state.currentAnalysis = {};
-                                state.currentAnalysis.barometer = analysisData.barometer;
-                                
-                                // Progressive auto-scroll: Stage 3 - Scroll to barometer (final)
-                                setTimeout(() => {
-                                    const barometerCard = document.querySelector('.barometer-card');
-                                    if (barometerCard) {
-                                        barometerCard.scrollIntoView({ 
-                                            behavior: 'smooth', 
-                                            block: 'center',
-                                            inline: 'nearest'
-                                        });
-                                        const score = analysisData.barometer?.score || 0;
-                                        const label = analysisData.barometer?.label || 'Невизначено';
-                                        showNotification(`🎯 Аналіз завершено! Складність: ${score}/100 (${label})`, 'success', 4000);
-                                    }
-                                }, 2000);
-                                
-                                // Generate and display highlighted text - КРИТИЧНО ВАЖЛИВО!
-                                console.log('🔍 === FINAL HIGHLIGHTING PHASE ===');
-                                console.log('🔍 Original text available:', !!state.originalText, 'length:', state.originalText?.length);
-                                console.log('🔍 Highlights available:', analysisData.highlights?.length || 0);
-                                
-                                if (!state.currentAnalysis) state.currentAnalysis = {};
-                                
-                                // Save original text if not already saved
-                                if (!state.originalText && elements.negotiationText?.value) {
-                                    state.originalText = elements.negotiationText.value;
-                                    console.log('🔍 Rescued original text from textarea:', state.originalText?.length);
-                                }
-                                
-                                if (state.originalText && analysisData.highlights?.length > 0) {
-                                    console.log('🔍 ✅ Both original text and highlights available - generating highlighted text');
-                                    const highlightedText = generateHighlightedTextNew(state.originalText, analysisData.highlights);
-                                    
-                                    // Store everything in currentAnalysis
-                                    state.currentAnalysis.original_text = state.originalText;
-                                    state.currentAnalysis.highlighted_text = highlightedText;
-                                    state.currentAnalysis.highlights = analysisData.highlights;
-                                    
-                                    console.log('🎨 Generated highlighted text successfully, length:', highlightedText.length);
-                                    
-                                    // FORCE update full text view
-                                    updateFullTextView(highlightedText);
-                                    
-                                    // Also update fragments view
-                                    updateFragmentsView(analysisData.highlights);
-                                    
-                                    console.log('🔍 ✅ Full text view and fragments view FORCE updated');
-                                } else if (state.originalText) {
-                                    console.log('🔍 ⚠️ Original text available but no highlights - showing plain text');
-                                    state.currentAnalysis.original_text = state.originalText;
-                                    updateFullTextView(null); // Will show plain text
-                                } else {
-                                    console.error('🔍 ❌ No original text available for highlighting!');
-                                    console.error('🔍 Debug info:', {
-                                        hasOriginalText: !!state.originalText,
-                                        hasTextArea: !!elements.negotiationText,
-                                        textAreaValue: elements.negotiationText?.value?.length,
-                                        analysisHighlights: analysisData.highlights?.length
-                                    });
-                                }
-                            }
-                        } catch (e) {
-                            // Skip invalid JSON lines
-                        }
-                    }
-                }
-            }
-
-            // Update token usage
-            await loadTokenUsage();
-            updateAnalysisSteps('completed');
-            
-            // Update analysis history in sidebar if we have all the data
-            if (state.currentClient && analysisData.highlights) {
-                console.log('🔄 Updating analysis history after completion');
-                await loadAnalysisHistory(state.currentClient.id);
-            }
-            
-            showNotification('Аналіз завершено успішно! ✨', 'success');
-            
-            // Save state
-            scheduleStateSave();
-
-        } catch (error) {
-            console.error('Analysis error:', error);
-            showNotification(error.message || 'Помилка при аналізі', 'error');
-            updateAnalysisSteps('error');
-        } finally {
-            // Clear progress interval
-            if (state.progressInterval) {
-                clearInterval(state.progressInterval);
-                state.progressInterval = null;
-            }
-            
-            // Remove loading state
-            if (elements.startAnalysisBtn) {
-                elements.startAnalysisBtn.classList.remove('btn-loading');
-                elements.startAnalysisBtn.disabled = false;
-            }
-            updateTextStats(); // Restore button text
         }
     }
 
@@ -1797,7 +1444,7 @@
                 <div class="empty-state">
                     <div class="empty-icon"><i class="fas fa-filter"></i></div>
                     <p>Жодних результатів не знайдено за вашими фільтрами</p>
-                    <button class="btn-secondary btn-sm" data-action="clear-filters">Очистити фільтри</button>
+                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
                 </div>
             `;
             return;
@@ -1879,10 +1526,19 @@
         if (highlights && highlights.length > 0) {
             highlights.forEach(highlight => {
                 const category = highlight.category || 'manipulation';
-                if (counts.hasOwnProperty(category)) {
-                    counts[category]++;
+                console.log('📊 Processing highlight category in updateCounts:', category, 'for highlight:', highlight.text?.substring(0, 50));
+                
+                // Map different category names to standardized ones
+                if (category === 'manipulation' || category === 'social_manipulation') {
+                    counts.manipulation++;
+                } else if (category === 'cognitive_bias' || category === 'bias') {
+                    counts.cognitive_bias++;
+                } else if (category === 'rhetological_fallacy' || category === 'rhetorical_fallacy' || category === 'logical_fallacy') {
+                    counts.rhetological_fallacy++;
                 } else {
-                    counts.manipulation++; // fallback
+                    // Default unknown categories to manipulation
+                    console.log('📊 Unknown category in updateCounts:', category, 'defaulting to manipulation');
+                    counts.manipulation++;
                 }
             });
         }
@@ -2363,9 +2019,20 @@
         
         if (analysis.highlights && Array.isArray(analysis.highlights)) {
             analysis.highlights.forEach(highlight => {
-                const category = highlight.category;
-                if (categoryCounts.hasOwnProperty(category)) {
-                    categoryCounts[category]++;
+                const category = highlight.category || 'manipulation';
+                console.log('🔍 Processing highlight category:', category, 'for highlight:', highlight.text?.substring(0, 50));
+                
+                // Map different category names to standardized ones
+                if (category === 'manipulation' || category === 'social_manipulation') {
+                    categoryCounts.manipulation++;
+                } else if (category === 'cognitive_bias' || category === 'bias') {
+                    categoryCounts.cognitive_bias++;
+                } else if (category === 'rhetological_fallacy' || category === 'rhetorical_fallacy' || category === 'logical_fallacy') {
+                    categoryCounts.rhetological_fallacy++;
+                } else {
+                    // Default unknown categories to manipulation
+                    console.log('🔍 Unknown category:', category, 'defaulting to manipulation');
+                    categoryCounts.manipulation++;
                 }
             });
         }
@@ -2475,28 +2142,20 @@
         }
 
         elements.highlightsList.innerHTML = highlights.map((highlight, index) => `
-            <div class="highlight-item ${highlight.category || 'general'}" 
-                 data-highlight-id="${index}" 
-                 draggable="true">
+            <div class="highlight-item ${highlight.category || 'general'}" data-highlight-id="${index}" draggable="true">
                 <div class="highlight-header">
                     <div class="highlight-type ${highlight.category}">${highlight.category_label || 'Проблема'}</div>
                     <div class="highlight-actions">
-                        <button class="btn-icon" 
-                                data-action="add-to-workspace" 
-                                data-id="${index}" 
-                                title="Додати до робочої області">
+                        <button class="btn-icon" onclick="window.addToWorkspace(${index})" title="Додати до робочої області">
                             <i class="fas fa-plus"></i>
                         </button>
-                        <button class="btn-icon" 
-                                data-action="share-highlight" 
-                                data-id="${index}" 
-                                title="Поділитися">
+                        <button class="btn-icon" onclick="window.shareHighlight(${index})" title="Поділитися">
                             <i class="fas fa-share"></i>
                         </button>
                     </div>
                 </div>
                 <div class="highlight-text">${escapeHtml(highlight.text || '')}</div>
-                <div class="highlight-description">${escapeHtml(highlight.explanation || highlight.description || '')}</div>
+                <div class="highlight-description">${escapeHtml(highlight.description || '')}</div>
                 ${highlight.suggestion ? `<div class="highlight-suggestion"><strong>Рекомендація:</strong> ${escapeHtml(highlight.suggestion)}</div>` : ''}
             </div>
         `).join('');
@@ -2534,7 +2193,7 @@
             // Generate highlighted text from highlights and original text
             console.log('🔍 Generating highlighted text from highlights and original');
             const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
-            const highlighted = generateHighlightedTextNew(originalTextToUse, state.currentAnalysis.highlights);
+            const highlighted = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
             elements.fulltextContent.innerHTML = `
                 <div class="fulltext-container">
                     <div class="fulltext-header">
@@ -2583,376 +2242,127 @@
     }
 
     function generateHighlightedText(originalText, highlights) {
-        console.log('🔥 ========== NEW HIGHLIGHTING ENGINE ==========');
+        console.log('🎨 === GENERATE HIGHLIGHTED TEXT START ===');
+        console.log('🎨 Original text length:', originalText?.length || 0);
+        console.log('🎨 Highlights count:', highlights?.length || 0);
         
-        if (!originalText) {
-            console.log('🔥 No original text provided');
-            return '<div class="text-content">Немає тексту для відображення</div>';
+        if (!originalText || !highlights || !highlights.length) {
+            console.log('🎨 No text or highlights - returning plain text');
+            return `<div class="text-content">${escapeHtml(originalText || '')}</div>`;
         }
-        
-        if (!highlights || !Array.isArray(highlights) || highlights.length === 0) {
-            console.log('🔥 No highlights provided, showing plain text');
-            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
-        }
-        
-        console.log(`🔥 Processing ${highlights.length} highlights for text of ${originalText.length} chars`);
 
-        // Build array of all highlight positions
-        const highlightPositions = [];
-        
-        highlights.forEach((highlight, index) => {
-            
-            // Strategy 1: Try exact coordinates if available  
-            let start = highlight.char_start || highlight.start_pos;
-            let end = highlight.char_end || highlight.end_pos;
-            
-            if (start !== undefined && end !== undefined && start >= 0 && end > start && end <= originalText.length) {
-                const actualText = originalText.substring(start, end);
-                console.log(`🎯 Strategy 1 (coordinates) - Highlight ${index}: [${start}-${end}] "${actualText.slice(0, 30)}..."`);
-                
-                segments.push({
-                    start: start,
-                    end: end,
-                    actualText: actualText,
-                    highlight: highlight,
-                    highlightIndex: indexndex
-                });
-                return;
-            }
-            
-            // Strategy 2: Exact text search
-            const searchText = highlight.text?.trim();
-            if (searchText && searchText.length >= 2) {
-                let index = originalText.indexOf(searchText);
-                
-                // Try case-insensitive search if exact fails
-                if (index === -1) {
-                    const lowerOriginal = originalText.toLowerCase();
-                    const lowerSearch = searchText.toLowerCase();
-                    index = lowerOriginal.indexOf(lowerSearch);
-                }
-                
-                if (index !== -1) {
-                    start = index;
-                    end = index + searchText.length;
-                    console.log(`🎯 Strategy 2 (exact text) - Highlight ${i}: [${start}-${end}] "${searchText.slice(0, 30)}..."`);
-                    
-                    segments.push({
-                        start: start,
-                        end: end,
-                        actualText: originalText.substring(start, end),
-                        highlight: highlight,
-                        highlightIndex: indexndex
-                    });
-                    return;
-                }
-            }
-            
-            // Strategy 3: Fuzzy text search (remove punctuation, extra spaces)
-            if (searchText) {
-                const cleanSearch = searchText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
-                const cleanOriginal = originalText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
-                
-                const index = cleanOriginal.toLowerCase().indexOf(cleanSearch.toLowerCase());
-                if (index !== -1) {
-                    // Map back to original text positions (approximate)
-                    const beforeClean = cleanOriginal.substring(0, index);
-                    const wordsBefore = beforeClean.split(' ').length - 1;
-                    
-                    // Find approximate position in original text
-                    const words = originalText.split(/\s+/);
-                    let charPosition = 0;
-                    for (let w = 0; w < Math.min(wordsBefore, words.length); w++) {
-                        charPosition = originalText.indexOf(words[w], charPosition);
-                        if (charPosition !== -1) {
-                            charPosition += words[w].length;
-                        }
-                    }
-                    
-                    // Search for the actual text near this position
-                    const searchWindow = originalText.substring(Math.max(0, charPosition - 50), Math.min(originalText.length, charPosition + searchText.length + 50));
-                    const localIndex = searchWindow.toLowerCase().indexOf(searchText.toLowerCase());
-                    
-                    if (localIndex !== -1) {
-                        start = Math.max(0, charPosition - 50) + localIndex;
-                        end = start + searchText.length;
-                        
-                        console.log(`🎯 Strategy 3 (fuzzy search) - Highlight ${i}: [${start}-${end}] "${searchText.slice(0, 30)}..."`);
-                        
-                        segments.push({
-                            start: start,
-                            end: end,
-                            actualText: originalText.substring(start, end),
-                            highlight: highlight,
-                            highlightIndex: indexndex
-                        });
-                        return;
-                    }
-                }
-            }
-            
-            // Strategy 4: Word-based search
-            if (searchText && searchText.split(' ').length >= 2) {
-                const words = searchText.split(' ').filter(w => w.length > 2); // Skip short words
-                let bestMatch = null;
-                let bestScore = 0;
-                
-                for (let pos = 0; pos < originalText.length - searchText.length; pos += 10) { // Sample every 10 chars
-                    const window = originalText.substring(pos, pos + searchText.length + 20);
-                    let score = 0;
-                    
-                    for (const word of words) {
-                        if (window.toLowerCase().includes(word.toLowerCase())) {
-                            score += word.length;
-                        }
-                    }
-                    
-                    if (score > bestScore && score >= searchText.length * 0.6) { // 60% match
-                        bestScore = score;
-                        bestMatch = pos;
-                    }
-                }
-                
-                if (bestMatch !== null) {
-                    start = bestMatch;
-                    end = Math.min(bestMatch + searchText.length, originalText.length);
-                    
-                    console.log(`🎯 Strategy 4 (word-based) - Highlight ${i}: [${start}-${end}] score: ${bestScore}`);
-                    
-                    segments.push({
-                        start: start,
-                        end: end,
-                        actualText: originalText.substring(start, end),
-                        highlight: highlight,
-                        highlightIndex: indexndex
-                    });
-                    return;
-                }
-            }
-            
-            console.warn(`🎯 ❌ All strategies failed for highlight ${index}: "${searchText?.slice(0, 50)}..."`);
-        });
-        
-        // Sort segments by start position
-        segments.sort((a, b) => a.start - b.start);
-        console.log(`🎯 Valid segments to process: ${segments.length}`);
-        
-        // Handle overlapping segments - merge or prioritize
-        const mergedSegments = [];
-        for (const segment of segments) {
-            let merged = false;
-            
-            for (let i = 0; i < mergedSegments.length; i++) {
-                const existing = mergedSegments[i];
-                
-                // Check for overlap
-                if (segment.start < existing.end && segment.end > existing.start) {
-                    console.log(`🎯 Overlap detected: [${existing.start}-${existing.end}] vs [${segment.start}-${segment.end}]`);
-                    
-                    // Merge by taking the widest range and combining highlights
-                    const newStart = Math.min(existing.start, segment.start);
-                    const newEnd = Math.max(existing.end, segment.end);
-                    const newText = originalText.substring(newStart, newEnd);
-                    
-                    mergedSegments[i] = {
-                        start: newStart,
-                        end: newEnd,
-                        actualText: newText,
-                        highlight: existing.highlight, // Keep first highlight's properties
-                        highlightIndex: existing.highlightIndex,
-                        merged: true
-                    };
-                    
-                    console.log(`🎯   Merged into: [${newStart}-${newEnd}]`);
-                    merged = true;
-                    break;
-                }
-            }
-            
-            if (!merged) {
-                mergedSegments.push(segment);
-            }
-        }
-        
-        // Sort merged segments
-        mergedSegments.sort((a, b) => a.start - b.start);
-        console.log(`🎯 Final segments after merging: ${mergedSegments.length}`);
-        
-        // Build the final HTML with precise highlighting
-        let result = '';
-        let currentIndex = 0;
-        
-        for (const segment of mergedSegments) {
-            // Add unhighlighted text before this segment
-            if (segment.start > currentIndex) {
-                const beforeText = originalText.substring(currentIndex, segment.start);
-                result += escapeHtml(beforeText);
-            }
-            
-            // Add highlighted segment with proper styling and interactive tooltip
-            const category = getCategoryClass(segment.highlight.category || 'manipulation');
-            const tooltip = escapeHtml(
-                segment.highlight.explanation || 
-                segment.highlight.description || 
-                segment.highlight.label || 
-                'Проблемний фрагмент'
-            );
-            const highlightedText = escapeHtml(segment.actualText);
-            
-            // Create rich tooltip data
-            const tooltipData = {
-                title: segment.highlight.label || getCategoryLabel(segment.highlight.category),
-                explanation: segment.highlight.explanation,
-                severity: segment.highlight.severity || 1,
-                category: segment.highlight.category,
-                recommendation: segment.highlight.recommendation
-            };
-            
-            result += `<span class="text-highlight ${category} interactive-highlight" 
-                             title="${tooltip}" 
-                             data-highlight-index="${segment.highlightIndex}"
-                             data-tooltip='${JSON.stringify(tooltipData).replace(/'/g, "&apos;")}'
-                             onmouseover="showHighlightTooltip(event, this)"
-                             onmouseout="hideHighlightTooltip()">${highlightedText}</span>`;
-            
-            currentIndex = segment.end;
-        }
-        
-        // Add remaining unhighlighted text
-        if (currentIndex < originalText.length) {
-            const remainingText = originalText.substring(currentIndex);
-            result += escapeHtml(remainingText);
-        }
-        
-        console.log('🎯 ========== PRECISE HIGHLIGHTING COMPLETED ==========');
-        console.log('🎯 Final result length:', result.length);
-        console.log('🎯 Applied precise highlights:', mergedSegments.length);
-        
-        return `<div class="text-content">${result}</div>`;
-    }
-
-    // ===== NEW SUPER HIGHLIGHTING FUNCTION =====
-    function generateHighlightedTextNew(originalText, highlights) {
-        console.log('🔥 ========== SUPER HIGHLIGHTING ENGINE ==========');
-        
-        if (!originalText) {
-            console.log('🔥 No original text provided');
-            return '<div class="text-content">Немає тексту для відображення</div>';
-        }
-        
-        if (!highlights || !Array.isArray(highlights) || highlights.length === 0) {
-            console.log('🔥 No highlights, showing plain text');
-            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
-        }
-        
-        console.log(`🔥 Processing ${highlights.length} highlights for text of ${originalText.length} chars`);
-        
-        // Build array of all highlight positions
-        const highlightPositions = [];
-        
-        highlights.forEach((highlight, index) => {
-            console.log(`🔥 Processing highlight ${index}:`, {
-                text: (highlight.text || '').substring(0, 50) + '...',
-                category: highlight.category
+        // Логування всіх хайлайтів для дебагу
+        highlights.forEach((h, i) => {
+            console.log(`🎨 Highlight ${i}:`, {
+                category: h.category,
+                char_start: h.char_start, 
+                char_end: h.char_end,
+                text_length: h.text?.length || 0,
+                actual_text: originalText.substring(h.char_start || 0, h.char_end || 0),
+                expected_text: h.text
             });
+        });
+
+        // 1. Відфільтрувати та валідувати хайлайти
+        const validHighlights = highlights.filter(h => {
+            const isValid = (
+                typeof h.char_start === 'number' && 
+                typeof h.char_end === 'number' && 
+                h.char_start >= 0 &&
+                h.char_end > h.char_start &&
+                h.char_end <= originalText.length
+            );
             
-            const searchText = highlight.text?.trim();
-            if (!searchText || searchText.length < 2) {
-                console.log(`🔥 Skipping highlight ${index} - text too short or missing`);
-                return;
+            if (!isValid) {
+                console.log('🎨 ❌ Invalid highlight filtered out:', h);
             }
             
-            // Find all occurrences of this text (case-insensitive)
-            const lowerOriginal = originalText.toLowerCase();
-            const lowerSearch = searchText.toLowerCase();
+            return isValid;
+        });
+
+        console.log('🎨 Valid highlights count:', validHighlights.length);
+
+        // 2. Відсортувати за позицією
+        const sortedHighlights = validHighlights.sort((a, b) => a.char_start - b.char_start);
+
+        // 3. Обробити перекриття та побудувати фінальний список сегментів
+        const segments = [];
+        let lastIndex = 0;
+
+        for (let i = 0; i < sortedHighlights.length; i++) {
+            const highlight = sortedHighlights[i];
             
-            let startIndex = 0;
-            let foundIndex;
-            
-            while ((foundIndex = lowerOriginal.indexOf(lowerSearch, startIndex)) !== -1) {
-                const endIndex = foundIndex + searchText.length;
-                
-                highlightPositions.push({
-                    start: foundIndex,
-                    end: endIndex,
-                    highlight: highlight,
-                    highlightIndex: indexndex,
-                    actualText: originalText.substring(foundIndex, endIndex)
+            // Пропустити хайлайти, що повністю перекриваються попередніми
+            if (highlight.char_start < lastIndex) {
+                console.log('🎨 ⚠️ Overlapping highlight skipped:', highlight);
+                continue;
+            }
+
+            // Додати звичайний текст перед хайлайтом
+            if (lastIndex < highlight.char_start) {
+                segments.push({
+                    type: 'text',
+                    start: lastIndex,
+                    end: highlight.char_start,
+                    content: originalText.substring(lastIndex, highlight.char_start)
                 });
+            }
+
+            // Додати хайлайт (обрізати якщо потрібно)
+            const adjustedEnd = Math.min(highlight.char_end, originalText.length);
+            segments.push({
+                type: 'highlight',
+                start: highlight.char_start,
+                end: adjustedEnd,
+                content: originalText.substring(highlight.char_start, adjustedEnd),
+                highlight: highlight
+            });
+
+            lastIndex = adjustedEnd;
+        }
+
+        // Додати останній текст після всіх хайлайтів
+        if (lastIndex < originalText.length) {
+            segments.push({
+                type: 'text',
+                start: lastIndex,
+                end: originalText.length,
+                content: originalText.substring(lastIndex)
+            });
+        }
+
+        console.log('🎨 Segments built:', segments.length);
+
+        // 4. Побудувати HTML
+        let result = '';
+        segments.forEach((segment, index) => {
+            if (segment.type === 'text') {
+                result += escapeHtml(segment.content);
+            } else if (segment.type === 'highlight') {
+                const categoryClass = getCategoryClass(segment.highlight.category || 'manipulation');
+                const tooltip = escapeHtml(segment.highlight.explanation || segment.highlight.label || segment.highlight.description || '');
+                const highlightId = segment.highlight.id || index;
                 
-                console.log(`🔥 Found "${searchText.substring(0, 30)}..." at position [${foundIndex}-${endIndex}]`);
-                startIndex = foundIndex + 1;
+                result += `<span class="text-highlight ${categoryClass}" title="${tooltip}" data-highlight-id="${highlightId}">${escapeHtml(segment.content)}</span>`;
                 
-                // Prevent infinite loops and limit matches per highlight
-                if (highlightPositions.length > 200) break;
+                console.log('🎨 ✅ Highlight added:', {
+                    category: segment.highlight.category,
+                    class: categoryClass,
+                    content_length: segment.content.length,
+                    content_preview: segment.content.substring(0, 50)
+                });
             }
         });
+
+        const finalHtml = `<div class="text-content">${result}</div>`;
         
-        if (highlightPositions.length === 0) {
-            console.log('🔥 No highlights found in text');
-            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
-        }
+        console.log('🎨 === GENERATE HIGHLIGHTED TEXT COMPLETE ===');
+        console.log('🎨 Final HTML length:', finalHtml.length);
+        console.log('🎨 Highlights in final HTML:', (finalHtml.match(/text-highlight/g) || []).length);
         
-        // Sort by position and remove overlaps
-        highlightPositions.sort((a, b) => a.start - b.start);
-        console.log(`🔥 Found ${highlightPositions.length} highlight positions`);
-        
-        // Remove overlapping highlights (keep first one)
-        const cleanedHighlights = [];
-        let lastEnd = 0;
-        
-        for (const pos of highlightPositions) {
-            if (pos.start >= lastEnd) {
-                cleanedHighlights.push(pos);
-                lastEnd = pos.end;
-            } else {
-                console.log(`🔥 Removing overlapping highlight at [${pos.start}-${pos.end}]`);
-            }
-        }
-        
-        console.log(`🔥 After removing overlaps: ${cleanedHighlights.length} highlights`);
-        
-        // Generate HTML
-        let html = '';
-        let currentPos = 0;
-        
-        cleanedHighlights.forEach((pos) => {
-            // Add plain text before highlight
-            if (pos.start > currentPos) {
-                html += escapeHtml(originalText.substring(currentPos, pos.start));
-            }
-            
-            // Add highlighted text
-            const category = getCategoryClass(pos.highlight.category || 'manipulation');
-            const tooltipData = {
-                title: pos.highlight.label || getCategoryLabel(pos.highlight.category),
-                explanation: pos.highlight.explanation || 'Проблемний фрагмент',
-                severity: pos.highlight.severity || 1,
-                category: pos.highlight.category,
-                recommendation: pos.highlight.recommendation
-            };
-            
-            html += `<span class="text-highlight ${category} interactive-highlight" 
-                          data-highlight-index="${pos.highlightIndex}"
-                          data-tooltip='${JSON.stringify(tooltipData).replace(/'/g, "&apos;")}'
-                          onmouseover="showHighlightTooltip(event, this)"
-                          onmouseout="hideHighlightTooltip()"
-                          title="${escapeHtml(pos.highlight.explanation || 'Проблемний фрагмент')}">${escapeHtml(pos.actualText)}</span>`;
-            
-            currentPos = pos.end;
-        });
-        
-        // Add remaining plain text
-        if (currentPos < originalText.length) {
-            html += escapeHtml(originalText.substring(currentPos));
-        }
-        
-        console.log(`🔥 Generated HTML with ${cleanedHighlights.length} highlighted segments`);
-        console.log('🔥 ========== HIGHLIGHTING COMPLETE ==========');
-        
-        return `<div class="text-content">${html}</div>`;
+        return finalHtml;
     }
-    
+
     // Simplified helper function for category CSS classes
     function getCategoryClass(category) {
         const categoryMap = {
@@ -2960,239 +2370,18 @@
             'cognitive_bias': 'bias',
             'social_manipulation': 'manipulation',
             'rhetological_fallacy': 'fallacy',
-            'rhetorical_fallacy': 'fallacy',
             'logical_fallacy': 'fallacy'
         };
         return categoryMap[category] || 'manipulation';
     }
 
-    // Get category label in Ukrainian
-    function getCategoryLabel(category) {
-        const labelMap = {
-            'manipulation': 'Маніпуляція',
-            'cognitive_bias': 'Когнітивне викривлення',
-            'social_manipulation': 'Соціальна маніпуляція',
-            'rhetological_fallacy': 'Риторичний софізм',
-            'rhetorical_fallacy': 'Риторичний софізм',
-            'logical_fallacy': 'Логічна помилка'
-        };
-        return labelMap[category] || 'Проблемний фрагмент';
-    }
-    
     function escapeRegExp(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    // ===== Interactive Highlight Tooltips =====
-    let highlightTooltip = null;
-    let tooltipTimeout = null;
-
-    function showHighlightTooltip(event, element) {
-        // Clear any existing timeout
-        if (tooltipTimeout) {
-            clearTimeout(tooltipTimeout);
-            tooltipTimeout = null;
-        }
-
-        try {
-            const tooltipData = JSON.parse(element.dataset.tooltip.replace(/&apos;/g, "'"));
-            
-            // Remove existing tooltip
-            if (highlightTooltip) {
-                highlightTooltip.remove();
-            }
-
-            // Create tooltip element
-            highlightTooltip = document.createElement('div');
-            highlightTooltip.className = 'highlight-tooltip';
-            highlightTooltip.innerHTML = `
-                <div class="tooltip-header">
-                    <div class="tooltip-category ${getCategoryClass(tooltipData.category)}">
-                        ${tooltipData.title}
-                    </div>
-                    <div class="tooltip-severity severity-${tooltipData.severity}">
-                        Рівень ${tooltipData.severity}
-                    </div>
-                </div>
-                <div class="tooltip-content">
-                    <div class="tooltip-explanation">
-                        ${escapeHtml(tooltipData.explanation || 'Опис недоступний')}
-                    </div>
-                    ${tooltipData.recommendation ? `
-                        <div class="tooltip-recommendation">
-                            <i class="fas fa-lightbulb"></i>
-                            <span>${escapeHtml(tooltipData.recommendation)}</span>
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="tooltip-arrow"></div>
-            `;
-
-            // Position tooltip
-            document.body.appendChild(highlightTooltip);
-            
-            // Position calculation with screen bounds check
-            const rect = element.getBoundingClientRect();
-            const tooltipRect = highlightTooltip.getBoundingClientRect();
-            
-            let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-            let top = rect.top - tooltipRect.height - 10;
-            
-            // Adjust for screen bounds
-            if (left < 10) left = 10;
-            if (left + tooltipRect.width > window.innerWidth - 10) {
-                left = window.innerWidth - tooltipRect.width - 10;
-            }
-            
-            // If tooltip would go above screen, show below instead
-            if (top < 10) {
-                top = rect.bottom + 10;
-                highlightTooltip.classList.add('tooltip-below');
-            }
-            
-            highlightTooltip.style.left = left + 'px';
-            highlightTooltip.style.top = top + 'px';
-            
-            // Fade in
-            setTimeout(() => {
-                if (highlightTooltip) {
-                    highlightTooltip.classList.add('tooltip-visible');
-                }
-            }, 10);
-
-        } catch (error) {
-            console.error('Error showing tooltip:', error);
-        }
-    }
-
-    function hideHighlightTooltip() {
-        if (tooltipTimeout) {
-            clearTimeout(tooltipTimeout);
-        }
-        
-        tooltipTimeout = setTimeout(() => {
-            if (highlightTooltip) {
-                highlightTooltip.classList.remove('tooltip-visible');
-                setTimeout(() => {
-                    if (highlightTooltip) {
-                        highlightTooltip.remove();
-                        highlightTooltip = null;
-                    }
-                }, 200);
-            }
-        }, 100); // Small delay to prevent flickering when moving between highlight elements
-    }
-
-    // Make functions globally available
-    window.showHighlightTooltip = showHighlightTooltip;
-    window.hideHighlightTooltip = hideHighlightTooltip;
-
-    // ===== REAL-TIME ANALYSIS DISPLAY FUNCTIONS =====
-    function addHighlightToDisplayRealTime(highlight, index) {
-        console.log('⚡ Adding highlight to display in real-time:', highlight);
-        
-        const highlightsList = document.getElementById('highlights-list');
-        if (!highlightsList) return;
-        
-        // Remove empty state if it exists
-        const emptyState = highlightsList.querySelector('.empty-state');
-        if (emptyState) {
-            emptyState.remove();
-        }
-        
-        // Create new highlight item
-        const highlightItem = document.createElement('div');
-        highlightItem.className = 'highlight-item new-highlight';
-        highlightItem.setAttribute('data-highlight-index', index);
-        highlightItem.setAttribute('draggable', 'true');
-        highlightItem.setAttribute('data-highlight-id', index);
-        
-        const category = getCategoryClass(highlight.category || 'manipulation');
-        const categoryLabel = getCategoryLabel(highlight.category || 'manipulation');
-        
-        highlightItem.innerHTML = `
-            <div class="highlight-header">
-                <div class="highlight-type ${category}">
-                    ${categoryLabel}
-                </div>
-                <div class="highlight-severity severity-${highlight.severity || 1}">
-                    Рівень ${highlight.severity || 1}
-                </div>
-                <button class="btn-micro" 
-                        data-action="add-to-workspace" 
-                        data-id="${index}" 
-                        title="Додати до робочої області">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-            <div class="highlight-text">"${escapeHtml(highlight.text || '')}"</div>
-            <div class="highlight-explanation">
-                ${escapeHtml(highlight.explanation || highlight.description || 'Проблемний фрагмент')}
-            </div>
-            ${highlight.recommendation ? `
-                <div class="highlight-recommendation">
-                    <i class="fas fa-lightbulb"></i>
-                    ${escapeHtml(highlight.recommendation)}
-                </div>
-            ` : ''}
-        `;
-        
-        // Add with animation
-        highlightItem.style.opacity = '0';
-        highlightItem.style.transform = 'translateY(-20px)';
-        highlightsList.appendChild(highlightItem);
-        
-        // Animate in
-        setTimeout(() => {
-            highlightItem.style.transition = 'all 0.5s ease';
-            highlightItem.style.opacity = '1';
-            highlightItem.style.transform = 'translateY(0)';
-            
-            // Remove new-highlight class after animation
-            setTimeout(() => {
-                highlightItem.classList.remove('new-highlight');
-            }, 500);
-        }, 50);
-    }
-
-    function updateFullTextHighlightingRealTime(highlights) {
-        console.log('⚡ Updating full text highlighting in real-time');
-        
-        if (!state.originalText) return;
-        
-        // Generate new highlighted text
-        const highlightedHTML = generateHighlightedTextNew(state.originalText, highlights);
-        
-        // Update full text content
-        const fulltextContent = document.getElementById('fulltext-content');
-        if (fulltextContent) {
-            fulltextContent.innerHTML = `
-                <div class="fulltext-container">
-                    <div class="fulltext-header">
-                        <h4><i class="fas fa-file-text"></i> Повний текст з підсвічуванням проблем</h4>
-                        <span class="highlights-count">${highlights.length} проблем знайдено</span>
-                    </div>
-                    <div class="fulltext-body">
-                        ${highlightedHTML}
-                    </div>
-                </div>
-            `;
-        }
-    }
-
     // ===== View Controls =====
     function switchHighlightsView(view) {
-        console.log('🔥 ===== SWITCH HIGHLIGHTS VIEW CALLED =====');
         console.log('🔍 Switching highlights view to:', view);
-        console.log('🔍 Available elements:', {
-            listView: !!elements.listView,
-            textView: !!elements.textView,
-            highlightsView: !!elements.highlightsView,
-            filterView: !!elements.filterView,
-            highlightsList: !!elements.highlightsList,
-            fulltextContent: !!elements.fulltextContent
-        });
-        
         state.ui.highlightsView = view;
         
         // Update button states
@@ -3221,7 +2410,7 @@
                 else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
                     console.log('🔍 Generating highlighted text from analysis data');
                     const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
-                    const highlightedText = generateHighlightedTextNew(originalTextToUse, state.currentAnalysis.highlights);
+                    const highlightedText = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
                     
                     // Cache the generated text
                     if (state.currentAnalysis) {
@@ -3279,7 +2468,283 @@
                 <div class="empty-state">
                     <div class="empty-icon"><i class="fas fa-filter"></i></div>
                     <p>Жодних фрагментів не знайдено за вашими фільтрами</p>
-                    <button class="btn-secondary btn-sm" data-action="clear-filters">Очистити фільтри</button>
+                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort highlights by severity (high to low)
+        const sortedHighlights = [...filteredHighlights].sort((a, b) => 
+            (b.severity || 2) - (a.severity || 2)
+        );
+        
+        elements.fragmentsContent.innerHTML = sortedHighlights.map(highlight => {
+            const categoryClass = getCategoryClass(highlight.category);
+            const categoryLabel = getCategoryLabel(highlight.category);
+            const severityText = getSeverityText(highlight.severity);
+            
+            return `
+                <div class="fragment-item" data-category="${highlight.category}">
+                    <div class="fragment-header">
+                        <div class="fragment-category ${categoryClass}">
+                            <i class="fas ${getCategoryIcon(highlight.category)}"></i>
+                            ${categoryLabel}
+                        </div>
+                        <div class="highlight-severity">${severityText}</div>
+                    </div>
+                    <div class="fragment-text">
+                        "${escapeHtml(highlight.text)}"
+                    </div>
+                    <div class="fragment-explanation">
+                        <strong>${escapeHtml(highlight.label || highlight.title || 'Проблемний момент')}:</strong>
+                        ${escapeHtml(highlight.explanation || 'Пояснення недоступне')}
+                        ${highlight.suggestion ? `<br><br><strong>Рекомендація:</strong> ${escapeHtml(highlight.suggestion)}` : ''}
+                    </div>
+                    <div class="fragment-actions">
+                        <button class="btn-icon add-fragment-btn" data-fragment='${JSON.stringify(highlight).replace(/'/g, "&#39;")}' title="Додати до робочої області">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="btn-icon copy-fragment-btn" data-text="${escapeHtml(highlight.text)}" title="Скопіювати текст">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Add event listeners
+        elements.fragmentsContent.querySelectorAll('.add-fragment-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const fragment = JSON.parse(e.target.closest('.add-fragment-btn').dataset.fragment);
+                addToSelectedFragments(fragment);
+            });
+        });
+        
+        elements.fragmentsContent.querySelectorAll('.copy-fragment-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const text = e.target.closest('.copy-fragment-btn').dataset.text;
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showNotification('Фрагмент скопійовано в буфер обміну', 'success');
+                } catch (err) {
+                    showNotification('Помилка копіювання', 'error');
+                }
+            });
+        });
+    }
+    
+    function getCategoryLabel(category) {
+        const labels = {
+            'manipulation': 'Маніпуляція',
+            'cognitive_bias': 'Когнітивне викривлення',
+            'rhetological_fallacy': 'Софізм',
+            'logical_fallacy': 'Логічна помилка'
+        };
+        return labels[category] || 'Проблемний момент';
+    }
+    
+    function getCategoryIcon(category) {
+        const icons = {
+            'manipulation': 'fa-exclamation-triangle',
+            'cognitive_bias': 'fa-brain',
+            'rhetological_fallacy': 'fa-comments',
+            'logical_fallacy': 'fa-times-circle'
+        };
+        return icons[category] || 'fa-exclamation-triangle';
+    }
+    
+    function getSeverityText(severity) {
+        const severities = {
+            1: 'Легкий',
+            2: 'Помірний', 
+            3: 'Серйозний'
+        };
+        return severities[severity] || 'Помірний';
+    }
+
+    function toggleFilters() {
+        state.ui.filtersVisible = !state.ui.filtersVisible;
+        
+        // Update button state
+        elements.filterView?.classList.toggle('active', state.ui.filtersVisible);
+        
+        // Show/hide filters panel
+        if (elements.filtersPanel) {
+            elements.filtersPanel.style.display = state.ui.filtersVisible ? 'block' : 'none';
+        }
+        
+        // Hide other views when filters are shown
+        if (state.ui.filtersVisible) {
+            if (elements.highlightsList) elements.highlightsList.style.display = 'none';
+            if (elements.fulltextContent) elements.fulltextContent.style.display = 'none';
+            if (elements.fragmentsContent) elements.fragmentsContent.style.display = 'none';
+        } else {
+            // Restore previous view
+            switchHighlightsView(state.ui.highlightsView || 'list');
+        }
+    }
+
+    function applyFilters() {
+        // Get filter values
+        state.ui.filters.showManipulation = elements.filterManipulation?.checked ?? true;
+        state.ui.filters.showCognitiveBias = elements.filterCognitiveBias?.checked ?? true;
+        state.ui.filters.showRhetoricalFallacy = elements.filterRhetoricalFallacy?.checked ?? true;
+        state.ui.filters.minSeverity = parseInt(elements.filterMinSeverity?.value || '1');
+        state.ui.filters.maxSeverity = parseInt(elements.filterMaxSeverity?.value || '3');
+        state.ui.filters.searchText = elements.filterSearch?.value.toLowerCase() || '';
+        
+        // Apply filters to current highlights
+        if (state.currentAnalysis?.highlights) {
+            updateHighlightsDisplay(state.currentAnalysis.highlights);
+        }
+        
+        // Close filters panel
+        toggleFilters();
+        
+
+        // Build the final HTML
+        let result = '';
+        let currentIndex = 0;
+        
+        for (const segment of cleanSegments) {
+            // Add text before this segment
+            if (segment.start > currentIndex) {
+                const beforeText = originalText.substring(currentIndex, segment.start);
+                result += escapeHtml(beforeText);
+            }
+            
+            // Add highlighted segment
+            const category = getCategoryClass(segment.highlight.category || 'manipulation');
+            const tooltip = escapeHtml(segment.highlight.explanation || segment.highlight.description || segment.highlight.label || '');
+            const highlightedText = escapeHtml(segment.originalText);
+            
+            result += `<span class="text-highlight ${category}" title="${tooltip}" data-highlight-index="${segment.highlightIndex}">${highlightedText}</span>`;
+            
+            currentIndex = segment.end;
+        }
+        
+        // Add remaining text
+        if (currentIndex < originalText.length) {
+            const remainingText = originalText.substring(currentIndex);
+            result += escapeHtml(remainingText);
+        }
+        
+        console.log('🔍 ========== HIGHLIGHTING COMPLETED ==========');
+        console.log('🔍 Final result length:', result.length);
+        console.log('🔍 Applied highlights:', cleanSegments.length);
+        
+        return `<div class="text-content">${result}</div>`;
+    }
+    
+    // Simplified helper function for category CSS classes
+    function getCategoryClass(category) {
+        const categoryMap = {
+            'manipulation': 'manipulation',
+            'cognitive_bias': 'bias',
+            'social_manipulation': 'manipulation',
+            'rhetological_fallacy': 'fallacy',
+            'logical_fallacy': 'fallacy'
+        };
+        return categoryMap[category] || 'manipulation';
+    }
+    
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // ===== View Controls =====
+    function switchHighlightsView(view) {
+        console.log('🔍 Switching highlights view to:', view);
+        state.ui.highlightsView = view;
+        
+        // Update button states
+        elements.listView?.classList.toggle('active', view === 'list');
+        elements.textView?.classList.toggle('active', view === 'text');
+        elements.highlightsView?.classList.toggle('active', view === 'highlights');
+        elements.filterView?.classList.toggle('active', view === 'filter');
+        
+        // Show/hide content panels
+        if (elements.highlightsList) {
+            elements.highlightsList.style.display = view === 'list' ? 'block' : 'none';
+        }
+        if (elements.fulltextContent) {
+            elements.fulltextContent.style.display = view === 'text' ? 'block' : 'none';
+            
+            // Always update full text view when switching to text view
+            if (view === 'text') {
+                console.log('🔍 Switching to text view, force updating content');
+                
+                // Priority 1: Use cached highlighted text
+                if (state.currentAnalysis?.highlighted_text) {
+                    console.log('🔍 Using cached highlighted text');
+                    updateFullTextView(state.currentAnalysis.highlighted_text);
+                }
+                // Priority 2: Generate from highlights and original text
+                else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
+                    console.log('🔍 Generating highlighted text from analysis data');
+                    const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
+                    const highlightedText = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
+                    
+                    // Cache the generated text
+                    if (state.currentAnalysis) {
+                        state.currentAnalysis.highlighted_text = highlightedText;
+                    }
+                    
+                    updateFullTextView(highlightedText);
+                }
+                // Priority 3: Show original text if available
+                else if (state.originalText || state.currentAnalysis?.original_text) {
+                    console.log('🔍 Showing original text without highlights');
+                    updateFullTextView(null);
+                }
+                // Priority 4: Show empty state
+                else {
+                    console.log('🔍 No text available, showing empty state');
+                    updateFullTextView(null);
+                }
+            }
+        }
+        if (elements.fragmentsContent) {
+            elements.fragmentsContent.style.display = view === 'highlights' ? 'block' : 'none';
+            
+            // Update fragments view when switching to highlights view
+            if (view === 'highlights' && state.currentAnalysis?.highlights) {
+                console.log('🔍 Updating fragments view with highlights');
+                updateFragmentsView(state.currentAnalysis.highlights);
+            }
+        }
+        if (elements.filtersPanel) {
+            elements.filtersPanel.style.display = view === 'filter' ? 'block' : 'none';
+        }
+        
+        console.log('🔍 View switch completed, current view:', view);
+    }
+
+    function updateFragmentsView(highlights) {
+        if (!elements.fragmentsContent) return;
+        
+        if (!highlights || highlights.length === 0) {
+            elements.fragmentsContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-highlighter"></i></div>
+                    <p>Виділені маніпулятивні фрагменти з'являться тут після аналізу</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Apply filters if they exist
+        const filteredHighlights = filterHighlights(highlights);
+        
+        if (filteredHighlights.length === 0) {
+            elements.fragmentsContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-filter"></i></div>
+                    <p>Жодних фрагментів не знайдено за вашими фільтрами</p>
+                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
                 </div>
             `;
             return;
@@ -3583,28 +3048,6 @@
         }
     }
 
-    function toggleMobileMenu() {
-        const isActive = elements.sidebarLeft.classList.contains('active');
-        
-        if (isActive) {
-            // Close mobile menu
-            elements.sidebarLeft.classList.remove('active');
-            document.body.classList.remove('mobile-menu-open');
-        } else {
-            // Open mobile menu
-            elements.sidebarLeft.classList.add('active');
-            document.body.classList.add('mobile-menu-open');
-        }
-        
-        // Update mobile menu toggle icon
-        const icon = elements.mobileMenuToggle?.querySelector('i');
-        if (icon) {
-            icon.className = isActive ? 'fas fa-bars' : 'fas fa-times';
-        }
-        
-        console.log('📱 Mobile menu', isActive ? 'closed' : 'opened');
-    }
-
     function showOnboarding() {
         if (elements.onboardingModal) {
             elements.onboardingModal.style.display = 'flex';
@@ -3757,10 +3200,7 @@
             <div class="fragment-item">
                 <div class="highlight-type ${fragment.category}">${fragment.label}</div>
                 <div class="fragment-text">"${fragment.text}"</div>
-                <button class="fragment-remove" 
-                        data-action="remove-from-workspace" 
-                        data-id="${fragment.id}" 
-                        title="Видалити">
+                <button class="fragment-remove" onclick="removeFromWorkspace(${index})" title="Видалити">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -4196,10 +3636,135 @@
         elements.productDropdownBtn.classList.remove('active');
     }
 
-    // Legacy global functions removed - now using event delegation
+    // Make functions globally accessible
+    window.addToWorkspace = addToWorkspace;
+    window.removeFromWorkspace = removeFromWorkspace;
+    window.copyAdviceToClipboard = copyAdviceToClipboard;
 
-    // ===== LEGACY FUNCTION REMOVED =====
-    // Old bindEvents function removed - now using unified event system
+    // ===== Event Handlers =====
+    function bindEvents() {
+        // Sidebar toggles (only right sidebar can be toggled now)
+        elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
+        elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
+        
+        // Product switcher
+        elements.productDropdownBtn?.addEventListener('click', toggleProductDropdown);
+        
+        // Close product dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.product-switcher')) {
+                closeProductDropdown();
+            }
+        });
+
+        // Client search
+        elements.clientSearch?.addEventListener('input', debounce(renderClientsList, 300));
+
+        // Client management
+        elements.newClientBtn?.addEventListener('click', () => showClientForm());
+        elements.welcomeNewClient?.addEventListener('click', () => showClientForm());
+        elements.saveClientBtn?.addEventListener('click', saveClient);
+        elements.cancelClientBtn?.addEventListener('click', () => showSection('welcome-screen'));
+
+        // Navigation actions
+        $('#help-toggle')?.addEventListener('click', showOnboarding);
+        $('#logout-btn')?.addEventListener('click', () => {
+            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
+                console.log('🔐 Logout button clicked, calling logout function');
+                // Use the proper logout function from auth.js
+                if (window.logout) {
+                    window.logout();
+                } else {
+                    console.error('🔐 logout function not available, falling back to manual logout');
+                    // Fallback manual logout
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    window.location.href = '/login.html';
+                }
+            }
+        });
+
+        // Onboarding
+        elements.welcomeHelp?.addEventListener('click', showOnboarding);
+        elements.skipOnboarding?.addEventListener('click', completeOnboarding);
+        elements.nextStep?.addEventListener('click', nextOnboardingStep);
+        elements.prevStep?.addEventListener('click', prevOnboardingStep);
+
+        // Input methods
+        elements.textMethod?.addEventListener('click', () => updateInputMethod('text'));
+        elements.fileMethod?.addEventListener('click', () => updateInputMethod('file'));
+
+        // Text analysis
+        elements.negotiationText?.addEventListener('input', debouncedUpdateTextStats);
+        
+        // Ensure textarea wrapper is clickable and transfers focus
+        const textWrapper = document.querySelector('.text-input-wrapper');
+        if (textWrapper && elements.negotiationText) {
+            textWrapper.addEventListener('click', (e) => {
+                // If clicking on the wrapper but not the textarea, focus the textarea
+                if (e.target === textWrapper || e.target.closest('.input-actions')) {
+                    return; // Don't interfere with button clicks
+                }
+                if (e.target !== elements.negotiationText) {
+                    elements.negotiationText.focus();
+                }
+            });
+        }
+        elements.startAnalysisBtn?.addEventListener('click', startAnalysis);
+        elements.newAnalysisBtn?.addEventListener('click', createNewAnalysis);
+        elements.clearTextBtn?.addEventListener('click', () => {
+            if (elements.negotiationText) {
+                elements.negotiationText.value = '';
+                updateTextStats();
+            }
+        });
+        elements.pasteBtn?.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (elements.negotiationText) {
+                    elements.negotiationText.value = text;
+                    updateTextStats();
+                    showNotification('Текст вставлено з буферу обміну', 'success');
+                }
+            } catch (err) {
+                showNotification('Не вдалося вставити з буферу обміну', 'error');
+            }
+        });
+
+        // View controls
+        elements.listView?.addEventListener('click', () => {
+            console.log('🔍 List view button clicked');
+            switchHighlightsView('list');
+        });
+        elements.textView?.addEventListener('click', () => {
+            console.log('🔍 Text view button clicked');
+            switchHighlightsView('text');
+        });
+        elements.highlightsView?.addEventListener('click', () => {
+            console.log('🔍 Highlights view button clicked');
+            switchHighlightsView('highlights');
+        });
+        elements.filterView?.addEventListener('click', () => {
+            console.log('🔍 Filter view button clicked');
+            toggleFilters();
+        });
+
+        // Filter controls
+        elements.clearFiltersBtn?.addEventListener('click', clearFilters);
+        elements.applyFiltersBtn?.addEventListener('click', applyFilters);
+
+        // Workspace actions
+        elements.getAdviceBtn?.addEventListener('click', getPersonalizedAdvice);
+        elements.exportSelectedBtn?.addEventListener('click', exportSelectedFragments);
+        elements.clearWorkspaceBtn?.addEventListener('click', clearWorkspace);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', handleKeyboardShortcuts);
+        
+        // Window resize
+        window.addEventListener('resize', debounce(handleResize, 100));
+    }
 
     function handleKeyboardShortcuts(e) {
         // Ctrl/Cmd + Enter to start analysis
@@ -4403,146 +3968,77 @@
             return;
         }
 
-        // Group analyses by date for better navigation
-        const groupedAnalyses = groupAnalysesByDate(analyses);
-        
-        elements.analysisHistory.innerHTML = Object.entries(groupedAnalyses).map(([dateGroup, groupAnalyses]) => `
-            <div class="analysis-date-group">
-                <div class="date-group-header">
-                    <span class="date-group-label">${dateGroup}</span>
-                    <span class="date-group-count">${groupAnalyses.length}</span>
-                </div>
-                <div class="analysis-group">
-                    ${groupAnalyses.map((analysis, index) => {
-                        const isLatest = analysis.id === analyses[0]?.id;
-                        const date = new Date(analysis.created_at);
-                        const timeAgo = getTimeAgo(date);
-                        
-                        // Calculate issues count from highlights
-                        let issuesCount = 0;
-                        
-                        // First try to get from analysis.issues_count
-                        if (analysis.issues_count && analysis.issues_count > 0) {
-                            issuesCount = analysis.issues_count;
-                        } 
-                        // Then try to parse highlights array
-                        else if (analysis.highlights && Array.isArray(analysis.highlights)) {
-                            issuesCount = analysis.highlights.length;
-                        }
-                        // Finally try to parse highlights_json string
-                        else if (analysis.highlights_json) {
-                            try {
-                                const highlights = JSON.parse(analysis.highlights_json);
-                                if (Array.isArray(highlights)) {
-                                    issuesCount = highlights.length;
-                                }
-                            } catch (e) {
-                                console.warn('Failed to parse highlights_json:', e);
-                            }
-                        }
-                        
-                        // Calculate complexity score from barometer if not provided
-                        let complexityScore = analysis.complexity_score || 0;
-                        if (complexityScore === 0 && analysis.barometer?.score) {
-                            complexityScore = analysis.barometer.score;
-                        }
-                        
-                        // Generate category breakdown for issues
-                        let categoryBreakdown = '';
-                        if (analysis.highlights && Array.isArray(analysis.highlights)) {
-                            const categories = {};
-                            analysis.highlights.forEach(h => {
-                                categories[h.category] = (categories[h.category] || 0) + 1;
-                            });
-                            
-                            const categoryLabels = {
-                                'manipulation': 'Маніп.',
-                                'cognitive_bias': 'Викрив.',
-                                'rhetorical_fallacy': 'Софізми'
-                            };
-                            
-                            categoryBreakdown = Object.entries(categories)
-                                .map(([cat, count]) => `${categoryLabels[cat] || cat}: ${count}`)
-                                .join(' • ');
-                        }
-                        
-                        return `
-                            <div class="analysis-history-item ${isLatest ? 'latest' : ''} ${state.currentAnalysis?.id === analysis.id ? 'active' : ''}" 
-                                 data-action="load-analysis" 
-                                 data-id="${analysis.id}"
-                                 title="Натисніть для перегляду аналізу">
-                                <div class="analysis-header">
-                                    <div class="analysis-date">
-                                        ${isLatest ? '<i class="fas fa-star latest-badge" title="Найновіший"></i> ' : ''}
-                                        <span class="time-label">${date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</span>
-                                        ${state.currentAnalysis?.id === analysis.id ? '<i class="fas fa-eye current-indicator" title="Поточний аналіз"></i>' : ''}
-                                    </div>
-                                    <div class="analysis-actions">
-                                        <button class="btn-micro btn-duplicate" data-action="duplicate-analysis" data-id="${analysis.id}" title="Дублювати аналіз">
-                                            <i class="fas fa-copy"></i>
-                                        </button>
-                                        <button class="btn-micro btn-delete" data-action="delete-analysis" data-id="${analysis.id}" title="Видалити аналіз">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="analysis-preview">
-                                    ${escapeHtml(analysis.text_preview || 'Аналіз переговорів')}
-                                </div>
-                                <div class="analysis-stats">
-                                    <div class="primary-stats">
-                                        <span class="stat-item issues ${issuesCount > 0 ? 'has-issues' : ''}">
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                            <span class="stat-number">${issuesCount}</span>
-                                            <span class="stat-label">проблем</span>
-                                        </span>
-                                        <span class="stat-item complexity complexity-${getComplexityLevel(complexityScore)}">
-                                            <i class="fas fa-tachometer-alt"></i>
-                                            <span class="stat-number">${complexityScore}</span>
-                                            <span class="stat-label">/100</span>
-                                        </span>
-                                    </div>
-                                    ${categoryBreakdown ? `<div class="category-breakdown">${categoryBreakdown}</div>` : ''}
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function groupAnalysesByDate(analyses) {
-        const groups = {};
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        analyses.forEach(analysis => {
+        elements.analysisHistory.innerHTML = analyses.map((analysis, index) => {
+            const isLatest = index === 0;
             const date = new Date(analysis.created_at);
-            const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const timeAgo = getTimeAgo(date);
             
-            let groupKey;
-            if (dateOnly.getTime() === today.getTime()) {
-                groupKey = 'Сьогодні';
-            } else if (dateOnly.getTime() === yesterday.getTime()) {
-                groupKey = 'Вчора';
-            } else if (now - dateOnly <= 7 * 24 * 60 * 60 * 1000) {
-                groupKey = date.toLocaleDateString('uk-UA', { weekday: 'long' });
-            } else if (date.getFullYear() === now.getFullYear()) {
-                groupKey = date.toLocaleDateString('uk-UA', { month: 'long', day: 'numeric' });
-            } else {
-                groupKey = date.toLocaleDateString('uk-UA', { year: 'numeric', month: 'long' });
+            // Calculate issues count from highlights
+            let issuesCount = 0;
+            
+            // First try to get from analysis.issues_count
+            if (analysis.issues_count && analysis.issues_count > 0) {
+                issuesCount = analysis.issues_count;
+            } 
+            // Then try to parse highlights array
+            else if (analysis.highlights && Array.isArray(analysis.highlights)) {
+                issuesCount = analysis.highlights.length;
+            }
+            // Finally try to parse highlights_json string
+            else if (analysis.highlights_json) {
+                try {
+                    const highlights = JSON.parse(analysis.highlights_json);
+                    if (Array.isArray(highlights)) {
+                        issuesCount = highlights.length;
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse highlights_json:', e);
+                }
             }
             
-            if (!groups[groupKey]) {
-                groups[groupKey] = [];
+            console.log(`📊 Analysis ${analysis.id}: calculated ${issuesCount} issues from`, {
+                issues_count: analysis.issues_count,
+                highlights: analysis.highlights?.length,
+                highlights_json: analysis.highlights_json ? 'present' : 'missing'
+            });
+            
+            // Calculate complexity score from barometer if not provided
+            let complexityScore = analysis.complexity_score || 0;
+            if (complexityScore === 0 && analysis.barometer?.score) {
+                complexityScore = analysis.barometer.score;
             }
-            groups[groupKey].push(analysis);
-        });
-        
-        return groups;
+            
+            console.log(`📊 Rendering analysis ${analysis.id}: ${issuesCount} issues, ${complexityScore}/100 complexity`);
+            
+            return `
+                <div class="analysis-history-item ${isLatest ? 'latest' : ''}" 
+                     onclick="window.loadAnalysis(${analysis.id})"
+                     title="Натисніть для перегляду аналізу">
+                    <div class="analysis-header">
+                        <div class="analysis-date">
+                            ${isLatest ? '<i class="fas fa-star" title="Останній"></i> ' : ''}
+                            ${timeAgo}
+                        </div>
+                        <div class="analysis-actions">
+                            <button class="btn-micro" onclick="event.stopPropagation(); confirmDeleteAnalysis(${analysis.id})" title="Видалити аналіз">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="analysis-preview">${escapeHtml(analysis.text_preview || 'Аналіз переговорів')}</div>
+                    <div class="analysis-stats">
+                        <span class="stat-item ${issuesCount > 0 ? 'has-issues' : ''}">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ${issuesCount} проблем
+                        </span>
+                        <span class="stat-item complexity-${getComplexityLevel(complexityScore)}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            ${complexityScore}/100
+                        </span>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     function getTimeAgo(date) {
@@ -4657,7 +4153,7 @@
             } else if (data.analysis.highlights && (state.originalText || data.analysis.original_text)) {
                 console.log('🔍 Generating highlighted text from highlights and original text');
                 const originalTextToUse = state.originalText || data.analysis.original_text;
-                const highlightedText = generateHighlightedTextNew(originalTextToUse, data.analysis.highlights);
+                const highlightedText = generateHighlightedText(originalTextToUse, data.analysis.highlights);
                 updateFullTextView(highlightedText);
                 
                 // Also store it in current analysis for future use
@@ -4871,9 +4367,46 @@
         }
     }
 
-    // ===== Legacy Code Cleanup =====
-    // All global functions removed - using centralized event delegation system
-    // Debug functions removed - using modern event handling
+    // ===== Global Functions =====
+    window.showClientForm = showClientForm;
+    window.selectClient = selectClient;
+    window.editClient = editClient;
+    window.deleteClient = deleteClient;
+    window.addToWorkspace = addToWorkspace;
+    window.removeFromWorkspace = removeFromWorkspace;
+    window.shareHighlight = (id) => console.log('Share highlight:', id);
+    window.loadAnalysis = loadAnalysis;
+    window.createNewAnalysis = createNewAnalysis;
+    window.clearFilters = clearFilters;
+    window.confirmDeleteAnalysis = confirmDeleteAnalysis;
+    window.removeRecommendation = removeRecommendation;
+    window.expandRecommendation = expandRecommendation;
+    window.copyRecommendation = copyRecommendation;
+    window.clearRecommendationsHistory = clearRecommendationsHistory;
+    window.confirmClearRecommendations = confirmClearRecommendations;
+    
+    // ===== Debug Testing Functions =====
+    window.testClientFunctions = function() {
+        console.log('🧪 Testing client functions availability:');
+        console.log('🧪 selectClient:', typeof window.selectClient);
+        console.log('🧪 editClient:', typeof window.editClient);
+        console.log('🧪 deleteClient:', typeof window.deleteClient);
+        console.log('🧪 Current clients:', state.clients.length);
+        if (state.clients.length > 0) {
+            console.log('🧪 Testing selectClient with first client...');
+            window.selectClient(state.clients[0].id);
+        }
+    };
+    
+    window.testEditClient = function(clientId) {
+        console.log('🧪 Testing editClient with ID:', clientId);
+        window.editClient(clientId || (state.clients[0] && state.clients[0].id));
+    };
+    
+    window.testDeleteClient = function(clientId) {
+        console.log('🧪 Testing deleteClient with ID:', clientId);
+        window.deleteClient(clientId || (state.clients[0] && state.clients[0].id));
+    };
 
     // ===== State Persistence =====
     function saveAppState() {
@@ -5151,642 +4684,60 @@
         });
     }
 
-    // ===== UNIFIED EVENT SYSTEM =====
-    function initializeUnifiedEventSystem() {
-        console.log('🎯 Initializing unified event system...');
-        
-        // Part 1: Direct event handlers for static elements
-        bindStaticEvents();
-        
-        // Part 2: Event delegation for dynamic elements
-        initializeDynamicEventDelegation();
-        
-        console.log('🎯 Unified event system initialized');
-        
-        // CRITICAL FIX: Expose functions globally for debugging and testing
-        window.TeamPulseDebug = {
-            showClientForm,
-            startAnalysis,
-            saveClient,
-            state,
-            elements,
-            switchHighlightsView,
-            toggleSidebar,
-            toggleMobileMenu,
-            // Test functions
-            testShowClientForm: () => {
-                console.log('🧪 TEST: Calling showClientForm...');
-                showClientForm();
-            },
-            testStartAnalysis: () => {
-                console.log('🧪 TEST: Calling startAnalysis...');
-                startAnalysis();
-            }
-        };
-        
-        console.log('🔧 TeamPulseDebug functions exposed globally:', Object.keys(window.TeamPulseDebug));
-    }
-    
-    function bindStaticEvents() {
-        console.log('🔥 Binding static element events...');
-        
-        // Core UI elements that are always present
-        const staticBindings = [
-            { element: elements.mobileMenuToggle, event: 'click', handler: toggleMobileMenu, name: 'Mobile menu toggle' },
-            { element: elements.sidebarRightToggle, event: 'click', handler: () => toggleSidebar('right'), name: 'Right sidebar toggle' },
-            { element: elements.workspaceToggle, event: 'click', handler: () => toggleSidebar('right'), name: 'Workspace toggle' },
-            { element: elements.newClientBtn, event: 'click', handler: showClientForm, name: 'New client button' },
-            { element: elements.welcomeNewClient, event: 'click', handler: showClientForm, name: 'Welcome new client button' },
-            { element: elements.saveClientBtn, event: 'click', handler: saveClient, name: 'Save client button' },
-            { element: elements.cancelClientBtn, event: 'click', handler: () => showSection('welcome-screen'), name: 'Cancel client button' },
-            { element: elements.startAnalysisBtn, event: 'click', handler: startAnalysis, name: 'Start analysis button' },
-            { element: elements.newAnalysisBtn, event: 'click', handler: createNewAnalysis, name: 'New analysis button' },
-            { element: elements.listView, event: 'click', handler: () => switchHighlightsView('list'), name: 'List view button' },
-            { element: elements.textView, event: 'click', handler: () => switchHighlightsView('text'), name: 'Text view button' },
-            { element: elements.highlightsView, event: 'click', handler: () => switchHighlightsView('highlights'), name: 'Highlights view button' },
-            { element: elements.filterView, event: 'click', handler: () => toggleFilters(), name: 'Filter view button' },
-            { element: elements.getAdviceBtn, event: 'click', handler: getPersonalizedAdvice, name: 'Get advice button' },
-            { element: elements.exportSelectedBtn, event: 'click', handler: exportSelectedFragments, name: 'Export selected button' },
-            { element: elements.clearWorkspaceBtn, event: 'click', handler: clearWorkspace, name: 'Clear workspace button' },
-            { element: elements.clearFiltersBtn, event: 'click', handler: clearFilters, name: 'Clear filters button' },
-            { element: elements.applyFiltersBtn, event: 'click', handler: applyFilters, name: 'Apply filters button' },
-        ];
-        
-        let boundCount = 0;
-        staticBindings.forEach(({ element, event, handler, name }) => {
-            if (element) {
-                element.addEventListener(event, (e) => {
-                    console.log(`🔥 STATIC EVENT: ${name} clicked`);
-                    console.log(`🔥 Handler function:`, handler);
-                    console.log(`🔥 Element:`, element);
-                    try {
-                        handler(e);
-                        console.log(`🔥 ✅ ${name} handler executed successfully`);
-                    } catch (error) {
-                        console.error(`🔥 ❌ ${name} handler failed:`, error);
-                    }
-                });
-                boundCount++;
-                console.log(`🔥 ✅ ${name} - bound successfully`);
-            } else {
-                console.log(`🔥 ❌ ${name} - element not found`);
-            }
-        });
-        
-        // Input events
-        if (elements.clientSearch) {
-            elements.clientSearch.addEventListener('input', debounce(renderClientsList, 300));
-            console.log('🔥 ✅ Client search input - bound successfully');
-        }
-        
-        if (elements.negotiationText) {
-            elements.negotiationText.addEventListener('input', debouncedUpdateTextStats);
-            console.log('🔥 ✅ Negotiation text input - bound successfully');
-        }
-        
-        // Special handlers
-        $('#help-toggle')?.addEventListener('click', showOnboarding);
-        $('#logout-btn')?.addEventListener('click', () => {
-            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
-                if (window.logout) {
-                    window.logout();
-                } else {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    window.location.href = '/login.html';
-                }
-            }
-        });
-        
-        // Additional UI handlers
-        elements.textMethod?.addEventListener('click', () => updateInputMethod('text'));
-        elements.fileMethod?.addEventListener('click', () => updateInputMethod('file'));
-        elements.clearTextBtn?.addEventListener('click', () => {
-            if (elements.negotiationText) {
-                elements.negotiationText.value = '';
-                updateTextStats();
-            }
-        });
-        elements.pasteBtn?.addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (elements.negotiationText) {
-                    elements.negotiationText.value = text;
-                    updateTextStats();
-                    showNotification('Текст вставлено з буферу обміну', 'success');
-                }
-            } catch (err) {
-                showNotification('Не вдалося вставити з буферу обміну', 'error');
-            }
-        });
-        
-        // Onboarding handlers
-        elements.welcomeHelp?.addEventListener('click', showOnboarding);
-        elements.skipOnboarding?.addEventListener('click', completeOnboarding);
-        elements.nextStep?.addEventListener('click', nextOnboardingStep);
-        elements.prevStep?.addEventListener('click', prevOnboardingStep);
-        
-        // Product switcher
-        elements.productDropdownBtn?.addEventListener('click', toggleProductDropdown);
-        
-        // Global handlers
-        document.addEventListener('click', (e) => {
-            // Close product dropdown when clicking outside
-            if (!e.target.closest('.product-switcher')) {
-                closeProductDropdown();
-            }
-            
-            // Close mobile menu when clicking outside
-            if (document.body.classList.contains('mobile-menu-open')) {
-                if (!e.target.closest('.sidebar-left') || 
-                    e.target.closest('[data-action="select-client"]') ||
-                    e.target.closest('[data-action="load-analysis"]')) {
-                    toggleMobileMenu();
-                }
-            }
-        });
-        
-        // Keyboard shortcuts
-        document.addEventListener('keydown', handleKeyboardShortcuts);
-        
-        // Window resize
-        window.addEventListener('resize', debounce(handleResize, 100));
-        
-        console.log(`🔥 Static events binding complete: ${boundCount} elements bound`);
-    }
-    
-    function initializeDynamicEventDelegation() {
-        console.log('🎯 Initializing dynamic event delegation...');
-        
-        // Single event handler for dynamic elements with data-action
-        document.addEventListener('click', (e) => {
-            const target = e.target.closest('[data-action]');
-            if (!target) return;
-            
-            const action = target.dataset.action;
-            const id = target.dataset.id;
-            const category = target.dataset.category;
-            
-            console.log(`🔥 DYNAMIC EVENT DELEGATION: ${action}`, { id, category, target });
-            
-            switch (action) {
-                case 'select-client':
-                    handleSelectClient(parseInt(id));
-                    break;
-                case 'edit-client':
-                    handleEditClient(parseInt(id));
-                    break;
-                case 'delete-client':
-                    handleDeleteClient(parseInt(id));
-                    break;
-                case 'add-to-workspace':
-                    handleAddToWorkspace(parseInt(id));
-                    break;
-                case 'show-counter-modal':
-                    handleShowCounterModal(category);
-                    break;
-                case 'close-modal':
-                    handleCloseModal();
-                    break;
-                case 'delete-analysis':
-                    handleDeleteAnalysis(parseInt(id));
-                    break;
-                case 'load-analysis':
-                    handleLoadAnalysis(parseInt(id));
-                    break;
-                case 'share-highlight':
-                    handleShareHighlight(parseInt(id));
-                    break;
-                case 'remove-from-workspace':
-                    handleRemoveFromWorkspace(id);
-                    break;
-                case 'clear-workspace':
-                    handleClearWorkspace();
-                    break;
-                case 'clear-filters':
-                    handleClearFilters();
-                    break;
-                case 'duplicate-analysis':
-                    handleDuplicateAnalysis(parseInt(id));
-                    break;
-                default:
-                    console.warn('🎯 Unknown action:', action);
-            }
-        });
-        
-        // Handle drag and drop through delegation
-        document.addEventListener('dragstart', (e) => {
-            if (!e.target.matches('[draggable="true"]')) return;
-            
-            const highlightId = e.target.dataset.highlightId;
-            if (highlightId) {
-                e.dataTransfer.setData('text/plain', highlightId);
-                e.target.classList.add('dragging');
-                console.log('🎯 Drag started for highlight:', highlightId);
-            }
-        });
-        
-        document.addEventListener('dragend', (e) => {
-            if (!e.target.matches('[draggable="true"]')) return;
-            e.target.classList.remove('dragging');
-        });
-        
-        console.log('✅ Centralized event delegation initialized');
-    }
-    
-    // ===== Event Handlers =====
-    function handleSelectClient(clientId) {
-        if (!clientId) return;
-        
-        console.log('👤 Selecting client:', clientId);
-        const client = state.clients.find(c => c.id === clientId);
-        if (!client) {
-            console.warn('Client not found:', clientId);
-            return;
-        }
-        
-        // Clear previous client data
-        state.currentAnalysis = null;
-        state.originalText = null;
-        state.selectedFragments = [];
-        state.analyses = [];
-        
-        // Clear UI displays
-        if (elements.negotiationText) {
-            elements.negotiationText.value = '';
-        }
-        
-        // Clear results section
-        const resultsSection = document.getElementById('results-section');
-        if (resultsSection) {
-            resultsSection.style.display = 'none';
-        }
-        
-        // Reset counters to 0
-        const counters = ['manipulations-count', 'biases-count', 'fallacies-count'];
-        counters.forEach(counterId => {
-            const element = document.getElementById(counterId);
-            if (element) element.textContent = '0';
-        });
-        
-        // Clear highlights and barometer
-        if (elements.highlightsList) {
-            elements.highlightsList.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon"><i class="fas fa-search"></i></div>
-                    <p>Проблемні моменти з'являться тут після аналізу</p>
-                </div>
-            `;
-        }
-        
-        if (elements.fulltextContent) {
-            elements.fulltextContent.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon"><i class="fas fa-file-text"></i></div>
-                    <p>Повний текст з підсвічуванням з'явиться після аналізу</p>
-                </div>
-            `;
-        }
-        
-        // Reset barometer
-        if (elements.barometerScore) elements.barometerScore.textContent = '0';
-        if (elements.barometerLabel) elements.barometerLabel.textContent = 'Очікування аналізу...';
-        if (elements.barometerComment) elements.barometerComment.textContent = '';
-        if (elements.gaugeCircle) {
-            elements.gaugeCircle.style.strokeDasharray = '0 283';
-        }
-        
-        // Set new client
-        state.currentClient = client;
-        updateWorkspaceClientInfo(client);
-        renderClientsList();
-        
-        // Load client-specific data
-        loadAnalysisHistory(clientId);
-        updateRecommendationsHistory(clientId);
-        updateWorkspaceFragments();
-        
-        saveAppState();
-        
-        console.log(`✅ Client switched to: ${client.company}`);
-        showNotification(`Обрано клієнта: ${client.company}`, 'success');
-    }
-    
-    function handleEditClient(clientId) {
-        console.log('✏️ Editing client:', clientId);
-        const client = state.clients.find(c => c.id === clientId);
-        if (!client) return;
-        
-        // Заповнити форму даними клієнта
-        if (elements.companyInput) elements.companyInput.value = client.company || '';
-        if (elements.negotiatorInput) elements.negotiatorInput.value = client.negotiator || '';
-        if (elements.sectorInput) elements.sectorInput.value = client.sector || '';
-        if (elements.goalInput) elements.goalInput.value = client.goal || '';
-        if (elements.criteriaInput) elements.criteriaInput.value = client.decision_criteria || '';
-        if (elements.constraintsInput) elements.constraintsInput.value = client.constraints || '';
-        if (elements.userGoalsInput) elements.userGoalsInput.value = client.user_goals || '';
-        if (elements.clientGoalsInput) elements.clientGoalsInput.value = client.client_goals || '';
-        if (elements.weeklyHoursInput) elements.weeklyHoursInput.value = client.weekly_hours || '';
-        if (elements.offeredServicesInput) elements.offeredServicesInput.value = client.offered_services || '';
-        if (elements.deadlinesInput) elements.deadlinesInput.value = client.deadlines || '';
-        if (elements.notesInput) elements.notesInput.value = client.notes || '';
-        
-        // Зберегти ID клієнта для оновлення
-        state.editingClientId = clientId;
-        
-        // Показати форму
-        if (elements.clientForm) {
-            elements.clientForm.style.display = 'block';
-            elements.companyInput?.focus();
-        }
-    }
-    
-    function handleDeleteClient(clientId) {
-        console.log('🗑️ Delete client requested:', clientId);
-        const client = state.clients.find(c => c.id === clientId);
-        if (!client) return;
-        
-        // Показати кастомне модальне вікно замість confirm()
-        showConfirmModal(
-            'Видалити клієнта',
-            `Ви дійсно хочете видалити клієнта "${client.company}"? Всі пов'язані аналізи також будуть видалені. Цю дію неможливо відмінити.`,
-            () => confirmDeleteClient(clientId)
-        );
-    }
-    
-    function handleAddToWorkspace(highlightIndex) {
-        console.log('➕ Adding to workspace:', highlightIndex);
-        addToWorkspace(highlightIndex);
-    }
-    
-    function handleShowCounterModal(category) {
-        console.log('📊 Showing counter modal:', category);
-        const titles = {
-            'manipulation': 'Маніпулятивні техніки',
-            'cognitive_bias': 'Когнітивні викривлення',
-            'rhetological_fallacy': 'Логічні помилки та софізми'
-        };
-        showCounterModal(category, titles[category] || 'Проблеми');
-    }
-    
-    function handleCloseModal() {
-        console.log('❌ Closing modal');
-        closeModal();
-        closeConfirmModal();
-    }
-    
-    function handleDuplicateAnalysis(analysisId) {
-        console.log('📋 Duplicate analysis requested:', analysisId);
-        const analysis = state.analyses.find(a => a.id === analysisId);
-        
-        if (!analysis) {
-            showNotification('Аналіз не знайдено', 'error');
-            return;
-        }
-        
-        // Pre-fill the text input with the analysis text
-        if (analysis.original_text && elements.negotiationText) {
-            elements.negotiationText.value = analysis.original_text;
-            updateTextStats();
-            
-            // Switch to analysis dashboard and text input
-            showView('analysis-dashboard');
-            
-            // Switch to text input method
-            if (elements.textMethod && elements.fileMethod) {
-                elements.textMethod.classList.add('active');
-                elements.fileMethod.classList.remove('active');
-                elements.textInputContent.style.display = 'block';
-                elements.fileInputContent.style.display = 'none';
-            }
-            
-            showNotification('Текст аналізу скопійовано для нового аналізу', 'success');
-        } else {
-            showNotification('Неможливо дублювати: оригінальний текст не знайдено', 'error');
-        }
-    }
-
-    function handleDeleteAnalysis(analysisId) {
-        console.log('🗑️ Delete analysis requested:', analysisId);
-        showConfirmModal(
-            'Видалити аналіз',
-            'Ви дійсно хочете видалити цей аналіз? Цю дію неможливо відмінити.',
-            () => confirmDeleteAnalysis(analysisId)
-        );
-    }
-    
-    function handleLoadAnalysis(analysisId) {
-        console.log('📄 Loading analysis:', analysisId);
-        loadAnalysisById(analysisId);
-    }
-    
-    function handleShareHighlight(highlightIndex) {
-        console.log('📤 Sharing highlight:', highlightIndex);
-        shareHighlight(highlightIndex);
-    }
-    
-    function handleRemoveFromWorkspace(fragmentId) {
-        console.log('❌ Removing from workspace:', fragmentId);
-        state.selectedFragments = state.selectedFragments.filter(f => f.id !== fragmentId);
-        updateWorkspaceFragments();
-        updateWorkspaceActions();
-        scheduleStateSave();
-        showNotification('Фрагмент видалено з робочої області', 'info');
-    }
-    
-    function handleClearWorkspace() {
-        console.log('🧹 Clearing workspace');
-        showConfirmModal(
-            'Очистити робочу область',
-            'Ви дійсно хочете видалити всі фрагменти з робочої області?',
-            () => {
-                state.selectedFragments = [];
-                updateWorkspaceFragments();
-                updateWorkspaceActions();
-                scheduleStateSave();
-                showNotification('Робочу область очищено', 'info');
-                closeConfirmModal();
-            }
-        );
-    }
-    
-    function handleClearFilters() {
-        console.log('🔍 Clearing filters');
-        // Reset all filter states
-        state.filters = {
-            category: 'all',
-            severity: 'all',
-            search: ''
-        };
-        
-        // Clear filter UI
-        if (elements.categoryFilter) elements.categoryFilter.value = 'all';
-        if (elements.severityFilter) elements.severityFilter.value = 'all';
-        if (elements.searchFilter) elements.searchFilter.value = '';
-        
-        // Refresh displays
-        if (state.currentAnalysis?.highlights) {
-            displayHighlights(state.currentAnalysis.highlights);
-            updateWorkspaceFragments();
-        }
-        
-        showNotification('Фільтри очищено', 'info');
-    }
-
-    // ===== Confirm Modal System =====
-    function showConfirmModal(title, message, onConfirm) {
-        // Create modal if it doesn't exist
-        let modal = document.getElementById('confirm-modal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'confirm-modal';
-            modal.className = 'modal';
-            modal.style.display = 'none';
-            modal.innerHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 id="confirm-modal-title"></h3>
-                        <button class="modal-close" data-action="close-modal">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p id="confirm-modal-message"></p>
-                        <div class="modal-actions" style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
-                            <button class="btn btn-secondary" data-action="close-modal">Скасувати</button>
-                            <button class="btn btn-danger" id="confirm-modal-confirm">Підтвердити</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-        
-        // Update content
-        document.getElementById('confirm-modal-title').textContent = title;
-        document.getElementById('confirm-modal-message').textContent = message;
-        
-        // Set up confirm handler
-        const confirmBtn = document.getElementById('confirm-modal-confirm');
-        confirmBtn.onclick = () => {
-            onConfirm();
-            closeConfirmModal();
-        };
-        
-        // Show modal
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        
-        console.log('✅ Confirm modal shown:', title);
-    }
-    
-    function closeConfirmModal() {
-        const modal = document.getElementById('confirm-modal');
-        if (modal) {
-            modal.style.display = 'none';
-            document.body.style.overflow = '';
-            console.log('✅ Confirm modal closed');
-        }
-    }
-    
-    // ===== Helper Functions for Confirmations =====
-    async function confirmDeleteClient(clientId) {
-        try {
-            console.log('🗑️ Confirming delete client:', clientId);
-            
-            const response = await fetch(`/api/clients/${clientId}`, {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Помилка видалення клієнта');
-            }
-            
-            // Remove from state
-            state.clients = state.clients.filter(c => c.id !== clientId);
-            
-            // If this was current client, clear it
-            if (state.currentClient && state.currentClient.id === clientId) {
-                state.currentClient = null;
-                state.currentAnalysis = null;
-                state.analyses = [];
-                state.selectedFragments = [];
-            }
-            
-            // Update UI
-            renderClientsList();
-            updateWorkspaceClientInfo(null);
-            updateWorkspaceFragments();
-            saveAppState();
-            
-            showNotification('Клієнта успішно видалено', 'success');
-            
-        } catch (error) {
-            console.error('Delete client error:', error);
-            showNotification(error.message, 'error');
-        }
-    }
-    
-    async function confirmDeleteAnalysis(analysisId) {
-        try {
-            console.log('🗑️ Confirming delete analysis:', analysisId);
-            
-            const response = await fetch(`/api/analyses/${analysisId}`, {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Помилка видалення аналізу');
-            }
-            
-            // Remove from state
-            state.analyses = state.analyses.filter(a => a.id !== analysisId);
-            
-            // If this was current analysis, clear it
-            if (state.currentAnalysis && state.currentAnalysis.id === analysisId) {
-                state.currentAnalysis = null;
-                state.selectedFragments = [];
-                // Clear UI
-                if (elements.highlightsList) {
-                    elements.highlightsList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-icon"><i class="fas fa-search"></i></div>
-                            <p>Проблемні моменти з'являться тут після аналізу</p>
-                        </div>
-                    `;
-                }
-                if (elements.fulltextContent) {
-                    elements.fulltextContent.innerHTML = '<p>Виберіть аналіз для перегляду повного тексту</p>';
-                }
-            }
-            
-            // Update UI
-            renderAnalysisHistory(state.analyses);
-            updateWorkspaceFragments();
-            saveAppState();
-            
-            showNotification('Аналіз успішно видалено', 'success');
-            
-        } catch (error) {
-            console.error('Delete analysis error:', error);
-            showNotification(error.message, 'error');
-        }
-    }
-
     // ===== Modal Functionality =====
     function initializeModalHandlers() {
         console.log('🔗 Initializing modal handlers...');
         
-        // Modal handlers are now managed by centralized event delegation
-        // Add escape key handler for modals
+        // Get counter elements and modal elements
+        const manipulationCounter = document.querySelector('.counter[data-category="manipulation"]');
+        const biasCounter = document.querySelector('.counter[data-category="cognitive_bias"]'); 
+        const fallacyCounter = document.querySelector('.counter[data-category="rhetological_fallacy"]');
+        const modal = document.getElementById('counter-modal');
+        const modalTitle = document.getElementById('counter-modal-title');
+        const modalItems = document.getElementById('counter-modal-items');
+        const modalClose = document.getElementById('counter-modal-close');
+        
+        if (!modal || !modalTitle || !modalItems || !modalClose) {
+            console.warn('⚠️ Modal elements not found, skipping modal initialization');
+            return;
+        }
+        
+        // Close modal handlers
+        modalClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+        
+        // Escape key handler
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' && modal.style.display !== 'none') {
                 closeModal();
-                closeConfirmModal();
             }
         });
         
-        console.log('✅ Modal handlers initialized with event delegation');
+        // Counter click handlers
+        if (manipulationCounter) {
+            manipulationCounter.style.cursor = 'pointer';
+            manipulationCounter.addEventListener('click', () => {
+                showCounterModal('manipulation', 'Маніпулятивні техніки');
+            });
+        }
+        
+        if (biasCounter) {
+            biasCounter.style.cursor = 'pointer';
+            biasCounter.addEventListener('click', () => {
+                showCounterModal('cognitive_bias', 'Когнітивні викривлення');
+            });
+        }
+        
+        if (fallacyCounter) {
+            fallacyCounter.style.cursor = 'pointer';
+            fallacyCounter.addEventListener('click', () => {
+                showCounterModal('rhetological_fallacy', 'Логічні помилки та софізми');
+            });
+        }
+        
+        console.log('✅ Modal handlers initialized');
     }
     
     function showCounterModal(category, title) {
@@ -5856,13 +4807,6 @@
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         
-        // Add click outside to close functionality
-        modal.onclick = (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        };
-        
         console.log('✅ Modal opened successfully');
     }
     
@@ -5873,168 +4817,6 @@
             document.body.style.overflow = '';
             console.log('✅ Modal closed');
         }
-    }
-
-    // ===== ENHANCED PROGRESS MANAGEMENT =====
-    function initializeProgressSystem() {
-        console.log('📊 Initializing enhanced progress system...');
-        
-        // Reset all progress steps to initial state
-        resetProgressSteps();
-    }
-    
-    function resetProgressSteps() {
-        const stepIds = [
-            'step-text-processing',
-            'step-ai-analysis', 
-            'step-problem-detection',
-            'step-complexity-assessment',
-            'step-final-results'
-        ];
-        
-        stepIds.forEach((stepId, index) => {
-            const element = document.getElementById(stepId);
-            if (element) {
-                element.classList.remove('completed', 'active');
-                
-                // Reset status text
-                const statusElement = element.querySelector('.step-status');
-                if (statusElement) {
-                    statusElement.textContent = 'Очікування';
-                }
-                
-                // Reset icon
-                const iconElement = element.querySelector('.step-icon i');
-                if (iconElement) {
-                    // Reset to original icons based on step
-                    const originalIcons = [
-                        'fas fa-file-text',      // Text Processing
-                        'fas fa-brain',          // AI Analysis  
-                        'fas fa-search',         // Problem Detection
-                        'fas fa-chart-line',     // Complexity Assessment
-                        'fas fa-check-circle'    // Final Results
-                    ];
-                    iconElement.className = originalIcons[index] || 'fas fa-circle';
-                }
-            }
-        });
-        
-        // Reset live progress bar
-        const progressFill = document.getElementById('live-progress-fill');
-        const progressText = document.getElementById('live-progress-text');
-        
-        if (progressFill) {
-            progressFill.style.width = '0%';
-        }
-        
-        if (progressText) {
-            progressText.textContent = '0% - Готовність до аналізу';
-        }
-    }
-    
-    function updateAnalysisProgressEnhanced(step, stepName, percentage) {
-        const stepIds = [
-            'step-text-processing',
-            'step-ai-analysis', 
-            'step-problem-detection',
-            'step-complexity-assessment',
-            'step-final-results'
-        ];
-        
-        const stepLabels = [
-            'Обробка тексту',
-            'ШІ Аналіз',
-            'Пошук проблем',
-            'Оцінка складності',
-            'Фінальні результати'
-        ];
-        
-        console.log(`📊 Progress update: Step ${step}/${stepIds.length} - ${stepName || stepLabels[step - 1]} (${percentage}%)`);
-        
-        // Update each step
-        stepIds.forEach((stepId, index) => {
-            const element = document.getElementById(stepId);
-            if (element) {
-                const isCompleted = index < step - 1;
-                const isActive = index === step - 1;
-                
-                element.classList.toggle('completed', isCompleted);
-                element.classList.toggle('active', isActive);
-                
-                // Update step status text
-                const statusElement = element.querySelector('.step-status');
-                if (statusElement) {
-                    if (isCompleted) {
-                        statusElement.textContent = 'Завершено';
-                    } else if (isActive) {
-                        statusElement.textContent = 'В процесі...';
-                    } else {
-                        statusElement.textContent = 'Очікування';
-                    }
-                }
-                
-                // Update step icon for completed steps
-                const iconElement = element.querySelector('.step-icon i');
-                if (iconElement && isCompleted) {
-                    iconElement.className = 'fas fa-check';
-                }
-            }
-        });
-        
-        // Update live progress bar
-        const progressFill = document.getElementById('live-progress-fill');
-        const progressText = document.getElementById('live-progress-text');
-        
-        if (progressFill) {
-            progressFill.style.width = `${Math.min(percentage || 0, 100)}%`;
-        }
-        
-        if (progressText) {
-            progressText.textContent = `${Math.round(percentage || 0)}% - ${stepName || stepLabels[step - 1] || 'Обробка...'}`;
-        }
-        
-        // Show progress section
-        const progressSection = document.querySelector('.analysis-progress');
-        if (progressSection) {
-            progressSection.style.display = 'block';
-        }
-    }
-    
-    function completeAnalysisProgress() {
-        console.log('✅ Analysis completed - updating progress to 100%');
-        
-        updateAnalysisProgressEnhanced(5, 'Аналіз завершено!', 100);
-        
-        // Mark all steps as completed with slight delay for visual effect
-        setTimeout(() => {
-            const stepIds = [
-                'step-text-processing',
-                'step-ai-analysis', 
-                'step-problem-detection',
-                'step-complexity-assessment',
-                'step-final-results'
-            ];
-            
-            stepIds.forEach(stepId => {
-                const element = document.getElementById(stepId);
-                if (element) {
-                    element.classList.add('completed');
-                    element.classList.remove('active');
-                    
-                    // Update status
-                    const statusElement = element.querySelector('.step-status');
-                    if (statusElement) {
-                        statusElement.textContent = 'Завершено';
-                    }
-                    
-                    // Update icon
-                    const iconElement = element.querySelector('.step-icon i');
-                    if (iconElement) {
-                        iconElement.className = 'fas fa-check';
-                    }
-                }
-            });
-        }, 500);
     }
 
     // ===== Initialization =====
@@ -6063,8 +4845,8 @@
         // Setup drag & drop workspace
         setupWorkspaceDrop();
         
-        // Initialize unified event system (replaces old bindEvents)
-        initializeUnifiedEventSystem();
+        // Bind events
+        bindEvents();
         
         // Initialize displays
         updateTextStats();
@@ -6167,43 +4949,18 @@
         // Save state on page unload
         window.addEventListener('beforeunload', saveAppState);
         
-        // Event delegation is now part of unified event system
-        
         // Initialize modal functionality
         initializeModalHandlers();
-        
-        // Initialize enhanced progress system
-        initializeProgressSystem();
         
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }
 
-    // TeamPulseDebug is already exposed in initializeUnifiedEventSystem
-    // Just confirm it's available
-    console.log('🔧 TeamPulseDebug available:', !!window.TeamPulseDebug);
-    
-    // ДІАГНОСТИКА: Додамо детальне логування ініціалізації
-    console.log('🔥 ======= TEAMPULSE TURBO NEON STARTUP =======');
-    console.log('🔥 Current auth status:', sessionStorage.getItem('teampulse-auth'));
-    console.log('🔥 DOM ready state:', document.readyState);
-    console.log('🔥 Available elements check:');
-    console.log('🔥   - sidebar-left:', !!$('#sidebar-left'));
-    console.log('🔥   - start-analysis-btn:', !!$('#start-analysis-btn'));
-    console.log('🔥   - new-client-btn:', !!$('#new-client-btn'));
-    console.log('🔥   - client-list:', !!$('#client-list'));
-    console.log('🔥 Functions exposed in window.TeamPulseDebug for testing');
-    
     // Initialize immediately if already authenticated, or wait for auth-success event
     if (sessionStorage.getItem('teampulse-auth') === 'true') {
-        console.log('🔥 Auth found, initializing immediately...');
         init();
     } else {
-        console.log('🔥 No auth found, waiting for auth-success event...');
         // Start when authenticated
-        window.addEventListener('auth-success', () => {
-            console.log('🔥 Auth-success event received, initializing...');
-            init();
-        });
+        window.addEventListener('auth-success', init);
     }
 
 })();
