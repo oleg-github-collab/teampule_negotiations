@@ -1334,6 +1334,10 @@
         state.originalText = text;
 
         try {
+            // Reset progress bar to starting state
+            resetProgressSteps();
+            updateAnalysisProgressEnhanced(1, 'Ініціалізація аналізу...', 5);
+            
             // Show analysis has started with clear visual feedback
             showNotification('🚀 Аналіз розпочато! Слідкуйте за прогресом...', 'info', 3000);
             
@@ -1445,17 +1449,38 @@
                                 showNotification(`🚀 ${data.message} (${data.chunks} частин)`, 'info', 3000);
                             } else if (data.type === 'progress') {
                                 console.log('📊 Progress update:', data.progress, data.message);
-                                // Update progress indicators if needed
+                                
+                                // Enhanced progress update with new progress bar
+                                const progressPercentage = data.progress || 0;
+                                const progressMessage = data.message || 'Обробка...';
+                                
+                                // Map progress to step numbers (5 steps total)
+                                let currentStep = 1;
+                                if (progressPercentage >= 80) currentStep = 5;
+                                else if (progressPercentage >= 60) currentStep = 4; 
+                                else if (progressPercentage >= 40) currentStep = 3;
+                                else if (progressPercentage >= 20) currentStep = 2;
+                                else if (progressPercentage > 0) currentStep = 1;
+                                
+                                // Update the enhanced progress bar
+                                updateAnalysisProgressEnhanced(currentStep, progressMessage, progressPercentage);
+                                
+                                // Legacy support - Update old progress indicators if they exist
                                 const stepText = document.querySelector('.step-text');
                                 if (stepText) {
-                                    stepText.textContent = data.message;
+                                    stepText.textContent = progressMessage;
                                 }
                             } else if (data.type === 'highlight') {
                                 console.log('🔍 New highlight received:', data);
                                 analysisData.highlights.push(data);
                                 console.log('📊 Total highlights now:', analysisData.highlights.length);
-                                updateHighlightsDisplay(analysisData.highlights);
+                                
+                                // Real-time individual highlight display
+                                addHighlightToDisplayRealTime(data, analysisData.highlights.length - 1);
                                 updateCountersFromHighlights(analysisData.highlights);
+                                
+                                // Real-time text highlighting update
+                                updateFullTextHighlightingRealTime(analysisData.highlights);
                             } else if (data.type === 'merged_highlights') {
                                 analysisData.highlights = data.items;
                                 updateHighlightsDisplay(analysisData.highlights);
@@ -1565,6 +1590,9 @@
                             } else if (data.type === 'complete') {
                                 console.log('📋 Analysis complete signal received');
                                 
+                                // Complete the progress bar animation
+                                completeAnalysisProgress();
+                                
                                 // Ensure barometer is displayed and stored
                                 if (analysisData.barometer) {
                                     console.log('📊 Triggering barometer display on complete');
@@ -1610,7 +1638,7 @@
                                 
                                 if (state.originalText && analysisData.highlights?.length > 0) {
                                     console.log('🔍 ✅ Both original text and highlights available - generating highlighted text');
-                                    const highlightedText = generateHighlightedText(state.originalText, analysisData.highlights);
+                                    const highlightedText = generateHighlightedTextNew(state.originalText, analysisData.highlights);
                                     
                                     // Store everything in currentAnalysis
                                     state.currentAnalysis.original_text = state.originalText;
@@ -2499,7 +2527,7 @@
             // Generate highlighted text from highlights and original text
             console.log('🔍 Generating highlighted text from highlights and original');
             const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
-            const highlighted = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
+            const highlighted = generateHighlightedTextNew(originalTextToUse, state.currentAnalysis.highlights);
             elements.fulltextContent.innerHTML = `
                 <div class="fulltext-container">
                     <div class="fulltext-header">
@@ -3053,6 +3081,99 @@
     window.showHighlightTooltip = showHighlightTooltip;
     window.hideHighlightTooltip = hideHighlightTooltip;
 
+    // ===== REAL-TIME ANALYSIS DISPLAY FUNCTIONS =====
+    function addHighlightToDisplayRealTime(highlight, index) {
+        console.log('⚡ Adding highlight to display in real-time:', highlight);
+        
+        const highlightsList = document.getElementById('highlights-list');
+        if (!highlightsList) return;
+        
+        // Remove empty state if it exists
+        const emptyState = highlightsList.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+        
+        // Create new highlight item
+        const highlightItem = document.createElement('div');
+        highlightItem.className = 'highlight-item new-highlight';
+        highlightItem.setAttribute('data-highlight-index', index);
+        highlightItem.setAttribute('draggable', 'true');
+        highlightItem.setAttribute('data-highlight-id', index);
+        
+        const category = getCategoryClass(highlight.category || 'manipulation');
+        const categoryLabel = getCategoryLabel(highlight.category || 'manipulation');
+        
+        highlightItem.innerHTML = `
+            <div class="highlight-header">
+                <div class="highlight-type ${category}">
+                    ${categoryLabel}
+                </div>
+                <div class="highlight-severity severity-${highlight.severity || 1}">
+                    Рівень ${highlight.severity || 1}
+                </div>
+                <button class="btn-micro" 
+                        data-action="add-to-workspace" 
+                        data-id="${index}" 
+                        title="Додати до робочої області">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            <div class="highlight-text">"${escapeHtml(highlight.text || '')}"</div>
+            <div class="highlight-explanation">
+                ${escapeHtml(highlight.explanation || highlight.description || 'Проблемний фрагмент')}
+            </div>
+            ${highlight.recommendation ? `
+                <div class="highlight-recommendation">
+                    <i class="fas fa-lightbulb"></i>
+                    ${escapeHtml(highlight.recommendation)}
+                </div>
+            ` : ''}
+        `;
+        
+        // Add with animation
+        highlightItem.style.opacity = '0';
+        highlightItem.style.transform = 'translateY(-20px)';
+        highlightsList.appendChild(highlightItem);
+        
+        // Animate in
+        setTimeout(() => {
+            highlightItem.style.transition = 'all 0.5s ease';
+            highlightItem.style.opacity = '1';
+            highlightItem.style.transform = 'translateY(0)';
+            
+            // Remove new-highlight class after animation
+            setTimeout(() => {
+                highlightItem.classList.remove('new-highlight');
+            }, 500);
+        }, 50);
+    }
+
+    function updateFullTextHighlightingRealTime(highlights) {
+        console.log('⚡ Updating full text highlighting in real-time');
+        
+        if (!state.originalText) return;
+        
+        // Generate new highlighted text
+        const highlightedHTML = generateHighlightedTextNew(state.originalText, highlights);
+        
+        // Update full text content
+        const fulltextContent = document.getElementById('fulltext-content');
+        if (fulltextContent) {
+            fulltextContent.innerHTML = `
+                <div class="fulltext-container">
+                    <div class="fulltext-header">
+                        <h4><i class="fas fa-file-text"></i> Повний текст з підсвічуванням проблем</h4>
+                        <span class="highlights-count">${highlights.length} проблем знайдено</span>
+                    </div>
+                    <div class="fulltext-body">
+                        ${highlightedHTML}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
     // ===== View Controls =====
     function switchHighlightsView(view) {
         console.log('🔍 Switching highlights view to:', view);
@@ -3084,7 +3205,7 @@
                 else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
                     console.log('🔍 Generating highlighted text from analysis data');
                     const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
-                    const highlightedText = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
+                    const highlightedText = generateHighlightedTextNew(originalTextToUse, state.currentAnalysis.highlights);
                     
                     // Cache the generated text
                     if (state.currentAnalysis) {
@@ -4660,7 +4781,7 @@
             } else if (data.analysis.highlights && (state.originalText || data.analysis.original_text)) {
                 console.log('🔍 Generating highlighted text from highlights and original text');
                 const originalTextToUse = state.originalText || data.analysis.original_text;
-                const highlightedText = generateHighlightedText(originalTextToUse, data.analysis.highlights);
+                const highlightedText = generateHighlightedTextNew(originalTextToUse, data.analysis.highlights);
                 updateFullTextView(highlightedText);
                 
                 // Also store it in current analysis for future use
@@ -5719,6 +5840,168 @@
         }
     }
 
+    // ===== ENHANCED PROGRESS MANAGEMENT =====
+    function initializeProgressSystem() {
+        console.log('📊 Initializing enhanced progress system...');
+        
+        // Reset all progress steps to initial state
+        resetProgressSteps();
+    }
+    
+    function resetProgressSteps() {
+        const stepIds = [
+            'step-text-processing',
+            'step-ai-analysis', 
+            'step-problem-detection',
+            'step-complexity-assessment',
+            'step-final-results'
+        ];
+        
+        stepIds.forEach((stepId, index) => {
+            const element = document.getElementById(stepId);
+            if (element) {
+                element.classList.remove('completed', 'active');
+                
+                // Reset status text
+                const statusElement = element.querySelector('.step-status');
+                if (statusElement) {
+                    statusElement.textContent = 'Очікування';
+                }
+                
+                // Reset icon
+                const iconElement = element.querySelector('.step-icon i');
+                if (iconElement) {
+                    // Reset to original icons based on step
+                    const originalIcons = [
+                        'fas fa-file-text',      // Text Processing
+                        'fas fa-brain',          // AI Analysis  
+                        'fas fa-search',         // Problem Detection
+                        'fas fa-chart-line',     // Complexity Assessment
+                        'fas fa-check-circle'    // Final Results
+                    ];
+                    iconElement.className = originalIcons[index] || 'fas fa-circle';
+                }
+            }
+        });
+        
+        // Reset live progress bar
+        const progressFill = document.getElementById('live-progress-fill');
+        const progressText = document.getElementById('live-progress-text');
+        
+        if (progressFill) {
+            progressFill.style.width = '0%';
+        }
+        
+        if (progressText) {
+            progressText.textContent = '0% - Готовність до аналізу';
+        }
+    }
+    
+    function updateAnalysisProgressEnhanced(step, stepName, percentage) {
+        const stepIds = [
+            'step-text-processing',
+            'step-ai-analysis', 
+            'step-problem-detection',
+            'step-complexity-assessment',
+            'step-final-results'
+        ];
+        
+        const stepLabels = [
+            'Обробка тексту',
+            'ШІ Аналіз',
+            'Пошук проблем',
+            'Оцінка складності',
+            'Фінальні результати'
+        ];
+        
+        console.log(`📊 Progress update: Step ${step}/${stepIds.length} - ${stepName || stepLabels[step - 1]} (${percentage}%)`);
+        
+        // Update each step
+        stepIds.forEach((stepId, index) => {
+            const element = document.getElementById(stepId);
+            if (element) {
+                const isCompleted = index < step - 1;
+                const isActive = index === step - 1;
+                
+                element.classList.toggle('completed', isCompleted);
+                element.classList.toggle('active', isActive);
+                
+                // Update step status text
+                const statusElement = element.querySelector('.step-status');
+                if (statusElement) {
+                    if (isCompleted) {
+                        statusElement.textContent = 'Завершено';
+                    } else if (isActive) {
+                        statusElement.textContent = 'В процесі...';
+                    } else {
+                        statusElement.textContent = 'Очікування';
+                    }
+                }
+                
+                // Update step icon for completed steps
+                const iconElement = element.querySelector('.step-icon i');
+                if (iconElement && isCompleted) {
+                    iconElement.className = 'fas fa-check';
+                }
+            }
+        });
+        
+        // Update live progress bar
+        const progressFill = document.getElementById('live-progress-fill');
+        const progressText = document.getElementById('live-progress-text');
+        
+        if (progressFill) {
+            progressFill.style.width = `${Math.min(percentage || 0, 100)}%`;
+        }
+        
+        if (progressText) {
+            progressText.textContent = `${Math.round(percentage || 0)}% - ${stepName || stepLabels[step - 1] || 'Обробка...'}`;
+        }
+        
+        // Show progress section
+        const progressSection = document.querySelector('.analysis-progress');
+        if (progressSection) {
+            progressSection.style.display = 'block';
+        }
+    }
+    
+    function completeAnalysisProgress() {
+        console.log('✅ Analysis completed - updating progress to 100%');
+        
+        updateAnalysisProgressEnhanced(5, 'Аналіз завершено!', 100);
+        
+        // Mark all steps as completed with slight delay for visual effect
+        setTimeout(() => {
+            const stepIds = [
+                'step-text-processing',
+                'step-ai-analysis', 
+                'step-problem-detection',
+                'step-complexity-assessment',
+                'step-final-results'
+            ];
+            
+            stepIds.forEach(stepId => {
+                const element = document.getElementById(stepId);
+                if (element) {
+                    element.classList.add('completed');
+                    element.classList.remove('active');
+                    
+                    // Update status
+                    const statusElement = element.querySelector('.step-status');
+                    if (statusElement) {
+                        statusElement.textContent = 'Завершено';
+                    }
+                    
+                    // Update icon
+                    const iconElement = element.querySelector('.step-icon i');
+                    if (iconElement) {
+                        iconElement.className = 'fas fa-check';
+                    }
+                }
+            });
+        }, 500);
+    }
+
     // ===== Initialization =====
     function init() {
         console.log('🚀 TeamPulse Turbo Neon - Initializing...');
@@ -5854,6 +6137,9 @@
         
         // Initialize modal functionality
         initializeModalHandlers();
+        
+        // Initialize enhanced progress system
+        initializeProgressSystem();
         
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }

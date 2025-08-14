@@ -74,18 +74,77 @@ export class AnalysisManager {
         }
     }
 
-    // Update analysis progress
+    // Update analysis progress with new 5-step horizontal progress bar
     updateAnalysisProgress(data) {
-        const steps = ['input', 'analysis', 'results'];
-        const currentStep = data.step || 1;
+        const stepIds = [
+            'step-text-processing',
+            'step-ai-analysis', 
+            'step-problem-detection',
+            'step-complexity-assessment',
+            'step-final-results'
+        ];
         
-        steps.forEach((step, index) => {
-            const element = DOMUtils.$(`#step-${step}`);
+        const stepLabels = [
+            'Обробка тексту',
+            'ШІ Аналіз',
+            'Пошук проблем',
+            'Оцінка складності',
+            'Фінальні результати'
+        ];
+        
+        const currentStep = data.step || 1;
+        const currentStepName = data.stepName || '';
+        const percentage = data.percentage || ((currentStep - 1) / (stepIds.length - 1)) * 100;
+        
+        console.log(`📊 Progress update: Step ${currentStep}/${stepIds.length} - ${currentStepName} (${percentage}%)`);
+        
+        // Update each step
+        stepIds.forEach((stepId, index) => {
+            const element = DOMUtils.$(`#${stepId}`);
             if (element) {
-                element.classList.toggle('completed', index < currentStep);
-                element.classList.toggle('active', index === currentStep - 1);
+                const isCompleted = index < currentStep - 1;
+                const isActive = index === currentStep - 1;
+                
+                element.classList.toggle('completed', isCompleted);
+                element.classList.toggle('active', isActive);
+                
+                // Update step status text
+                const statusElement = element.querySelector('.step-status');
+                if (statusElement) {
+                    if (isCompleted) {
+                        statusElement.textContent = 'Завершено';
+                    } else if (isActive) {
+                        statusElement.textContent = 'В процесі...';
+                    } else {
+                        statusElement.textContent = 'Очікування';
+                    }
+                }
+                
+                // Update step icon for completed steps
+                const iconElement = element.querySelector('.step-icon i');
+                if (iconElement && isCompleted) {
+                    iconElement.className = 'fas fa-check';
+                }
             }
         });
+        
+        // Update live progress bar
+        const progressFill = DOMUtils.$('#live-progress-fill');
+        const progressText = DOMUtils.$('#live-progress-text');
+        
+        if (progressFill) {
+            progressFill.style.width = `${Math.min(percentage, 100)}%`;
+        }
+        
+        if (progressText) {
+            progressText.textContent = `${Math.round(percentage)}% - ${currentStepName || stepLabels[currentStep - 1] || 'Обробка...'}`;
+        }
+        
+        // Show progress section if hidden
+        const progressSection = DOMUtils.$('.analysis-progress');
+        if (progressSection) {
+            progressSection.style.display = 'block';
+        }
     }
 
     // Update highlights display

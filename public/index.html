@@ -444,27 +444,81 @@
                         <!-- Results Section -->
                         <div id="results-section" class="results-section" style="display: none;">
                             
-                            <!-- Analysis Steps -->
-                            <div class="analysis-steps">
-                                <div class="analysis-step completed" id="step-input">
-                                    <div class="step-circle">1</div>
-                                    <div class="step-content">
-                                        <h4>Ввід тексту</h4>
-                                        <p>Завершено</p>
+                            <!-- Enhanced Analysis Progress -->
+                            <div class="analysis-progress">
+                                <div class="progress-header">
+                                    <h3><i class="fas fa-brain"></i> Аналіз тексту в реальному часі</h3>
+                                    <div class="progress-info">
+                                        <span class="step-text" id="step-text">Підготовка до аналізу...</span>
                                     </div>
                                 </div>
-                                <div class="analysis-step active" id="step-analysis">
-                                    <div class="step-circle">2</div>
-                                    <div class="step-content">
-                                        <h4>AI аналіз</h4>
-                                        <p>В процесі</p>
+                                
+                                <div class="progress-steps">
+                                    <!-- Step 1: Text Processing -->
+                                    <div class="progress-step completed" id="step-text-processing">
+                                        <div class="step-icon">
+                                            <i class="fas fa-file-text"></i>
+                                        </div>
+                                        <div class="step-details">
+                                            <div class="step-title">Обробка тексту</div>
+                                            <div class="step-status">Завершено</div>
+                                        </div>
+                                        <div class="step-line"></div>
+                                    </div>
+                                    
+                                    <!-- Step 2: AI Analysis -->
+                                    <div class="progress-step active" id="step-ai-analysis">
+                                        <div class="step-icon">
+                                            <i class="fas fa-brain"></i>
+                                        </div>
+                                        <div class="step-details">
+                                            <div class="step-title">ШI аналіз</div>
+                                            <div class="step-status">В процесі...</div>
+                                        </div>
+                                        <div class="step-line"></div>
+                                    </div>
+                                    
+                                    <!-- Step 3: Problem Detection -->
+                                    <div class="progress-step" id="step-problem-detection">
+                                        <div class="step-icon">
+                                            <i class="fas fa-search"></i>
+                                        </div>
+                                        <div class="step-details">
+                                            <div class="step-title">Виявлення проблем</div>
+                                            <div class="step-status">Очікування</div>
+                                        </div>
+                                        <div class="step-line"></div>
+                                    </div>
+                                    
+                                    <!-- Step 4: Complexity Assessment -->
+                                    <div class="progress-step" id="step-complexity-assessment">
+                                        <div class="step-icon">
+                                            <i class="fas fa-tachometer-alt"></i>
+                                        </div>
+                                        <div class="step-details">
+                                            <div class="step-title">Оцінка складності</div>
+                                            <div class="step-status">Очікування</div>
+                                        </div>
+                                        <div class="step-line"></div>
+                                    </div>
+                                    
+                                    <!-- Step 5: Results -->
+                                    <div class="progress-step" id="step-final-results">
+                                        <div class="step-icon">
+                                            <i class="fas fa-chart-bar"></i>
+                                        </div>
+                                        <div class="step-details">
+                                            <div class="step-title">Результати</div>
+                                            <div class="step-status">Очікування</div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="analysis-step" id="step-results">
-                                    <div class="step-circle">3</div>
-                                    <div class="step-content">
-                                        <h4>Результати</h4>
-                                        <p>Готові дані</p>
+                                
+                                <!-- Live Progress Bar -->
+                                <div class="live-progress">
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" id="live-progress-fill"></div>
+                                        <div class="progress-percentage" id="live-progress-percentage">0%</div>
                                     </div>
                                 </div>
                             </div>

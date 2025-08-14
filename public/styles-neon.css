@@ -1070,6 +1070,181 @@ body::before {
     text-align: center;
 }
 
+/* ===== Enhanced Analysis Progress ===== */
+.analysis-progress {
+    margin-bottom: var(--spacing-xl);
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.progress-header {
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.progress-header h3 {
+    color: var(--accent);
+    font-size: 1.2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.progress-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.step-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.progress-steps {
+    display: flex;
+    padding: var(--spacing-lg);
+    gap: 0;
+}
+
+.progress-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    padding: var(--spacing-md);
+}
+
+.step-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: var(--spacing-sm);
+    transition: all var(--transition-normal);
+    border: 2px solid var(--border);
+    background: var(--card);
+    color: var(--text-secondary);
+}
+
+.step-details {
+    text-align: center;
+    width: 100%;
+}
+
+.step-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text);
+}
+
+.step-status {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.step-line {
+    position: absolute;
+    top: 25px;
+    right: -50%;
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    z-index: 1;
+}
+
+.progress-step:last-child .step-line {
+    display: none;
+}
+
+/* Step States */
+.progress-step.completed .step-icon {
+    background: var(--neon-green);
+    border-color: var(--neon-green);
+    color: var(--bg);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+}
+
+.progress-step.completed .step-line {
+    background: var(--neon-green);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+.progress-step.completed .step-status {
+    color: var(--neon-green);
+    font-weight: 600;
+}
+
+.progress-step.active .step-icon {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+    animation: pulse-glow 2s infinite;
+}
+
+.progress-step.active .step-status {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Live Progress Bar */
+.live-progress {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.progress-bar-container {
+    position: relative;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--neon-green), var(--accent), var(--neon-blue));
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.8s ease;
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+}
+
+.progress-percentage {
+    position: absolute;
+    top: -25px;
+    right: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+/* Pulse Animation */
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(168, 85, 247, 0.7);
+        transform: scale(1.05);
+    }
+}
+
 /* ===== Analysis Results ===== */
 .results-container {
     display: grid;
@@ -2722,6 +2897,27 @@ mark.cognitive {
     transform: scale(1.02);
     box-shadow: 0 2px 8px rgba(168, 85, 247, 0.3);
     z-index: 1;
+}
+
+/* Real-time highlight animations */
+.highlight-item.new-highlight {
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+}
+
+.highlight-item.new-highlight::before {
+    content: 'НОВИЙ';
+    position: absolute;
+    top: -8px;
+    right: 10px;
+    background: var(--neon-green);
+    color: var(--bg);
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
 }
 
 /* ===== Responsive Design ===== */
