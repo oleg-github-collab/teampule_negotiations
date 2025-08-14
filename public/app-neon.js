@@ -13,6 +13,7 @@
         originalText: null,
         onboardingCompleted: false,
         onboardingStep: 1,
+        isAnalyzing: false,
         tokenUsage: {
             used: 0,
             total: 512000,
@@ -888,6 +889,17 @@
             return;
         }
         
+        // Prevent multiple simultaneous analyses
+        if (state.isAnalyzing) {
+            console.log('⚠️ Analysis already in progress, ignoring request');
+            return;
+        }
+        
+        state.isAnalyzing = true;
+        let retryCount = 0;
+        const maxRetries = 3;
+        const baseDelay = 1000; // 1 second
+        
         try {
             // Show loading state
             if (elements.startAnalysisBtn) {
@@ -910,30 +922,107 @@
             // Reset counters and displays
             resetAnalysisDisplay();
             
-            // Send analysis request
-            const response = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    text: text,
-                    client_id: state.currentClient.id
-                })
-            });
+            // Function to make analysis request with retries
+            const makeAnalysisRequest = async (attempt = 1) => {
+                console.log(`📡 Analysis attempt ${attempt}/${maxRetries}`);
+                
+                try {
+                    // Update loading message with retry info
+                    if (attempt > 1 && elements.startAnalysisBtn) {
+                        elements.startAnalysisBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>Повторна спроба ${attempt}...</span>`;
+                    }
+                    
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+                    
+                    const response = await fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            client_id: state.currentClient.id,
+                            retry_attempt: attempt
+                        }),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeout);
+                    
+                    if (!response.ok) {
+                        // Handle different HTTP status codes
+                        if (response.status === 503 && attempt < maxRetries) {
+                            console.log(`⚠️ Server unavailable (503), retrying in ${baseDelay * attempt}ms...`);
+                            await new Promise(resolve => setTimeout(resolve, baseDelay * attempt));
+                            return makeAnalysisRequest(attempt + 1);
+                        }
+                        
+                        if (response.status === 500 && attempt < maxRetries) {
+                            console.log(`⚠️ Server error (500), retrying in ${baseDelay * attempt}ms...`);
+                            await new Promise(resolve => setTimeout(resolve, baseDelay * attempt));
+                            return makeAnalysisRequest(attempt + 1);
+                        }
+                        
+                        if (response.status === 429) { // Rate limit
+                            const retryAfter = response.headers.get('Retry-After') || 5;
+                            console.log(`⚠️ Rate limited, waiting ${retryAfter} seconds...`);
+                            if (elements.startAnalysisBtn) {
+                                elements.startAnalysisBtn.innerHTML = `<i class="fas fa-clock"></i> <span>Зачекайте ${retryAfter}с...</span>`;
+                            }
+                            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                            if (attempt < maxRetries) {
+                                return makeAnalysisRequest(attempt + 1);
+                            }
+                        }
+                        
+                        // Try to get error message from response
+                        let errorMessage = `Помилка сервера: ${response.status}`;
+                        try {
+                            const errorData = await response.json();
+                            if (errorData.error) {
+                                errorMessage = errorData.error;
+                            }
+                        } catch (e) {
+                            console.log('Could not parse error response');
+                        }
+                        
+                        throw new Error(errorMessage);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    return data;
+                    
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        throw new Error('Аналіз перервано через тайм-аут (2 хв). Спробуйте з меншим текстом.');
+                    }
+                    
+                    if (attempt < maxRetries && (
+                        error.message.includes('Failed to fetch') ||
+                        error.message.includes('NetworkError') ||
+                        error.message.includes('ERR_NETWORK')
+                    )) {
+                        console.log(`⚠️ Network error, retrying in ${baseDelay * attempt}ms...`, error.message);
+                        await new Promise(resolve => setTimeout(resolve, baseDelay * attempt));
+                        return makeAnalysisRequest(attempt + 1);
+                    }
+                    
+                    throw error;
+                }
+            };
             
-            if (!response.ok) {
-                throw new Error(`Помилка сервера: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.error) {
-                throw new Error(data.error);
-            }
+            // Make the analysis request
+            const data = await makeAnalysisRequest();
             
             // Process analysis results
             if (data.analysis) {
+                console.log('✅ Analysis completed successfully');
                 state.currentAnalysis = data.analysis;
                 displayAnalysisResults(data.analysis);
                 
@@ -951,19 +1040,55 @@
                 updateAnalysisSteps('completed');
                 
                 showNotification('Аналіз завершено успішно! ✨', 'success');
+                
+            } else if (data.message) {
+                // Handle case where server returns message but no analysis
+                showNotification(data.message, 'info');
+                updateAnalysisSteps('completed');
+            } else {
+                throw new Error('Сервер повернув порожню відповідь');
             }
             
         } catch (error) {
             console.error('Analysis error:', error);
-            showNotification(error.message || 'Помилка при аналізі', 'error');
+            
+            // More specific error messages
+            let errorMessage = error.message || 'Невідома помилка';
+            let notificationType = 'error';
+            
+            if (error.message.includes('тайм-аут')) {
+                errorMessage = 'Аналіз перервано через тайм-аут. Спробуйте з меншим текстом або пізніше.';
+            } else if (error.message.includes('500')) {
+                errorMessage = 'Внутрішня помилка сервера. Спробуйте пізніше або зверніться до підтримки.';
+            } else if (error.message.includes('503')) {
+                errorMessage = 'Сервер тимчасово недоступний. Спробуйте через кілька хвилин.';
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Проблема з мережею. Перевірте інтернет-з\'єднання та спробуйте знову.';
+                notificationType = 'warning';
+            }
+            
+            showNotification(errorMessage, notificationType);
             updateAnalysisSteps('error');
+            
+            // Log detailed error info for debugging
+            console.error('Detailed error info:', {
+                message: error.message,
+                stack: error.stack,
+                clientId: state.currentClient?.id,
+                textLength: text.length
+            });
+            
         } finally {
+            state.isAnalyzing = false;
+            
             // Remove loading state
             if (elements.startAnalysisBtn) {
                 elements.startAnalysisBtn.classList.remove('btn-loading');
                 elements.startAnalysisBtn.disabled = false;
                 updateTextStats(); // Restore button text
             }
+            
+            console.log('🏁 Analysis process completed');
         }
     }
     
