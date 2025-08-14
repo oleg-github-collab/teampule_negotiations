@@ -872,6 +872,162 @@
             updateRecommendationsHistory(client.id);
         }
     }
+
+    // ===== Analysis Functions =====
+    async function startAnalysis() {
+        console.log('🚀 Starting analysis...');
+        
+        if (!state.currentClient) {
+            showNotification('Спочатку оберіть клієнта', 'warning');
+            return;
+        }
+        
+        const text = elements.negotiationText?.value;
+        if (!text || text.trim().length < 20) {
+            showNotification('Введіть текст для аналізу (мінімум 20 символів)', 'warning');
+            return;
+        }
+        
+        try {
+            // Show loading state
+            if (elements.startAnalysisBtn) {
+                elements.startAnalysisBtn.classList.add('btn-loading');
+                elements.startAnalysisBtn.disabled = true;
+                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Аналіз...</span>';
+            }
+            
+            // Store original text
+            state.originalText = text;
+            
+            // Update analysis steps
+            updateAnalysisSteps('analyzing');
+            
+            // Show results section
+            if (elements.resultsSection) {
+                elements.resultsSection.style.display = 'block';
+            }
+            
+            // Reset counters and displays
+            resetAnalysisDisplay();
+            
+            // Send analysis request
+            const response = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: text,
+                    client_id: state.currentClient.id
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Помилка сервера: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Process analysis results
+            if (data.analysis) {
+                state.currentAnalysis = data.analysis;
+                displayAnalysisResults(data.analysis);
+                
+                // Update client analysis count in real-time
+                updateClientAnalysisCountRealTime(state.currentClient.id);
+                
+                // Generate highlighted text
+                if (data.analysis.highlights && data.analysis.highlights.length > 0) {
+                    const highlightedText = generateHighlightedText(text, data.analysis.highlights);
+                    state.currentAnalysis.highlighted_text = highlightedText;
+                    updateFullTextView(highlightedText);
+                }
+                
+                // Update analysis steps
+                updateAnalysisSteps('completed');
+                
+                showNotification('Аналіз завершено успішно! ✨', 'success');
+            }
+            
+        } catch (error) {
+            console.error('Analysis error:', error);
+            showNotification(error.message || 'Помилка при аналізі', 'error');
+            updateAnalysisSteps('error');
+        } finally {
+            // Remove loading state
+            if (elements.startAnalysisBtn) {
+                elements.startAnalysisBtn.classList.remove('btn-loading');
+                elements.startAnalysisBtn.disabled = false;
+                updateTextStats(); // Restore button text
+            }
+        }
+    }
+    
+    function createNewAnalysis() {
+        console.log('🆕 Creating new analysis...');
+        
+        // Clear current analysis
+        state.currentAnalysis = null;
+        state.originalText = '';
+        
+        // Clear text input
+        if (elements.negotiationText) {
+            elements.negotiationText.value = '';
+        }
+        
+        // Reset displays
+        resetAnalysisDisplay();
+        
+        // Hide results section
+        if (elements.resultsSection) {
+            elements.resultsSection.style.display = 'none';
+        }
+        
+        // Update text stats
+        updateTextStats();
+        
+        // Focus on text area
+        if (elements.negotiationText) {
+            elements.negotiationText.focus();
+        }
+        
+        showNotification('Готово до нового аналізу', 'info');
+    }
+    
+    function resetAnalysisDisplay() {
+        console.log('🔄 Resetting analysis display...');
+        
+        // Reset counters
+        const counters = ['manipulations-count', 'biases-count', 'fallacies-count', 'recommendations-count'];
+        counters.forEach(counterId => {
+            const element = document.getElementById(counterId);
+            if (element) element.textContent = '0';
+        });
+        
+        // Clear highlights list
+        if (elements.highlightsList) {
+            elements.highlightsList.innerHTML = '';
+        }
+        
+        // Clear full text view
+        if (elements.fulltextContent) {
+            elements.fulltextContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-file-text"></i></div>
+                    <h4>Повний текст недоступний</h4>
+                    <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                </div>
+            `;
+        }
+        
+        // Clear workspace
+        state.selectedFragments = [];
+        updateWorkspaceFragments();
+    }
     
     function updateClientAnalysisCountRealTime(clientId) {
         if (!state.currentClient || state.currentClient.id !== clientId) return;
@@ -4446,11 +4602,8 @@
         }
     }
 
-    // ===== Global Functions =====
-    window.showClientForm = showClientForm;
-    window.selectClient = selectClient;
-    window.editClient = editClient;
-    window.deleteClient = deleteClient;
+    // ===== Global Functions ===== 
+    // Оголошення глобальних функцій буде в кінці файлу після визначення всіх функцій
     
     // Додатковий глобальний обробник для кнопок створення клієнта
     document.addEventListener('click', (e) => {
@@ -5086,5 +5239,13 @@
         // Start when authenticated
         window.addEventListener('auth-success', init);
     }
+
+    // ===== Global Functions Export =====
+    window.showClientForm = showClientForm;
+    window.selectClient = selectClient;
+    window.editClient = editClient;
+    window.deleteClient = deleteClient;
+    window.startAnalysis = startAnalysis;
+    window.createNewAnalysis = createNewAnalysis;
 
 })();
