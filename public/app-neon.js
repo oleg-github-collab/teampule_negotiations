@@ -513,6 +513,112 @@
         loadTokenUsage();
     }
 
+    // ===== Reliable API Functions =====
+    async function makeReliableApiRequest(url, options = {}, maxRetries = 3) {
+        console.log(`📡 Making reliable API request to: ${url}`);
+        
+        const makeRequest = async (attempt = 1) => {
+            try {
+                console.log(`📡 API request attempt ${attempt}/${maxRetries} to ${url}`);
+                
+                // Default options
+                const defaultOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                // Merge options
+                const finalOptions = { ...defaultOptions, ...options };
+                
+                // Add timeout
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                finalOptions.signal = controller.signal;
+                
+                const response = await fetch(url, finalOptions);
+                clearTimeout(timeout);
+                
+                console.log(`📡 API response status: ${response.status} for ${url}`);
+                
+                // Handle auth errors
+                if (response.status === 401) {
+                    console.log('❌ Unauthorized, redirecting to login');
+                    window.location.href = '/login';
+                    return null;
+                }
+                
+                // Retry on server errors
+                if (!response.ok) {
+                    if ((response.status === 500 || response.status === 503) && attempt < maxRetries) {
+                        console.log(`⚠️ Server error ${response.status}, retrying in ${1000 * attempt}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                        return makeRequest(attempt + 1);
+                    }
+                    
+                    // Try to get error message
+                    let errorMessage = `HTTP Error: ${response.status}`;
+                    try {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            if (errorData.error) {
+                                errorMessage = errorData.error;
+                            } else if (errorData.message) {
+                                errorMessage = errorData.message;
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Could not parse error response');
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                // Validate content type for successful responses
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.warn(`Server returned non-JSON response for ${url}, content-type:`, contentType);
+                    if (attempt < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                        return makeRequest(attempt + 1);
+                    }
+                    throw new Error('Сервер повернув некоректний формат даних (не JSON)');
+                }
+                
+                // Parse JSON
+                const data = await response.json();
+                
+                // Validate response structure
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                return data;
+                
+            } catch (error) {
+                console.log(`📡 API request error for ${url}:`, error.message);
+                
+                if (error.name === 'AbortError' && attempt < maxRetries) {
+                    console.log(`⚠️ Request timeout for ${url}, retrying in ${1000 * attempt}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                    return makeRequest(attempt + 1);
+                }
+                
+                if (error.message.includes('Failed to fetch') && attempt < maxRetries) {
+                    console.log(`⚠️ Network error for ${url}, retrying in ${1000 * attempt}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                    return makeRequest(attempt + 1);
+                }
+                
+                throw error;
+            }
+        };
+        
+        return makeRequest();
+    }
+
     // ===== Client Management =====
     async function loadClients(forceRefresh = false) {
         console.log('🔄 Loading clients...', { forceRefresh, currentCount: state.clients?.length || 0 });
@@ -896,9 +1002,6 @@
         }
         
         state.isAnalyzing = true;
-        let retryCount = 0;
-        const maxRetries = 3;
-        const baseDelay = 1000; // 1 second
         
         try {
             // Show loading state
@@ -922,103 +1025,14 @@
             // Reset counters and displays
             resetAnalysisDisplay();
             
-            // Function to make analysis request with retries
-            const makeAnalysisRequest = async (attempt = 1) => {
-                console.log(`📡 Analysis attempt ${attempt}/${maxRetries}`);
-                
-                try {
-                    // Update loading message with retry info
-                    if (attempt > 1 && elements.startAnalysisBtn) {
-                        elements.startAnalysisBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>Повторна спроба ${attempt}...</span>`;
-                    }
-                    
-                    const controller = new AbortController();
-                    const timeout = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
-                    
-                    const response = await fetch('/api/analyze', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            text: text,
-                            client_id: state.currentClient.id,
-                            retry_attempt: attempt
-                        }),
-                        signal: controller.signal
-                    });
-                    
-                    clearTimeout(timeout);
-                    
-                    if (!response.ok) {
-                        // Handle different HTTP status codes
-                        if (response.status === 503 && attempt < maxRetries) {
-                            console.log(`⚠️ Server unavailable (503), retrying in ${baseDelay * attempt}ms...`);
-                            await new Promise(resolve => setTimeout(resolve, baseDelay * attempt));
-                            return makeAnalysisRequest(attempt + 1);
-                        }
-                        
-                        if (response.status === 500 && attempt < maxRetries) {
-                            console.log(`⚠️ Server error (500), retrying in ${baseDelay * attempt}ms...`);
-                            await new Promise(resolve => setTimeout(resolve, baseDelay * attempt));
-                            return makeAnalysisRequest(attempt + 1);
-                        }
-                        
-                        if (response.status === 429) { // Rate limit
-                            const retryAfter = response.headers.get('Retry-After') || 5;
-                            console.log(`⚠️ Rate limited, waiting ${retryAfter} seconds...`);
-                            if (elements.startAnalysisBtn) {
-                                elements.startAnalysisBtn.innerHTML = `<i class="fas fa-clock"></i> <span>Зачекайте ${retryAfter}с...</span>`;
-                            }
-                            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-                            if (attempt < maxRetries) {
-                                return makeAnalysisRequest(attempt + 1);
-                            }
-                        }
-                        
-                        // Try to get error message from response
-                        let errorMessage = `Помилка сервера: ${response.status}`;
-                        try {
-                            const errorData = await response.json();
-                            if (errorData.error) {
-                                errorMessage = errorData.error;
-                            }
-                        } catch (e) {
-                            console.log('Could not parse error response');
-                        }
-                        
-                        throw new Error(errorMessage);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-                    
-                    return data;
-                    
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        throw new Error('Аналіз перервано через тайм-аут (2 хв). Спробуйте з меншим текстом.');
-                    }
-                    
-                    if (attempt < maxRetries && (
-                        error.message.includes('Failed to fetch') ||
-                        error.message.includes('NetworkError') ||
-                        error.message.includes('ERR_NETWORK')
-                    )) {
-                        console.log(`⚠️ Network error, retrying in ${baseDelay * attempt}ms...`, error.message);
-                        await new Promise(resolve => setTimeout(resolve, baseDelay * attempt));
-                        return makeAnalysisRequest(attempt + 1);
-                    }
-                    
-                    throw error;
-                }
-            };
-            
-            // Make the analysis request
-            const data = await makeAnalysisRequest();
+            // Make the analysis request using reliable API function
+            const data = await makeReliableApiRequest('/api/analyze', {
+                method: 'POST',
+                body: JSON.stringify({
+                    text: text,
+                    client_id: state.currentClient.id
+                })
+            });
             
             // Process analysis results
             if (data.analysis) {
@@ -4481,7 +4495,39 @@
     // ===== Analysis Loading =====
     async function loadAnalysis(analysisId) {
         try {
-            const response = await fetch(`/api/clients/${state.currentClient.id}/analysis/${analysisId}`);
+            // Валідація параметрів
+            if (!analysisId || !state.currentClient?.id) {
+                throw new Error('Відсутні необхідні параметри для завантаження аналізу');
+            }
+            
+            const clientId = parseInt(state.currentClient.id);
+            const analysisIdNum = parseInt(analysisId);
+            
+            if (isNaN(clientId) || isNaN(analysisIdNum)) {
+                throw new Error('Некоректні ідентифікатори клієнта або аналізу');
+            }
+            
+            console.log(`📡 Loading analysis ${analysisIdNum} for client ${clientId}`);
+            
+            const response = await fetch(`/api/clients/${clientId}/analyses/${analysisIdNum}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('Аналіз не знайдено');
+                }
+                throw new Error(`Помилка завантаження аналізу: ${response.status}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Сервер повернув некоректний формат даних');
+            }
+            
             const data = await response.json();
             
             if (!response.ok) {
@@ -4730,8 +4776,9 @@
     // ===== Global Functions ===== 
     // Оголошення глобальних функцій буде в кінці файлу після визначення всіх функцій
     
-    // Додатковий глобальний обробник для кнопок створення клієнта
+    // Глобальний обробник для всіх кнопок клієнтів
     document.addEventListener('click', (e) => {
+        // Кнопки створення клієнта
         if (e.target && (
             e.target.id === 'new-client-btn' || 
             e.target.id === 'welcome-new-client' ||
@@ -4742,6 +4789,46 @@
             e.stopPropagation();
             console.log('🎯 Global click handler for client creation button:', e.target.id);
             showClientForm();
+            return;
+        }
+
+        // Знайти кнопку редагування клієнта (може бути іконка всередині кнопки)
+        const editBtn = e.target.closest('.edit-client-btn');
+        if (editBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const clientId = editBtn.dataset.clientId;
+            console.log('🎯 Edit client button clicked for ID:', clientId);
+            if (clientId) {
+                editClient(clientId, e);
+            }
+            return;
+        }
+
+        // Знайти кнопку видалення клієнта (може бути іконка всередині кнопки)
+        const deleteBtn = e.target.closest('.delete-client-btn');
+        if (deleteBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const clientId = deleteBtn.dataset.clientId;
+            console.log('🎯 Delete client button clicked for ID:', clientId);
+            if (clientId) {
+                deleteClient(clientId, e);
+            }
+            return;
+        }
+
+        // Кнопка вибору клієнта (клік по елементу клієнта)
+        const clientItem = e.target.closest('.client-item:not(.active)');
+        if (clientItem && clientItem.dataset.clientId) {
+            e.preventDefault();
+            e.stopPropagation();
+            const clientId = clientItem.dataset.clientId;
+            console.log('🎯 Client selection clicked for ID:', clientId);
+            if (clientId) {
+                selectClient(clientId);
+            }
+            return;
         }
     });
     window.addToWorkspace = addToWorkspace;
