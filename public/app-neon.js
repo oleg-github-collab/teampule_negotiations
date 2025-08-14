@@ -1427,9 +1427,22 @@
                     if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.slice(6));
+                            console.log('📨 Received data:', data.type, data);
                             
-                            if (data.type === 'highlight') {
+                            if (data.type === 'analysis_started') {
+                                console.log('🚀 Analysis started with chunks:', data.chunks);
+                                showNotification(`🚀 ${data.message} (${data.chunks} частин)`, 'info', 3000);
+                            } else if (data.type === 'progress') {
+                                console.log('📊 Progress update:', data.progress, data.message);
+                                // Update progress indicators if needed
+                                const stepText = document.querySelector('.step-text');
+                                if (stepText) {
+                                    stepText.textContent = data.message;
+                                }
+                            } else if (data.type === 'highlight') {
+                                console.log('🔍 New highlight received:', data);
                                 analysisData.highlights.push(data);
+                                console.log('📊 Total highlights now:', analysisData.highlights.length);
                                 updateHighlightsDisplay(analysisData.highlights);
                                 updateCountersFromHighlights(analysisData.highlights);
                             } else if (data.type === 'merged_highlights') {
