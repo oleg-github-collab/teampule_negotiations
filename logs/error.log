@@ -513,3 +513,43 @@
   message: 'Application Error',
   timestamp: '2025-08-14 00:00:19'
 }
+{
+  service: 'teampulse-turbo',
+  error: {
+    message: 'write EPIPE',
+    stack: 'Error: write EPIPE\n' +
+      '    at afterWriteDispatched (node:internal/stream_base_commons:161:15)\n' +
+      '    at writeGeneric (node:internal/stream_base_commons:152:3)\n' +
+      '    at Socket._writeGeneric (node:net:958:11)\n' +
+      '    at Socket._write (node:net:970:8)\n' +
+      '    at writeOrBuffer (node:internal/streams/writable:572:12)\n' +
+      '    at _write (node:internal/streams/writable:501:10)\n' +
+      '    at Writable.write (node:internal/streams/writable:510:10)\n' +
+      '    at Console.log (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/winston/lib/winston/transports/console.js:87:23)\n' +
+      '    at Console._write (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/winston-transport/modern.js:103:17)\n' +
+      '    at doWrite (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:390:139)\n' +
+      '    at writeOrBuffer (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:381:5)\n' +
+      '    at Writable.write (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:302:11)\n' +
+      '    at DerivedLogger.ondata (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:629:20)\n' +
+      '    at DerivedLogger.emit (node:events:536:35)\n' +
+      '    at addChunk (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:279:12)\n' +
+      '    at readableAddChunk (/Users/olehkaminskyi/Desktop/Teampulse Negotiations/node_modules/winston/node_modules/readable-stream/lib/_stream_readable.js:262:11)',
+    name: 'Error'
+  },
+  context: {
+    type: 'uncaughtException',
+    errorId: 'u79wjy6yioh',
+    pid: 95295,
+    memory: {
+      rss: 76906496,
+      heapTotal: 22421504,
+      heapUsed: 20691488,
+      external: 2635435,
+      arrayBuffers: 33303
+    },
+    uptime: 140.696221408
+  },
+  level: 'error',
+  message: 'Application Error',
+  timestamp: '2025-08-14 21:37:01'
+}

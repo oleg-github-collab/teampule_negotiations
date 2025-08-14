@@ -2608,16 +2608,16 @@
             
             if (start !== undefined && end !== undefined && start >= 0 && end > start && end <= originalText.length) {
                 const actualText = originalText.substring(start, end);
-                console.log(`🎯 Strategy 1 (coordinates) - Highlight ${i}: [${start}-${end}] "${actualText.slice(0, 30)}..."`);
+                console.log(`🎯 Strategy 1 (coordinates) - Highlight ${index}: [${start}-${end}] "${actualText.slice(0, 30)}..."`);
                 
                 segments.push({
                     start: start,
                     end: end,
                     actualText: actualText,
                     highlight: highlight,
-                    highlightIndex: i
+                    highlightIndex: indexndex
                 });
-                continue;
+                return;
             }
             
             // Strategy 2: Exact text search
@@ -2642,9 +2642,9 @@
                         end: end,
                         actualText: originalText.substring(start, end),
                         highlight: highlight,
-                        highlightIndex: i
+                        highlightIndex: indexndex
                     });
-                    continue;
+                    return;
                 }
             }
             
@@ -2684,9 +2684,9 @@
                             end: end,
                             actualText: originalText.substring(start, end),
                             highlight: highlight,
-                            highlightIndex: i
+                            highlightIndex: indexndex
                         });
-                        continue;
+                        return;
                     }
                 }
             }
@@ -2724,14 +2724,14 @@
                         end: end,
                         actualText: originalText.substring(start, end),
                         highlight: highlight,
-                        highlightIndex: i
+                        highlightIndex: indexndex
                     });
-                    continue;
+                    return;
                 }
             }
             
-            console.warn(`🎯 ❌ All strategies failed for highlight ${i}: "${searchText?.slice(0, 50)}..."`);
-        }
+            console.warn(`🎯 ❌ All strategies failed for highlight ${index}: "${searchText?.slice(0, 50)}..."`);
+        });
         
         // Sort segments by start position
         segments.sort((a, b) => a.start - b.start);
@@ -2876,7 +2876,7 @@
                     start: foundIndex,
                     end: endIndex,
                     highlight: highlight,
-                    highlightIndex: index,
+                    highlightIndex: indexndex,
                     actualText: originalText.substring(foundIndex, endIndex)
                 });
                 
