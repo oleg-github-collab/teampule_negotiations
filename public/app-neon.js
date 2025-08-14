@@ -2548,20 +2548,24 @@
     }
 
     function generateHighlightedText(originalText, highlights) {
-        if (!originalText || !highlights || highlights.length === 0) {
-            console.log('🎯 No text or highlights to process - returning plain text');
-            return `<div class="text-content">${escapeHtml(originalText || '')}</div>`;
-        }
-
-        console.log('🎯 ========== ROBUST TEXT HIGHLIGHTING ==========');
-        console.log('🎯 Original text length:', originalText.length);
-        console.log('🎯 Number of highlights:', highlights.length);
-
-        // Create segments array using multiple fallback strategies
-        const segments = [];
+        console.log('🔥 ========== NEW HIGHLIGHTING ENGINE ==========');
         
-        // Process each highlight with robust text finding
-        for (let i = 0; i < highlights.length; i++) {
+        if (!originalText) {
+            console.log('🔥 No original text provided');
+            return '<div class="text-content">Немає тексту для відображення</div>';
+        }
+        
+        if (!highlights || !Array.isArray(highlights) || highlights.length === 0) {
+            console.log('🔥 No highlights provided, showing plain text');
+            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
+        }
+        
+        console.log(`🔥 Processing ${highlights.length} highlights for text of ${originalText.length} chars`);
+
+        // Build array of all highlight positions
+        const highlightPositions = [];
+        
+        highlights.forEach((highlight, index) => {
             const highlight = highlights[i];
             
             // Strategy 1: Try exact coordinates if available  
@@ -2791,6 +2795,128 @@
         console.log('🎯 Applied precise highlights:', mergedSegments.length);
         
         return `<div class="text-content">${result}</div>`;
+    }
+
+    // ===== NEW SUPER HIGHLIGHTING FUNCTION =====
+    function generateHighlightedTextNew(originalText, highlights) {
+        console.log('🔥 ========== SUPER HIGHLIGHTING ENGINE ==========');
+        
+        if (!originalText) {
+            console.log('🔥 No original text provided');
+            return '<div class="text-content">Немає тексту для відображення</div>';
+        }
+        
+        if (!highlights || !Array.isArray(highlights) || highlights.length === 0) {
+            console.log('🔥 No highlights, showing plain text');
+            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
+        }
+        
+        console.log(`🔥 Processing ${highlights.length} highlights for text of ${originalText.length} chars`);
+        
+        // Build array of all highlight positions
+        const highlightPositions = [];
+        
+        highlights.forEach((highlight, index) => {
+            console.log(`🔥 Processing highlight ${index}:`, {
+                text: (highlight.text || '').substring(0, 50) + '...',
+                category: highlight.category
+            });
+            
+            const searchText = highlight.text?.trim();
+            if (!searchText || searchText.length < 2) {
+                console.log(`🔥 Skipping highlight ${index} - text too short or missing`);
+                return;
+            }
+            
+            // Find all occurrences of this text (case-insensitive)
+            const lowerOriginal = originalText.toLowerCase();
+            const lowerSearch = searchText.toLowerCase();
+            
+            let startIndex = 0;
+            let foundIndex;
+            
+            while ((foundIndex = lowerOriginal.indexOf(lowerSearch, startIndex)) !== -1) {
+                const endIndex = foundIndex + searchText.length;
+                
+                highlightPositions.push({
+                    start: foundIndex,
+                    end: endIndex,
+                    highlight: highlight,
+                    highlightIndex: index,
+                    actualText: originalText.substring(foundIndex, endIndex)
+                });
+                
+                console.log(`🔥 Found "${searchText.substring(0, 30)}..." at position [${foundIndex}-${endIndex}]`);
+                startIndex = foundIndex + 1;
+                
+                // Prevent infinite loops and limit matches per highlight
+                if (highlightPositions.length > 200) break;
+            }
+        });
+        
+        if (highlightPositions.length === 0) {
+            console.log('🔥 No highlights found in text');
+            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
+        }
+        
+        // Sort by position and remove overlaps
+        highlightPositions.sort((a, b) => a.start - b.start);
+        console.log(`🔥 Found ${highlightPositions.length} highlight positions`);
+        
+        // Remove overlapping highlights (keep first one)
+        const cleanedHighlights = [];
+        let lastEnd = 0;
+        
+        for (const pos of highlightPositions) {
+            if (pos.start >= lastEnd) {
+                cleanedHighlights.push(pos);
+                lastEnd = pos.end;
+            } else {
+                console.log(`🔥 Removing overlapping highlight at [${pos.start}-${pos.end}]`);
+            }
+        }
+        
+        console.log(`🔥 After removing overlaps: ${cleanedHighlights.length} highlights`);
+        
+        // Generate HTML
+        let html = '';
+        let currentPos = 0;
+        
+        cleanedHighlights.forEach((pos) => {
+            // Add plain text before highlight
+            if (pos.start > currentPos) {
+                html += escapeHtml(originalText.substring(currentPos, pos.start));
+            }
+            
+            // Add highlighted text
+            const category = getCategoryClass(pos.highlight.category || 'manipulation');
+            const tooltipData = {
+                title: pos.highlight.label || getCategoryLabel(pos.highlight.category),
+                explanation: pos.highlight.explanation || 'Проблемний фрагмент',
+                severity: pos.highlight.severity || 1,
+                category: pos.highlight.category,
+                recommendation: pos.highlight.recommendation
+            };
+            
+            html += `<span class="text-highlight ${category} interactive-highlight" 
+                          data-highlight-index="${pos.highlightIndex}"
+                          data-tooltip='${JSON.stringify(tooltipData).replace(/'/g, "&apos;")}'
+                          onmouseover="showHighlightTooltip(event, this)"
+                          onmouseout="hideHighlightTooltip()"
+                          title="${escapeHtml(pos.highlight.explanation || 'Проблемний фрагмент')}">${escapeHtml(pos.actualText)}</span>`;
+            
+            currentPos = pos.end;
+        });
+        
+        // Add remaining plain text
+        if (currentPos < originalText.length) {
+            html += escapeHtml(originalText.substring(currentPos));
+        }
+        
+        console.log(`🔥 Generated HTML with ${cleanedHighlights.length} highlighted segments`);
+        console.log('🔥 ========== HIGHLIGHTING COMPLETE ==========');
+        
+        return `<div class="text-content">${html}</div>`;
     }
     
     // Simplified helper function for category CSS classes
