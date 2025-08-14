@@ -369,11 +369,18 @@
     }
 
     function showSection(sectionId) {
+        console.log('🔧 showSection called with:', sectionId);
+        
         // Hide all sections
         const sections = ['welcome-screen', 'client-form', 'analysis-dashboard'];
         sections.forEach(id => {
             const el = $(`#${id}`);
-            if (el) el.style.display = 'none';
+            if (el) {
+                el.style.display = 'none';
+                console.log('🔧 Hidden section:', id);
+            } else {
+                console.warn('⚠️ Section element not found:', id);
+            }
         });
         
         // Show target section
@@ -381,6 +388,9 @@
         if (target) {
             target.style.display = 'block';
             state.ui.currentView = sectionId;
+            console.log('✅ Showed section:', sectionId, 'currentView:', state.ui.currentView);
+        } else {
+            console.error('❌ Target section not found:', sectionId);
         }
     }
 
@@ -694,22 +704,45 @@
     }
 
     function showClientForm(clientId = null) {
+        console.log('🎯 showClientForm called with clientId:', clientId);
         const isEdit = clientId !== null;
         
+        // Переконуємося що елементи доступні
+        if (!elements.clientForm) {
+            console.error('❌ Client form element not found!');
+            const formElement = document.getElementById('client-form');
+            if (!formElement) {
+                console.error('❌ #client-form not found in DOM!');
+                return;
+            }
+            elements.clientForm = formElement;
+        }
+        
+        console.log('🔧 Setting form title...');
         if (elements.clientFormTitle) {
             elements.clientFormTitle.textContent = isEdit ? 'Редагувати клієнта' : 'Новий клієнт';
+            console.log('✅ Form title set:', elements.clientFormTitle.textContent);
+        } else {
+            console.warn('⚠️ clientFormTitle element not found');
         }
         
         if (isEdit) {
+            console.log('🔧 Loading client for edit...');
             const client = state.clients.find(c => c.id === clientId);
             if (client) {
                 populateClientForm(client);
             }
         } else {
+            console.log('🔧 Clearing form for new client...');
             clearClientForm();
         }
         
+        console.log('🔧 Showing client-form section...');
         showSection('client-form');
+        
+        // Зміна стану UI
+        state.ui.currentView = 'client-form';
+        console.log('✅ showClientForm completed, currentView:', state.ui.currentView);
     }
 
     function clearClientForm() {
@@ -3660,11 +3693,56 @@
         // Client search
         elements.clientSearch?.addEventListener('input', debounce(renderClientsList, 300));
 
-        // Client management
-        elements.newClientBtn?.addEventListener('click', () => showClientForm());
-        elements.welcomeNewClient?.addEventListener('click', () => showClientForm());
-        elements.saveClientBtn?.addEventListener('click', saveClient);
-        elements.cancelClientBtn?.addEventListener('click', () => showSection('welcome-screen'));
+        // Client management - додано детальні перевірки
+        console.log('🔧 Setting up client management event listeners...');
+        
+        if (elements.newClientBtn) {
+            console.log('✅ newClientBtn found, adding listener');
+            elements.newClientBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🎯 New client button clicked');
+                showClientForm();
+            });
+        } else {
+            console.warn('⚠️ newClientBtn element not found');
+        }
+        
+        if (elements.welcomeNewClient) {
+            console.log('✅ welcomeNewClient found, adding listener');
+            elements.welcomeNewClient.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🎯 Welcome new client button clicked');
+                showClientForm();
+            });
+        } else {
+            console.warn('⚠️ welcomeNewClient element not found');
+        }
+        
+        if (elements.saveClientBtn) {
+            console.log('✅ saveClientBtn found, adding listener');
+            elements.saveClientBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🎯 Save client button clicked');
+                saveClient();
+            });
+        } else {
+            console.warn('⚠️ saveClientBtn element not found');
+        }
+        
+        if (elements.cancelClientBtn) {
+            console.log('✅ cancelClientBtn found, adding listener');
+            elements.cancelClientBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🎯 Cancel client button clicked');
+                showSection('welcome-screen');
+            });
+        } else {
+            console.warn('⚠️ cancelClientBtn element not found');
+        }
 
         // Navigation actions
         $('#help-toggle')?.addEventListener('click', showOnboarding);
@@ -4372,6 +4450,21 @@
     window.selectClient = selectClient;
     window.editClient = editClient;
     window.deleteClient = deleteClient;
+    
+    // Додатковий глобальний обробник для кнопок створення клієнта
+    document.addEventListener('click', (e) => {
+        if (e.target && (
+            e.target.id === 'new-client-btn' || 
+            e.target.id === 'welcome-new-client' ||
+            e.target.id === 'empty-new-client-btn' ||
+            e.target.classList.contains('new-client-trigger')
+        )) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🎯 Global click handler for client creation button:', e.target.id);
+            showClientForm();
+        }
+    });
     window.addToWorkspace = addToWorkspace;
     window.removeFromWorkspace = removeFromWorkspace;
     window.shareHighlight = (id) => console.log('Share highlight:', id);
@@ -4825,6 +4918,36 @@
         
         // Re-initialize DOM elements to ensure they are available
         reinitializeElements();
+        
+        // Додатково перевіряємо та налаштовуємо кнопки створення клієнта
+        setTimeout(() => {
+            console.log('🔧 Double-checking client creation buttons...');
+            
+            const newClientBtn = document.getElementById('new-client-btn');
+            const welcomeNewClient = document.getElementById('welcome-new-client');
+            
+            if (newClientBtn && !newClientBtn.hasAttribute('data-listener-attached')) {
+                console.log('🔧 Adding backup listener to new-client-btn');
+                newClientBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🎯 Backup new client button clicked');
+                    showClientForm();
+                });
+                newClientBtn.setAttribute('data-listener-attached', 'true');
+            }
+            
+            if (welcomeNewClient && !welcomeNewClient.hasAttribute('data-listener-attached')) {
+                console.log('🔧 Adding backup listener to welcome-new-client');
+                welcomeNewClient.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🎯 Backup welcome new client button clicked');
+                    showClientForm();
+                });
+                welcomeNewClient.setAttribute('data-listener-attached', 'true');
+            }
+        }, 100);
         
         // Load saved UI state
         const savedState = localStorage.getItem('teampulse-ui-state');
