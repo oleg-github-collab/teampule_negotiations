@@ -756,7 +756,8 @@
         });
         
         // Remove hidden client-id input if it exists
-        const idInput = form.querySelector('#client-id');
+        const clientForm = document.getElementById('client-form');
+        const idInput = clientForm ? clientForm.querySelector('#client-id') : null;
         if (idInput) {
             idInput.remove();
         }
@@ -3774,7 +3775,7 @@
         elements.fileMethod?.addEventListener('click', () => updateInputMethod('file'));
 
         // Text analysis
-        elements.negotiationText?.addEventListener('input', debouncedUpdateTextStats);
+        elements.negotiationText?.addEventListener('input', debounce(updateTextStats, 300));
         
         // Ensure textarea wrapper is clickable and transfers focus
         const textWrapper = document.querySelector('.text-input-wrapper');
