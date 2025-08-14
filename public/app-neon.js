@@ -710,20 +710,23 @@
     }
 
     function updateClientCount() {
-        const count = state.clients.length;
+        const count = state.clients ? state.clients.length : 0;
         console.log('📊 Updating client count:', count);
         
-        // Try to find element dynamically if not cached
-        const clientCountElement = elements.clientCount || document.getElementById('client-count');
+        // Force find element every time to ensure it exists
+        const clientCountElement = document.getElementById('client-count');
         if (clientCountElement) {
             clientCountElement.textContent = count;
-            console.log('📊 Client count updated to:', count);
-            // Update cache if found dynamically
-            if (!elements.clientCount) {
-                elements.clientCount = clientCountElement;
-            }
+            console.log('📊 ✅ Client count updated to:', count);
+            elements.clientCount = clientCountElement; // Cache it
         } else {
-            console.warn('📊 Client count element not found, element:', clientCountElement);
+            console.error('📊 ❌ Client count element #client-count not found in DOM');
+            // Try alternative selector
+            const altElement = document.querySelector('.fragment-counter');
+            if (altElement) {
+                altElement.textContent = count;
+                console.log('📊 ✅ Updated via alternative selector');
+            }
         }
     }
 
@@ -1258,7 +1261,7 @@
         // Enable/disable analysis button with enhanced validation
         const hasText = chars > 0;
         const hasClient = state.currentClient !== null;
-        const isTextTooLarge = chars > 1000000; // 1M character limit
+        const isTextTooLarge = chars > 10000000; // 10M character limit - без обмежень
         const isTextTooSmall = chars > 0 && chars < 20; // Minimum 20 characters
         
         if (elements.startAnalysisBtn) {
@@ -1268,7 +1271,7 @@
             if (!hasClient) {
                 elements.startAnalysisBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Спочатку оберіть клієнта</span>';
             } else if (isTextTooLarge) {
-                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>Текст занадто великий (макс. 1М символів)</span>';
+                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>Текст занадто великий (макс. 10М символів)</span>';
             } else if (isTextTooSmall) {
                 elements.startAnalysisBtn.innerHTML = '<i class="fas fa-edit"></i> <span>Текст занадто короткий (мін. 20 символів)</span>';
             } else if (!hasText) {
@@ -1794,33 +1797,48 @@
             });
         }
         
-        // Find and update counters (with fallback element finding)
-        const manipulationsElement = elements.manipulationsCount || document.getElementById('manipulations-count');
-        const biasesElement = elements.biasesCount || document.getElementById('biases-count');
-        const fallaciesElement = elements.fallaciesCount || document.getElementById('fallacies-count');
-        const recommendationsElement = elements.recommendationsCount || document.getElementById('recommendations-count');
+        const totalCount = highlights ? highlights.length : 0;
+        console.log('📊 Updating problem counters:', counts, 'Total:', totalCount);
+        
+        // Force find and update all counters
+        const manipulationsElement = document.getElementById('manipulations-count');
+        const biasesElement = document.getElementById('biases-count');
+        const fallaciesElement = document.getElementById('fallacies-count');
+        const recommendationsElement = document.getElementById('recommendations-count');
         
         if (manipulationsElement) {
             animateNumber(manipulationsElement, counts.manipulation);
-            if (!elements.manipulationsCount) elements.manipulationsCount = manipulationsElement;
+            elements.manipulationsCount = manipulationsElement;
+            console.log('📊 ✅ Manipulations count updated:', counts.manipulation);
+        } else {
+            console.error('📊 ❌ #manipulations-count not found');
         }
+        
         if (biasesElement) {
             animateNumber(biasesElement, counts.cognitive_bias);
-            if (!elements.biasesCount) elements.biasesCount = biasesElement;
+            elements.biasesCount = biasesElement;
+            console.log('📊 ✅ Biases count updated:', counts.cognitive_bias);
+        } else {
+            console.error('📊 ❌ #biases-count not found');
         }
+        
         if (fallaciesElement) {
             animateNumber(fallaciesElement, counts.rhetological_fallacy);
-            if (!elements.fallaciesCount) elements.fallaciesCount = fallaciesElement;
+            elements.fallaciesCount = fallaciesElement;
+            console.log('📊 ✅ Fallacies count updated:', counts.rhetological_fallacy);
+        } else {
+            console.error('📊 ❌ #fallacies-count not found');
         }
         
-        // Calculate total
-        const totalCount = highlights ? highlights.length : 0;
         if (recommendationsElement) {
             animateNumber(recommendationsElement, totalCount);
-            if (!elements.recommendationsCount) elements.recommendationsCount = recommendationsElement;
+            elements.recommendationsCount = recommendationsElement;
+            console.log('📊 ✅ Total recommendations updated:', totalCount);
+        } else {
+            console.error('📊 ❌ #recommendations-count not found');
         }
         
-        console.log('📊 Updated analysis counters:', counts, 'Total:', totalCount);
+        console.log('📊 All counters update completed');
     }
 
     // ===== Enhanced Custom Barometer Logic =====
@@ -2465,67 +2483,116 @@
 
     function generateHighlightedText(originalText, highlights) {
         if (!originalText || !highlights || highlights.length === 0) {
+            console.log('🔍 No text or highlights to process');
             return `<div class="text-content">${escapeHtml(originalText || '')}</div>`;
         }
 
-        console.log('🔍 Generating highlighted text, originalText length:', originalText.length);
+        console.log('🔍 ========== HIGHLIGHTING PROCESS ==========');
+        console.log('🔍 Original text length:', originalText.length);
         console.log('🔍 Number of highlights:', highlights.length);
+        console.log('🔍 Sample highlights:', highlights.slice(0, 3).map(h => ({ text: h.text?.substring(0, 50), category: h.category })));
 
-        // Simple and reliable approach: replace all occurrences
-        let result = originalText;
-        const replacements = [];
+        // Create segments array to track what to highlight
+        const segments = [];
+        let lastIndex = 0;
         
-        // Build a list of replacements with their positions
-        for (const highlight of highlights) {
+        // Process each highlight
+        for (let i = 0; i < highlights.length; i++) {
+            const highlight = highlights[i];
             const searchText = highlight.text?.trim();
-            if (!searchText) continue;
             
-            // Find all occurrences of this text (case insensitive)
-            const regex = new RegExp(escapeRegExp(searchText), 'gi');
-            let match;
+            if (!searchText || searchText.length < 2) {
+                console.log(`🔍 Skipping highlight ${i}: empty or too short text`);
+                continue;
+            }
             
-            while ((match = regex.exec(originalText)) !== null) {
-                const category = getCategoryClass(highlight.category || 'manipulation');
-                const tooltip = escapeHtml(highlight.explanation || highlight.description || highlight.label || '');
+            console.log(`🔍 Processing highlight ${i}:`, {
+                text: searchText.substring(0, 50) + (searchText.length > 50 ? '...' : ''),
+                category: highlight.category
+            });
+            
+            // Find ALL occurrences of this text in the ENTIRE document
+            const searchLower = searchText.toLowerCase();
+            const originalLower = originalText.toLowerCase();
+            
+            let startIndex = 0;
+            let foundCount = 0;
+            
+            while (true) {
+                const index = originalLower.indexOf(searchLower, startIndex);
+                if (index === -1) break;
                 
-                replacements.push({
-                    start: match.index,
-                    end: match.index + match[0].length,
-                    originalText: match[0],
-                    replacement: `<span class="text-highlight ${category}" title="${tooltip}">${escapeHtml(match[0])}</span>`,
-                    highlight: highlight
+                const endIndex = index + searchText.length;
+                const actualText = originalText.substring(index, endIndex);
+                
+                foundCount++;
+                console.log(`🔍   Found occurrence ${foundCount} at position ${index}-${endIndex}: "${actualText}"`);
+                
+                segments.push({
+                    start: index,
+                    end: endIndex,
+                    type: 'highlight',
+                    originalText: actualText,
+                    highlight: highlight,
+                    highlightIndex: i
                 });
                 
-                // Reset regex lastIndex to avoid infinite loop
-                if (!regex.global) break;
+                startIndex = index + 1; // Move past this occurrence
             }
+            
+            console.log(`🔍   Total occurrences found for highlight ${i}: ${foundCount}`);
         }
         
-        // Sort replacements by position (reverse order to avoid index shifting)
-        replacements.sort((a, b) => b.start - a.start);
+        // Sort segments by position
+        segments.sort((a, b) => a.start - b.start);
+        console.log(`🔍 Total segments to process: ${segments.length}`);
         
-        // Remove overlapping replacements (keep the first one found)
-        const cleanReplacements = [];
-        for (const replacement of replacements) {
-            const hasOverlap = cleanReplacements.some(existing => 
-                (replacement.start >= existing.start && replacement.start < existing.end) ||
-                (replacement.end > existing.start && replacement.end <= existing.end) ||
-                (replacement.start <= existing.start && replacement.end >= existing.end)
+        // Remove overlapping segments (keep first one)
+        const cleanSegments = [];
+        for (const segment of segments) {
+            const hasOverlap = cleanSegments.some(existing => 
+                (segment.start >= existing.start && segment.start < existing.end) ||
+                (segment.end > existing.start && segment.end <= existing.end) ||
+                (segment.start <= existing.start && segment.end >= existing.end)
             );
             
             if (!hasOverlap) {
-                cleanReplacements.push(replacement);
+                cleanSegments.push(segment);
             }
         }
         
-        console.log(`🔍 Found ${cleanReplacements.length} non-overlapping highlights`);
+        console.log(`🔍 Clean segments after overlap removal: ${cleanSegments.length}`);
         
-        // Apply replacements (from end to start to avoid index issues)
-        for (const replacement of cleanReplacements) {
-            result = result.substring(0, replacement.start) + 
-                    replacement.replacement + 
-                    result.substring(replacement.end);
+        // Build the final HTML
+        let result = '';
+        let currentIndex = 0;
+        
+        for (const segment of cleanSegments) {
+            // Add text before this segment
+            if (segment.start > currentIndex) {
+                const beforeText = originalText.substring(currentIndex, segment.start);
+                result += escapeHtml(beforeText);
+            }
+            
+            // Add highlighted segment
+            const category = getCategoryClass(segment.highlight.category || 'manipulation');
+            const tooltip = escapeHtml(segment.highlight.explanation || segment.highlight.description || segment.highlight.label || '');
+            const highlightedText = escapeHtml(segment.originalText);
+            
+            result += `<span class="text-highlight ${category}" title="${tooltip}" data-highlight-index="${segment.highlightIndex}">${highlightedText}</span>`;
+            
+            currentIndex = segment.end;
         }
+        
+        // Add remaining text
+        if (currentIndex < originalText.length) {
+            const remainingText = originalText.substring(currentIndex);
+            result += escapeHtml(remainingText);
+        }
+        
+        console.log('🔍 ========== HIGHLIGHTING COMPLETED ==========');
+        console.log('🔍 Final result length:', result.length);
+        console.log('🔍 Applied highlights:', cleanSegments.length);
         
         return `<div class="text-content">${result}</div>`;
     }
@@ -3702,12 +3769,25 @@
             const data = await response.json();
             
             if (data.success && data.analyses) {
-                console.log('📊 Received', data.analyses.length, 'analyses from server');
+                console.log('📊 ✅ Received', data.analyses.length, 'analyses from server');
                 state.analyses = data.analyses; // Store in state
                 renderAnalysisHistory(data.analyses);
+                
+                // Auto-load latest analysis if available and no current analysis
+                if (data.analyses.length > 0 && !state.currentAnalysis) {
+                    const latestAnalysis = data.analyses[0];
+                    console.log('📊 Auto-loading latest analysis:', latestAnalysis.id);
+                    await loadAnalysis(latestAnalysis.id);
+                }
+            } else {
+                console.log('📊 No analyses found for client');
+                state.analyses = [];
+                renderAnalysisHistory([]);
             }
         } catch (error) {
             console.error('Failed to load analysis history:', error);
+            state.analyses = [];
+            renderAnalysisHistory([]);
         }
     }
 
@@ -3815,19 +3895,23 @@
     function renderAnalysisHistory(analyses) {
         if (!elements.analysisHistory) return;
 
-        console.log('📊 Updating analysis count:', analyses.length);
+        const count = analyses ? analyses.length : 0;
+        console.log('📊 Updating analysis count:', count);
         
-        // Try to find element dynamically if not cached
-        const analysisCountElement = elements.analysisCount || document.getElementById('analysis-count');
+        // Force find element every time to ensure it exists
+        const analysisCountElement = document.getElementById('analysis-count');
         if (analysisCountElement) {
-            analysisCountElement.textContent = analyses.length;
-            console.log('📊 Analysis count updated to:', analyses.length);
-            // Update cache if found dynamically
-            if (!elements.analysisCount) {
-                elements.analysisCount = analysisCountElement;
-            }
+            analysisCountElement.textContent = count;
+            console.log('📊 ✅ Analysis count updated to:', count);
+            elements.analysisCount = analysisCountElement; // Cache it
         } else {
-            console.warn('📊 Analysis count element not found');
+            console.error('📊 ❌ Analysis count element #analysis-count not found in DOM');
+            // Try to find all fragment counters and update the second one
+            const counters = document.querySelectorAll('.fragment-counter');
+            if (counters.length > 1) {
+                counters[1].textContent = count;
+                console.log('📊 ✅ Updated via alternative selector (second counter)');
+            }
         }
 
         if (analyses.length === 0) {
@@ -4601,11 +4685,33 @@
             console.log('🚀 DOM elements check:', {
                 clientCount: !!document.getElementById('client-count'),
                 analysisCount: !!document.getElementById('analysis-count'),
+                manipulationsCount: !!document.getElementById('manipulations-count'),
+                biasesCount: !!document.getElementById('biases-count'),
+                fallaciesCount: !!document.getElementById('fallacies-count'),
+                recommendationsCount: !!document.getElementById('recommendations-count'),
                 clientList: !!document.getElementById('client-list'),
                 analysisHistory: !!document.getElementById('analysis-history')
             });
+            
+            // Force reset all counters to 0
+            const counters = [
+                'client-count', 'analysis-count', 'manipulations-count', 
+                'biases-count', 'fallacies-count', 'recommendations-count'
+            ];
+            
+            counters.forEach(counterId => {
+                const element = document.getElementById(counterId);
+                if (element) {
+                    element.textContent = '0';
+                    console.log('🚀 ✅ Reset', counterId, 'to 0');
+                } else {
+                    console.error('🚀 ❌ Element', counterId, 'not found');
+                }
+            });
+            
             updateClientCount();
             renderAnalysisHistory([]);
+            updateCountersFromHighlights([]);
         }, 100);
         
         loadClients().then(() => {
@@ -4615,6 +4721,19 @@
             setTimeout(() => {
                 updateClientCount();
                 renderAnalysisHistory(state.analyses || []);
+                
+                // Also load analysis history for current client if exists
+                if (state.currentClient) {
+                    console.log('🚀 Loading analysis history for current client:', state.currentClient.company);
+                    loadAnalysisHistory(state.currentClient.id);
+                }
+                
+                // Double-check all counters are updated
+                setTimeout(() => {
+                    updateClientCount();
+                    updateCountersFromHighlights([]);
+                    console.log('🚀 Final counter update completed');
+                }, 500);
             }, 200);
             
             loadTokenUsage();
