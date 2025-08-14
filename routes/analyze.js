@@ -13,7 +13,7 @@ const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const MAX_HIGHLIGHTS_PER_1000_WORDS = Number(
   process.env.MAX_HIGHLIGHTS_PER_1000_WORDS || 200
 ); // Збільшено для більш детального аналізу
-const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 2000000); // Збільшено для обробки великих текстів
+const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000); // Оригінальний ліміт
 const MAX_TEXT_LENGTH = 10000000; // 10M characters max - без обмежень для повного аналізу
 const MIN_TEXT_LENGTH = 20; // Minimum text length
 
@@ -37,6 +37,226 @@ function splitToParagraphs(s) {
     offset = end + 2;
     return { index: idx, text, startOffset: start, endOffset: end };
   });
+}
+
+// Розумне чанкування тексту для повного аналізу
+function createSmartChunks(text, maxChunkSize = 8000) {
+  console.log(`📦 Starting smart chunking for text of ${text.length} characters`);
+  
+  if (text.length <= maxChunkSize) {
+    console.log('📦 Text fits in single chunk');
+    return [{ text, startChar: 0, endChar: text.length, chunkIndex: 0 }];
+  }
+  
+  const chunks = [];
+  const paragraphs = text.split(/\n{2,}/);
+  let currentChunk = '';
+  let currentChunkStart = 0;
+  let currentChar = 0;
+  let chunkIndex = 0;
+  
+  console.log(`📦 Processing ${paragraphs.length} paragraphs`);
+  
+  for (let i = 0; i < paragraphs.length; i++) {
+    const paragraph = paragraphs[i];
+    const paragraphWithSeparator = i > 0 ? '\n\n' + paragraph : paragraph;
+    
+    // Перевіримо, чи поміститься цей абзац у поточний чанк
+    if (currentChunk.length + paragraphWithSeparator.length <= maxChunkSize) {
+      // Помістився - додаємо
+      currentChunk += paragraphWithSeparator;
+    } else {
+      // Не помістився - зберігаємо поточний чанк і починаємо новий
+      if (currentChunk.length > 0) {
+        chunks.push({
+          text: currentChunk,
+          startChar: currentChunkStart,
+          endChar: currentChunkStart + currentChunk.length,
+          chunkIndex: chunkIndex++
+        });
+        
+        // Оновлюємо позицію для наступного чанка
+        currentChunkStart += currentChunk.length;
+        currentChunk = '';
+      }
+      
+      // Якщо абзац сам по собі більший за maxChunkSize, розділимо його по реченнях
+      if (paragraph.length > maxChunkSize) {
+        console.log(`📦 Large paragraph (${paragraph.length} chars) needs sentence splitting`);
+        const sentences = paragraph.split(/(?<=[.!?])\s+/);
+        let sentenceChunk = '';
+        
+        for (const sentence of sentences) {
+          if (sentenceChunk.length + sentence.length + 1 <= maxChunkSize) {
+            sentenceChunk += (sentenceChunk ? ' ' : '') + sentence;
+          } else {
+            if (sentenceChunk) {
+              chunks.push({
+                text: sentenceChunk,
+                startChar: currentChunkStart,
+                endChar: currentChunkStart + sentenceChunk.length,
+                chunkIndex: chunkIndex++
+              });
+              currentChunkStart += sentenceChunk.length;
+            }
+            
+            // Якщо речення все ще занадто велике, розріжемо примусово
+            if (sentence.length > maxChunkSize) {
+              for (let start = 0; start < sentence.length; start += maxChunkSize) {
+                const chunk = sentence.substring(start, Math.min(start + maxChunkSize, sentence.length));
+                chunks.push({
+                  text: chunk,
+                  startChar: currentChunkStart,
+                  endChar: currentChunkStart + chunk.length,
+                  chunkIndex: chunkIndex++
+                });
+                currentChunkStart += chunk.length;
+              }
+              sentenceChunk = '';
+            } else {
+              sentenceChunk = sentence;
+            }
+          }
+        }
+        
+        if (sentenceChunk) {
+          currentChunk = sentenceChunk;
+        }
+      } else {
+        // Звичайний абзац - починаємо новий чанк з нього
+        currentChunk = paragraph;
+      }
+    }
+  }
+  
+  // Додаємо останній чанк, якщо є
+  if (currentChunk.length > 0) {
+    chunks.push({
+      text: currentChunk,
+      startChar: currentChunkStart,
+      endChar: currentChunkStart + currentChunk.length,
+      chunkIndex: chunkIndex
+    });
+  }
+  
+  console.log(`📦 Created ${chunks.length} chunks`);
+  chunks.forEach((chunk, i) => {
+    console.log(`📦 Chunk ${i}: ${chunk.text.length} chars (${chunk.startChar}-${chunk.endChar})`);
+  });
+  
+  return chunks;
+}
+
+// Функція для обробки одного чанка
+async function processChunk(system, user, chunk, res) {
+  const reqPayload = {
+    model: MODEL,
+    stream: false, // Для простоти використаємо не-стримінг
+    messages: [
+      { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
+      { role: 'user', content: user },
+    ],
+    stop: ['```','</artifacts>','</artifact>'],
+    max_tokens: 16000, // Максимально допустимо для GPT-4o
+    top_p: 0.9,
+    temperature: 0.1
+  };
+
+  const response = await openaiClient.chat.completions.create(reqPayload);
+  const content = response.choices[0]?.message?.content || '';
+  
+  // Парсимо NDJSON відповідь
+  const lines = content.split('\n').filter(line => line.trim());
+  const highlights = [];
+  let summary = null;
+  let barometer = null;
+  
+  for (const line of lines) {
+    try {
+      const obj = JSON.parse(line);
+      if (obj.type === 'highlight') {
+        // Коригуємо позиції відносно оригінального тексту
+        if (obj.char_start !== undefined) {
+          obj.char_start += chunk.startChar;
+        }
+        if (obj.char_end !== undefined) {
+          obj.char_end += chunk.startChar;
+        }
+        highlights.push(obj);
+      } else if (obj.type === 'summary') {
+        summary = obj;
+      } else if (obj.type === 'barometer') {
+        barometer = obj;
+      }
+    } catch (e) {
+      // Ігноруємо неправильний JSON
+    }
+  }
+  
+  return {
+    highlights,
+    summary,
+    barometer,
+    chunkIndex: chunk.chunkIndex
+  };
+}
+
+// Функція для об'єднання результатів з кількох чанків
+function mergeChunkResults(chunkResults, originalText) {
+  console.log(`📦 Merging results from ${chunkResults.length} chunks`);
+  
+  const allHighlights = [];
+  const allPatterns = [];
+  let totalCounts = { manipulation: 0, cognitive_bias: 0, rhetological_fallacy: 0 };
+  let overallObservations = [];
+  let maxComplexityScore = 0;
+  let finalBarometer = null;
+  
+  for (const result of chunkResults) {
+    // Об'єднуємо виділення
+    if (result.highlights) {
+      allHighlights.push(...result.highlights);
+    }
+    
+    // Об'єднуємо патерни
+    if (result.patterns) {
+      allPatterns.push(...result.patterns);
+    }
+    
+    // Сумуємо лічильники
+    if (result.counts) {
+      totalCounts.manipulation += result.counts.manipulation || 0;
+      totalCounts.cognitive_bias += result.counts.cognitive_bias || 0;
+      totalCounts.rhetological_fallacy += result.counts.rhetological_fallacy || 0;
+    }
+    
+    // Збираємо спостереження
+    if (result.observations) {
+      overallObservations.push(result.observations);
+    }
+    
+    // Знаходимо максимальну складність
+    if (result.barometer && result.barometer.score > maxComplexityScore) {
+      maxComplexityScore = result.barometer.score;
+      finalBarometer = result.barometer;
+    }
+  }
+  
+  // Видаляємо дублікати патернів
+  const uniquePatterns = [...new Set(allPatterns)];
+  
+  // Об'єднуємо спостереження
+  const combinedObservations = overallObservations.join(' ');
+  
+  console.log(`📦 Merged results: ${allHighlights.length} highlights, ${uniquePatterns.length} patterns`);
+  
+  return {
+    highlights: allHighlights,
+    patterns: uniquePatterns,
+    counts: totalCounts,
+    observations: combinedObservations,
+    barometer: finalBarometer || { score: 0, label: 'Easy mode', rationale: 'Базовий аналіз' }
+  };
 }
 
 function extractTextFromHighlight(highlight, paragraphs) {
@@ -297,7 +517,7 @@ function buildSystemPrompt() {
 - Відволікання уваги: перехід на інші теми при незручних питаннях, флуд інформацією, "до речі", "кстаті", "поговорімо про щось інше"
 - Штучна складність: ускладнення простих речей, використання жаргону, створення ілюзії експертності, надмірна термінологія
 - Створення хибних альтернатив: подача поганих варіантів для підкреслення "хорошого", decoy effect, штучні варіанти-приманки
-- Якірний ефект: озвучування завищених цін/умов для зміщення сприйняття, "зазвичай це коштує", "порівняно з ринковими цінами"
+- Якірний ефект: озвучування завищених цін/умов для зміщення сприйняття, "зазвычай це коштує", "порівняно з ринковими цінами"
 - Техніка "гарного і поганого копа": чергування агресивного та м'якого підходу, створення контрасту
 - Салямна тактика: поступове вимагання все більшого, крок за кроком, "ще одна маленька річ"
 - Техніка "ноги в дверях": спочатку маленька просьба, потім все більша, поступове втягування
@@ -326,7 +546,7 @@ function buildSystemPrompt() {
 🔍 ЛІНГВІСТИЧНІ МАНІПУЛЯЦІЇ (аналіз кожного слова):
 - Використання модальності: "треба", "необхідно", "слід" - створення відчуття обов'язковості
 - Пасивний голос: приховування відповідального, "було вирішено", "прийнято рішення"
-- Номіналізація: перетворення дій на речі для приховування процесів
+- Номіналізація: перетворення дій на речи для приховування процесів
 - Універсальні квантори: "всі", "ніхто", "завжди", "ніколи" - категоричні судження
 - Каузативи: "змушує", "спонукає" - створення причинно-наслідкових зв'язків
 - Порівняльні конструкції без еталона: "краще", "ефективніше" - але краще за що?
@@ -405,7 +625,7 @@ function buildSystemPrompt() {
 
 🎯 РІВНІ СЕРЙОЗНОСТІ (детальна градація):
 1 = Легкі натяки, м'які техніки впливу, непрямі маніпуляції, тонкі підтексти
-2 = Помірні маніпуляції, явний психологічний тиск, свідомі викривлення, середній рівень агресії
+2 = Помірні маніпуляції, явний психологічний тиск, свідомі викривлення, середний рівень агресії
 3 = Агресивні маніпуляції, грубе принуждення, токсичні техніки, відкрита агресія та загрози
 
 🔍 ПРАВИЛА МАКСИМАЛЬНО АМБІТНОГО УЛЬТРА-ДЕТАЛЬНОГО АНАЛІЗУ:
@@ -561,7 +781,9 @@ r.post('/', validateFileUpload, async (req, res) => {
       });
     }
 
-    const paragraphs = splitToParagraphs(text);
+    // Створюємо розумні чанки для великих текстів
+    const textChunks = createSmartChunks(text, 8000); // 8К символів на чанк
+    console.log(`📦 Processing ${textChunks.length} chunks for complete analysis`);
     
     const clientCtx = {
       about_client: {
@@ -579,16 +801,22 @@ r.post('/', validateFileUpload, async (req, res) => {
       notes: profile?.notes || '',
     };
 
-    // More accurate input token calculation
-    const textTokens = estimateTokens(text);
+    // Розрахунок токенів для всіх чанків
     const systemPromptTokens = estimateTokens(buildSystemPrompt());
-    const userPayloadTokens = estimateTokens(JSON.stringify(buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)));
-    const approxTokensIn = textTokens + systemPromptTokens + userPayloadTokens + 200; // buffer
+    let totalInputTokens = 0;
     
-    totalTokensUsed += approxTokensIn;
+    for (const chunk of textChunks) {
+      const paragraphs = splitToParagraphs(chunk.text);
+      const chunkTokens = estimateTokens(chunk.text);
+      const userPayloadTokens = estimateTokens(JSON.stringify(buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)));
+      totalInputTokens += chunkTokens + systemPromptTokens + userPayloadTokens + 200; // buffer
+    }
+    
+    totalTokensUsed += totalInputTokens;
+    console.log(`📦 Estimated total tokens for all chunks: ${totalInputTokens}`);
     
     // Check token limits before processing
-    await addTokensAndCheck(approxTokensIn);
+    await addTokensAndCheck(totalInputTokens);
 
     // Check if OpenAI client is available
     if (!openaiClient) {
@@ -642,319 +870,148 @@ r.post('/', validateFileUpload, async (req, res) => {
       });
     }
 
-    const system = buildSystemPrompt();
-    const user = JSON.stringify(
-      buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
-    );
-
-    const reqPayload = {
-      model: MODEL,
-      stream: true,
-      messages: [
-        { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
-        { role: 'user', content: user },
-      ],
-      stop: ['```','</artifacts>','</artifact>'],
-      max_tokens: 32000, // Максимально збільшено для повноцінного аналізу великих текстів
-      top_p: 0.9
-    };
-
-    if (supportsTemperature(MODEL)) {
-      reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.1);
-    }
+    // Обробляємо кожен чанк окремо
+    const chunkResults = [];
+    let chunkNumber = 0;
     
-    // Encourage complete analysis
-    reqPayload.presence_penalty = 0.1;
-    reqPayload.frequency_penalty = 0.1;
-
-    // Enhanced request handling with progressive timeout
-    const controller = new AbortController();
-    const REQUEST_TIMEOUT = process.env.NODE_ENV === 'production' ? 600000 : 480000; // 10min prod, 8min dev for very large texts
-    
-    const timeout = setTimeout(() => {
-      controller.abort(new Error('Request timeout after ' + (REQUEST_TIMEOUT/1000) + 's'));
-    }, REQUEST_TIMEOUT);
-    
-    req.on('close', () => {
-      clearTimeout(timeout);
-      controller.abort(new Error('Request closed by client'));
-    });
-    
-    // Connection heartbeat with early termination detection
-    const connectionCheck = setInterval(() => {
-      if (req.destroyed || req.closed) {
-        clearTimeout(timeout);
-        controller.abort(new Error('Connection lost'));
-        clearInterval(connectionCheck);
-      }
-    }, 5000);
-    
-    let stream;
-    let retryCount = 0;
-    const maxRetries = process.env.NODE_ENV === 'production' ? 3 : 1;
-    
-    while (retryCount <= maxRetries) {
+    for (const chunk of textChunks) {
+      chunkNumber++;
+      console.log(`📦 Processing chunk ${chunkNumber}/${textChunks.length} (${chunk.text.length} chars)`);
+      
+      res.write(`data: ${JSON.stringify({
+        type: 'progress', 
+        message: `Аналізую частину ${chunkNumber}/${textChunks.length}...`,
+        progress: Math.round((chunkNumber - 1) / textChunks.length * 100)
+      })}\n\n`);
+      
+      const paragraphs = splitToParagraphs(chunk.text);
+      const system = buildSystemPrompt();
+      const user = JSON.stringify(
+        buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
+      );
+      
       try {
-        // Add retry delay for subsequent attempts
-        if (retryCount > 0) {
-          await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, retryCount), 10000)));
+        const chunkResult = await processChunk(system, user, chunk, res);
+        chunkResults.push(chunkResult);
+        
+        // Відправляємо highlights з цього чанка клієнту
+        for (const highlight of chunkResult.highlights) {
+          res.write(`data: ${JSON.stringify(highlight)}\n\n`);
         }
         
-        stream = await openaiClient.chat.completions.create(reqPayload);
-        
-        clearTimeout(timeout);
-        clearInterval(connectionCheck);
-        break; // Success, exit retry loop
-        
-      } catch (apiError) {
-        retryCount++;
-        
-        // Check if it's a retryable error
-        const isRetryable = apiError.status >= 500 || 
-                          apiError.status === 429 || 
-                          apiError.code === 'ECONNRESET' ||
-                          apiError.code === 'ETIMEDOUT';
-                          
-        if (retryCount > maxRetries || !isRetryable) {
-          clearTimeout(timeout);
-          clearInterval(connectionCheck);
-          throw apiError;
-        }
-        
-        logError(apiError, {
-          context: `OpenAI API retry ${retryCount}/${maxRetries}`,
-          model: MODEL,
-          textLength: text.length,
-          isRetryable,
-          ip: req.ip
-        });
+      } catch (error) {
+        console.error(`Error processing chunk ${chunkNumber}:`, error);
+        res.write(`data: ${JSON.stringify({
+          type: 'error',
+          message: `Помилка обробки частини ${chunkNumber}`,
+          error: error.message
+        })}\n\n`);
       }
     }
-    if (!stream) {
-      clearInterval(heartbeat);
-      return res.status(503).json({
-        error: 'Не вдалося встановити зʼєднання з AI сервісом після кількох спроб',
-        code: 'AI_CONNECTION_FAILED',
-        retries: maxRetries,
-        timestamp: new Date().toISOString()
-      });
+    
+    // Об'єднуємо результати всіх чанків
+    console.log('📦 Merging results from all chunks');
+    const mergedResults = mergeChunkResults(chunkResults, text);
+    
+    // Відправляємо фінальну інформацію
+    res.write(`data: ${JSON.stringify({
+      type: 'merged_highlights',
+      items: mergedResults.highlights
+    })}\n\n`);
+    
+    if (mergedResults.summary) {
+      res.write(`data: ${JSON.stringify({
+        type: 'summary',
+        ...mergedResults.summary
+      })}\n\n`);
     }
-    // Stream processing with enhanced error handling
+    
+    if (mergedResults.barometer) {
+      res.write(`data: ${JSON.stringify({
+        type: 'barometer',
+        ...mergedResults.barometer
+      })}\n\n`);
+    }
+    
+    // Завершуємо аналіз та збереження в БД
+    console.log('📦 Saving final analysis results to database');
+    
+    // Збереження результатів в базу даних
+    const analysisData = {
+      highlights: mergedResults.highlights,
+      summary: mergedResults.summary,
+      barometer: mergedResults.barometer,
+      original_text: text,
+      highlighted_text: generateHighlightedText(text, mergedResults.highlights)
+    };
+    
     try {
-      // Фільтрація та видобування JSON-об'єктів
-      const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
-
-      // Дістає з буфера всі повні JSON-об'єкти (brace-matching), повертає [objs, rest]
-      function extractJsonObjects(buffer) {
-        const out = [];
-        let i = 0;
-        const n = buffer.length;
-        let depth = 0;
-        let start = -1;
-        let inStr = false;
-        let esc = false;
-
-        while (i < n) {
-          const ch = buffer[i];
-
-          if (inStr) {
-            if (esc) { esc = false; }
-            else if (ch === '\\') { esc = true; }
-            else if (ch === '"') { inStr = false; }
-            i++; continue;
-          }
-
-          if (ch === '"') { inStr = true; i++; continue; }
-
-          if (ch === '{') {
-            if (depth === 0) start = i;
-            depth++;
-          } else if (ch === '}') {
-            depth--;
-            if (depth === 0 && start >= 0) {
-              const raw = buffer.slice(start, i + 1);
-              out.push(raw);
-              start = -1;
-            }
-          }
-
-          i++;
-        }
-
-        const rest = depth === 0 ? '' : buffer.slice(start >= 0 ? start : n);
-        return [out, rest];
-      }
-
-      // Санітизація: прибрати бектики, мітки ```json та керівні символи (крім \n\t)
-      const sanitizeChunk = (s) =>
-        s
-          .replace(/```(?:json)?/gi, '')
-          .replace(/<\/?artifact[^>]*>/gi, '')
-          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-
-      let buffer = '';
-      let chunkCount = 0;
-      const maxChunks = 2000; // Prevent infinite processing
-      
-      for await (const part of stream) {
-        if (++chunkCount > maxChunks) {
-          logError(new Error('Too many chunks received from AI stream'), {
-            chunkCount,
-            bufferLength: buffer.length
-          });
-          break;
-        }
-        
-        const delta = part.choices?.[0]?.delta?.content || '';
-        if (!delta) continue;
-
-        buffer += sanitizeChunk(delta);
-
-        // Витягуємо всі завершені JSON-об'єкти з буфера
-        const [rawObjs, rest] = extractJsonObjects(buffer);
-        buffer = rest;
-
-        for (const raw of rawObjs) {
-          try {
-            const obj = JSON.parse(raw);
-
-            // Пропускаємо тільки очікувані типи
-            if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
-
-            if (obj.type === 'highlight') {
-              rawHighlights.push(obj);
-              sendLine(obj);
-            } else if (obj.type === 'summary') {
-              summaryObj = obj;
-            } else if (obj.type === 'barometer') {
-              barometerObj = obj;
-            }
-          } catch (e) {
-            // Тихо ігноруємо биті об'єкти
-          }
-        }
-      }
-    } catch (streamError) {
-      clearInterval(heartbeat);
-      
-      logError(streamError, {
-        context: 'Stream processing failed',
-        clientId: finalClientId,
-        textLength: text.length
-      });
-      
-      if (!res.headersSent) {
-        return res.status(503).json({
-          error: 'Помилка обробки відповіді AI сервісу',
-          code: 'AI_STREAM_ERROR',
-          timestamp: new Date().toISOString()
-        });
-      }
-      return;
-    }
-
-    // Remove artificial highlight limits to find all problems
-    const merged = mergeOverlaps(rawHighlights, paragraphs);
-
-    sendLine({ type: 'merged_highlights', items: merged });
-    if (summaryObj) sendLine(summaryObj);
-    if (barometerObj) sendLine(barometerObj);
-
-    // Generate highlighted text for frontend display
-    const highlightedText = generateHighlightedText(text, merged);
-
-    // More accurate output token estimation based on highlights and summary
-    let outputTokens = 500; // Base system response
-    outputTokens += merged.length * 50; // ~50 tokens per highlight
-    if (summaryObj) outputTokens += 300; // Summary tokens
-    if (barometerObj) outputTokens += 100; // Barometer tokens
-    
-    totalTokensUsed += outputTokens;
-    await addTokensAndCheck(outputTokens);
-    
-    // Log AI usage for monitoring
-    logAIUsage(totalTokensUsed, MODEL, 'text_analysis');
-    
-    const analysisDuration = performance.now() - analysisStartTime;
-    logPerformance('Complete Analysis', analysisDuration, {
-      textLength: text.length,
-      tokensUsed: totalTokensUsed,
-      highlightsFound: merged.length,
-      clientId: finalClientId
-    });
-
-    // Generate title for analysis
-    const title = fileName
-      ? `Аналіз: ${fileName}`
-      : `Аналіз від ${new Date().toLocaleDateString('uk-UA')}`;
-
-    // Save to DB with client_id and highlighted text
-    const result = dbRun(
-      `
-      INSERT INTO analyses(
-        client_id, title, source, original_filename, original_text, tokens_estimated, 
-        highlights_json, summary_json, barometer_json, highlighted_text
-      ) VALUES (?,?,?,?,?,?,?,?,?,?)
-      `,
-      [
+      const dbResult = dbRun(`
+        INSERT INTO analyses (
+          client_id, original_text, highlights_json, issues_count, 
+          complexity_score, summary_json, barometer_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
         finalClientId,
-        title,
-        fileName ? 'file' : 'text',
-        fileName || null,
-        text, // Save full original text for complete analysis reference
-        totalTokensUsed,
-        JSON.stringify(merged),
-        JSON.stringify(summaryObj || null),
-        JSON.stringify(barometerObj || null),
-        highlightedText,
-      ]
-    );
-
-    sendLine({ 
-      type: 'analysis_saved', 
-      id: result.lastID, 
-      client_id: finalClientId,
-      original_text: text 
-    });
+        text,
+        JSON.stringify(analysisData.highlights),
+        analysisData.highlights.length,
+        analysisData.barometer?.score || 0,
+        JSON.stringify(analysisData.summary),
+        JSON.stringify(analysisData.barometer),
+        new Date().toISOString()
+      ]);
+      
+      res.write(`data: ${JSON.stringify({
+        type: 'analysis_saved',
+        id: dbResult.lastInsertRowid,
+        message: 'Аналіз збережено успішно'
+      })}\n\n`);
+    } catch (dbError) {
+      console.error('Database save error:', dbError);
+    }
     
-    // Send complete signal to frontend
-    sendLine({ 
-      type: 'complete', 
-      analysis_id: result.lastID 
-    });
-    
-    res.write('event: done\ndata: "ok"\n\n');
+    clearInterval(heartbeat);
+    res.write('data: {"type":"complete"}\n\n');
     res.end();
-  } catch (err) {
-    const analysisDuration = performance.now() - analysisStartTime;
     
+  } catch (err) {
     logError(err, {
-      context: 'Analysis route error',
-      duration: analysisDuration,
-      tokensUsed: totalTokensUsed,
-      ip: req.ip,
-      userAgent: req.get('User-Agent')
+      context: 'Analysis processing error',
+      textLength: text?.length,
+      chunksCount: textChunks?.length,
+      ip: req.ip
     });
     
-    try {
-      if (!res.headersSent) {
-        const isRateLimit = err.message.includes('Ліміт');
-        const statusCode = isRateLimit ? 429 : 500;
-        
+    if (!res.headersSent) {
+      const statusCode = err.status || 500;
+      const isRateLimit = statusCode === 429;
+      
+      if (statusCode < 500 && !isRateLimit) {
         res.status(statusCode).json({ 
           error: err.message || 'Помилка обробки аналізу',
-          code: isRateLimit ? 'RATE_LIMIT_EXCEEDED' : 'ANALYSIS_ERROR',
+          code: 'ANALYSIS_ERROR',
+          timestamp: new Date().toISOString()
+        });
+      } else if (isRateLimit) {
+        res.status(statusCode).json({ 
+          error: err.message || 'Помилка обробки аналізу',
+          code: 'RATE_LIMIT_EXCEEDED',
           timestamp: new Date().toISOString()
         });
       } else {
-        res.write(`event: error\ndata: ${JSON.stringify({
-          error: err.message,
+        res.status(statusCode).json({ 
+          error: err.message || 'Помилка обробки аналізу',
+          code: 'ANALYSIS_ERROR',
           timestamp: new Date().toISOString()
-        })}\n\n`);
-        res.end();
+        });
       }
-    } catch (finalError) {
-      logError(finalError, { context: 'Final error handler' });
+    } else {
+      res.write(`event: error\ndata: ${JSON.stringify({
+        error: err.message,
+        timestamp: new Date().toISOString()
+      })}\n\n`);
+      res.end();
     }
   }
 });
