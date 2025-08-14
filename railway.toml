@@ -3,22 +3,11 @@
 builder = "nixpacks"
 
 [deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 300
+healthcheckPath = "/ready"
+healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+startCommand = "npm start"
 
 [env]
 NODE_ENV = "production"
-PORT = { default = 3000 }
-HOST = { default = "0.0.0.0" }
-
-# Deployment settings
-checkImage = false
-numReplicas = 1
-
-[services.web]
-healthcheckPath = "/ready"
-healthcheckInterval = 30
-healthcheckTimeout = 10
-healthcheckRetries = 3

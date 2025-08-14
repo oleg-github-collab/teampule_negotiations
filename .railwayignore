@@ -1,0 +1,29 @@
+# Railway Ignore File - Don't deploy these files
+
+# Test files
+public/debug.html
+public/interface-test.html
+public/highlighting-test.html
+public/final-test.html
+public/simple-test.html
+public/test.html
+public/fix-test.js
+TESTING_COMPLETE.md
+
+# Development files
+.env.development
+*.log
+logs/
+data/*.db-*
+
+# Test and development artifacts
+public/cookies.txt
+test_cookies.txt
+prod_cookies.txt
+test_text.txt
+
+# Documentation
+README.md
+
+# Development dependencies
+node_modules/.cache/

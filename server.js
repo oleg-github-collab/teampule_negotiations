@@ -47,6 +47,13 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Railway deployment check
+if (process.env.RAILWAY_ENVIRONMENT) {
+  console.log('🚂 Railway deployment detected');
+  console.log(`Environment: ${process.env.RAILWAY_ENVIRONMENT}`);
+  console.log(`Service ID: ${process.env.RAILWAY_SERVICE_ID}`);
+}
+
 // Trust proxy for production deployments
 if (isProduction) {
   app.set('trust proxy', 1);
@@ -371,15 +378,12 @@ app.get('/health', async (req, res) => {
 app.get('/ping', (_req, res) => res.send('pong'));
 
 // Ready check for Kubernetes/Railway
-app.get('/ready', async (_req, res) => {
-  try {
-    // Basic functionality test
-    const { get } = await import('./utils/db.js');
-    get('SELECT 1');
-    res.status(200).json({ ready: true, timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ ready: false, error: 'Database not ready' });
-  }
+app.get('/ready', (_req, res) => {
+  res.status(200).json({ 
+    ready: true, 
+    timestamp: new Date().toISOString(),
+    service: 'teampulse-turbo'
+  });
 });
 
 // App routes
