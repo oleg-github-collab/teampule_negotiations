@@ -1533,6 +1533,13 @@
                                 state.analyses.unshift(analysisForHistory);
                                 renderAnalysisHistory(state.analyses);
                                 
+                                // Update analysis counter immediately
+                                const analysisCountElement = document.getElementById('analysis-count');
+                                if (analysisCountElement) {
+                                    analysisCountElement.textContent = state.analyses.length;
+                                    console.log('📊 ✅ Analysis counter updated to:', state.analyses.length);
+                                }
+                                
                                 // Also load from server to sync
                                 await loadAnalysisHistory(state.currentClient.id);
                                 
@@ -2542,51 +2549,28 @@
 
     function generateHighlightedText(originalText, highlights) {
         if (!originalText || !highlights || highlights.length === 0) {
-            console.log('🎯 No text or highlights to process');
+            console.log('🎯 No text or highlights to process - returning plain text');
             return `<div class="text-content">${escapeHtml(originalText || '')}</div>`;
         }
 
-        console.log('🎯 ========== PRECISE COORDINATE HIGHLIGHTING ==========');
+        console.log('🎯 ========== ROBUST TEXT HIGHLIGHTING ==========');
         console.log('🎯 Original text length:', originalText.length);
         console.log('🎯 Number of highlights:', highlights.length);
 
-        // Create segments array using EXACT coordinates from AI
+        // Create segments array using multiple fallback strategies
         const segments = [];
         
-        // Process each highlight using precise coordinates
+        // Process each highlight with robust text finding
         for (let i = 0; i < highlights.length; i++) {
             const highlight = highlights[i];
             
-            // Prefer exact coordinates if available
-            let start = highlight.char_start;
-            let end = highlight.char_end;
+            // Strategy 1: Try exact coordinates if available  
+            let start = highlight.char_start || highlight.start_pos;
+            let end = highlight.char_end || highlight.end_pos;
             
-            // Fallback to text search only if coordinates are missing
-            if (start === undefined || end === undefined || start < 0 || end < 0) {
-                console.log(`🎯 No coordinates for highlight ${i}, attempting text search fallback`);
-                
-                const searchText = highlight.text?.trim();
-                if (searchText && searchText.length >= 2) {
-                    const index = originalText.indexOf(searchText);
-                    if (index !== -1) {
-                        start = index;
-                        end = index + searchText.length;
-                        console.log(`🎯   Fallback found at ${start}-${end}`);
-                    } else {
-                        console.warn(`🎯   Fallback failed, skipping highlight ${i}`);
-                        continue;
-                    }
-                } else {
-                    console.warn(`🎯   No usable text for highlight ${i}, skipping`);
-                    continue;
-                }
-            }
-            
-            // Validate coordinates
-            if (start >= 0 && end > start && end <= originalText.length) {
+            if (start !== undefined && end !== undefined && start >= 0 && end > start && end <= originalText.length) {
                 const actualText = originalText.substring(start, end);
-                
-                console.log(`🎯 Highlight ${i}: [${start}-${end}] "${actualText.substring(0, 50)}${actualText.length > 50 ? '...' : ''}"`);
+                console.log(`🎯 Strategy 1 (coordinates) - Highlight ${i}: [${start}-${end}] "${actualText.slice(0, 30)}..."`);
                 
                 segments.push({
                     start: start,
@@ -2595,9 +2579,120 @@
                     highlight: highlight,
                     highlightIndex: i
                 });
-            } else {
-                console.warn(`🎯 Invalid coordinates for highlight ${i}: [${start}-${end}] (text length: ${originalText.length})`);
+                continue;
             }
+            
+            // Strategy 2: Exact text search
+            const searchText = highlight.text?.trim();
+            if (searchText && searchText.length >= 2) {
+                let index = originalText.indexOf(searchText);
+                
+                // Try case-insensitive search if exact fails
+                if (index === -1) {
+                    const lowerOriginal = originalText.toLowerCase();
+                    const lowerSearch = searchText.toLowerCase();
+                    index = lowerOriginal.indexOf(lowerSearch);
+                }
+                
+                if (index !== -1) {
+                    start = index;
+                    end = index + searchText.length;
+                    console.log(`🎯 Strategy 2 (exact text) - Highlight ${i}: [${start}-${end}] "${searchText.slice(0, 30)}..."`);
+                    
+                    segments.push({
+                        start: start,
+                        end: end,
+                        actualText: originalText.substring(start, end),
+                        highlight: highlight,
+                        highlightIndex: i
+                    });
+                    continue;
+                }
+            }
+            
+            // Strategy 3: Fuzzy text search (remove punctuation, extra spaces)
+            if (searchText) {
+                const cleanSearch = searchText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+                const cleanOriginal = originalText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+                
+                const index = cleanOriginal.toLowerCase().indexOf(cleanSearch.toLowerCase());
+                if (index !== -1) {
+                    // Map back to original text positions (approximate)
+                    const beforeClean = cleanOriginal.substring(0, index);
+                    const wordsBefore = beforeClean.split(' ').length - 1;
+                    
+                    // Find approximate position in original text
+                    const words = originalText.split(/\s+/);
+                    let charPosition = 0;
+                    for (let w = 0; w < Math.min(wordsBefore, words.length); w++) {
+                        charPosition = originalText.indexOf(words[w], charPosition);
+                        if (charPosition !== -1) {
+                            charPosition += words[w].length;
+                        }
+                    }
+                    
+                    // Search for the actual text near this position
+                    const searchWindow = originalText.substring(Math.max(0, charPosition - 50), Math.min(originalText.length, charPosition + searchText.length + 50));
+                    const localIndex = searchWindow.toLowerCase().indexOf(searchText.toLowerCase());
+                    
+                    if (localIndex !== -1) {
+                        start = Math.max(0, charPosition - 50) + localIndex;
+                        end = start + searchText.length;
+                        
+                        console.log(`🎯 Strategy 3 (fuzzy search) - Highlight ${i}: [${start}-${end}] "${searchText.slice(0, 30)}..."`);
+                        
+                        segments.push({
+                            start: start,
+                            end: end,
+                            actualText: originalText.substring(start, end),
+                            highlight: highlight,
+                            highlightIndex: i
+                        });
+                        continue;
+                    }
+                }
+            }
+            
+            // Strategy 4: Word-based search
+            if (searchText && searchText.split(' ').length >= 2) {
+                const words = searchText.split(' ').filter(w => w.length > 2); // Skip short words
+                let bestMatch = null;
+                let bestScore = 0;
+                
+                for (let pos = 0; pos < originalText.length - searchText.length; pos += 10) { // Sample every 10 chars
+                    const window = originalText.substring(pos, pos + searchText.length + 20);
+                    let score = 0;
+                    
+                    for (const word of words) {
+                        if (window.toLowerCase().includes(word.toLowerCase())) {
+                            score += word.length;
+                        }
+                    }
+                    
+                    if (score > bestScore && score >= searchText.length * 0.6) { // 60% match
+                        bestScore = score;
+                        bestMatch = pos;
+                    }
+                }
+                
+                if (bestMatch !== null) {
+                    start = bestMatch;
+                    end = Math.min(bestMatch + searchText.length, originalText.length);
+                    
+                    console.log(`🎯 Strategy 4 (word-based) - Highlight ${i}: [${start}-${end}] score: ${bestScore}`);
+                    
+                    segments.push({
+                        start: start,
+                        end: end,
+                        actualText: originalText.substring(start, end),
+                        highlight: highlight,
+                        highlightIndex: i
+                    });
+                    continue;
+                }
+            }
+            
+            console.warn(`🎯 ❌ All strategies failed for highlight ${i}: "${searchText?.slice(0, 50)}..."`);
         }
         
         // Sort segments by start position
@@ -2656,7 +2751,7 @@
                 result += escapeHtml(beforeText);
             }
             
-            // Add highlighted segment with proper styling
+            // Add highlighted segment with proper styling and interactive tooltip
             const category = getCategoryClass(segment.highlight.category || 'manipulation');
             const tooltip = escapeHtml(
                 segment.highlight.explanation || 
@@ -2666,7 +2761,21 @@
             );
             const highlightedText = escapeHtml(segment.actualText);
             
-            result += `<span class="text-highlight ${category}" title="${tooltip}" data-highlight-index="${segment.highlightIndex}">${highlightedText}</span>`;
+            // Create rich tooltip data
+            const tooltipData = {
+                title: segment.highlight.label || getCategoryLabel(segment.highlight.category),
+                explanation: segment.highlight.explanation,
+                severity: segment.highlight.severity || 1,
+                category: segment.highlight.category,
+                recommendation: segment.highlight.recommendation
+            };
+            
+            result += `<span class="text-highlight ${category} interactive-highlight" 
+                             title="${tooltip}" 
+                             data-highlight-index="${segment.highlightIndex}"
+                             data-tooltip='${JSON.stringify(tooltipData).replace(/'/g, "&apos;")}'
+                             onmouseover="showHighlightTooltip(event, this)"
+                             onmouseout="hideHighlightTooltip()">${highlightedText}</span>`;
             
             currentIndex = segment.end;
         }
@@ -2691,14 +2800,132 @@
             'cognitive_bias': 'bias',
             'social_manipulation': 'manipulation',
             'rhetological_fallacy': 'fallacy',
+            'rhetorical_fallacy': 'fallacy',
             'logical_fallacy': 'fallacy'
         };
         return categoryMap[category] || 'manipulation';
+    }
+
+    // Get category label in Ukrainian
+    function getCategoryLabel(category) {
+        const labelMap = {
+            'manipulation': 'Маніпуляція',
+            'cognitive_bias': 'Когнітивне викривлення',
+            'social_manipulation': 'Соціальна маніпуляція',
+            'rhetological_fallacy': 'Риторичний софізм',
+            'rhetorical_fallacy': 'Риторичний софізм',
+            'logical_fallacy': 'Логічна помилка'
+        };
+        return labelMap[category] || 'Проблемний фрагмент';
     }
     
     function escapeRegExp(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
+
+    // ===== Interactive Highlight Tooltips =====
+    let highlightTooltip = null;
+    let tooltipTimeout = null;
+
+    function showHighlightTooltip(event, element) {
+        // Clear any existing timeout
+        if (tooltipTimeout) {
+            clearTimeout(tooltipTimeout);
+            tooltipTimeout = null;
+        }
+
+        try {
+            const tooltipData = JSON.parse(element.dataset.tooltip.replace(/&apos;/g, "'"));
+            
+            // Remove existing tooltip
+            if (highlightTooltip) {
+                highlightTooltip.remove();
+            }
+
+            // Create tooltip element
+            highlightTooltip = document.createElement('div');
+            highlightTooltip.className = 'highlight-tooltip';
+            highlightTooltip.innerHTML = `
+                <div class="tooltip-header">
+                    <div class="tooltip-category ${getCategoryClass(tooltipData.category)}">
+                        ${tooltipData.title}
+                    </div>
+                    <div class="tooltip-severity severity-${tooltipData.severity}">
+                        Рівень ${tooltipData.severity}
+                    </div>
+                </div>
+                <div class="tooltip-content">
+                    <div class="tooltip-explanation">
+                        ${escapeHtml(tooltipData.explanation || 'Опис недоступний')}
+                    </div>
+                    ${tooltipData.recommendation ? `
+                        <div class="tooltip-recommendation">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>${escapeHtml(tooltipData.recommendation)}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="tooltip-arrow"></div>
+            `;
+
+            // Position tooltip
+            document.body.appendChild(highlightTooltip);
+            
+            // Position calculation with screen bounds check
+            const rect = element.getBoundingClientRect();
+            const tooltipRect = highlightTooltip.getBoundingClientRect();
+            
+            let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+            let top = rect.top - tooltipRect.height - 10;
+            
+            // Adjust for screen bounds
+            if (left < 10) left = 10;
+            if (left + tooltipRect.width > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipRect.width - 10;
+            }
+            
+            // If tooltip would go above screen, show below instead
+            if (top < 10) {
+                top = rect.bottom + 10;
+                highlightTooltip.classList.add('tooltip-below');
+            }
+            
+            highlightTooltip.style.left = left + 'px';
+            highlightTooltip.style.top = top + 'px';
+            
+            // Fade in
+            setTimeout(() => {
+                if (highlightTooltip) {
+                    highlightTooltip.classList.add('tooltip-visible');
+                }
+            }, 10);
+
+        } catch (error) {
+            console.error('Error showing tooltip:', error);
+        }
+    }
+
+    function hideHighlightTooltip() {
+        if (tooltipTimeout) {
+            clearTimeout(tooltipTimeout);
+        }
+        
+        tooltipTimeout = setTimeout(() => {
+            if (highlightTooltip) {
+                highlightTooltip.classList.remove('tooltip-visible');
+                setTimeout(() => {
+                    if (highlightTooltip) {
+                        highlightTooltip.remove();
+                        highlightTooltip = null;
+                    }
+                }, 200);
+            }
+        }, 100); // Small delay to prevent flickering when moving between highlight elements
+    }
+
+    // Make functions globally available
+    window.showHighlightTooltip = showHighlightTooltip;
+    window.hideHighlightTooltip = hideHighlightTooltip;
 
     // ===== View Controls =====
     function switchHighlightsView(view) {
@@ -4896,12 +5123,70 @@
             return;
         }
         
+        // Clear previous client data
+        state.currentAnalysis = null;
+        state.originalText = null;
+        state.selectedFragments = [];
+        state.analyses = [];
+        
+        // Clear UI displays
+        if (elements.negotiationText) {
+            elements.negotiationText.value = '';
+        }
+        
+        // Clear results section
+        const resultsSection = document.getElementById('results-section');
+        if (resultsSection) {
+            resultsSection.style.display = 'none';
+        }
+        
+        // Reset counters to 0
+        const counters = ['manipulations-count', 'biases-count', 'fallacies-count'];
+        counters.forEach(counterId => {
+            const element = document.getElementById(counterId);
+            if (element) element.textContent = '0';
+        });
+        
+        // Clear highlights and barometer
+        if (elements.highlightsList) {
+            elements.highlightsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-search"></i></div>
+                    <p>Проблемні моменти з'являться тут після аналізу</p>
+                </div>
+            `;
+        }
+        
+        if (elements.fulltextContent) {
+            elements.fulltextContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-file-text"></i></div>
+                    <p>Повний текст з підсвічуванням з'явиться після аналізу</p>
+                </div>
+            `;
+        }
+        
+        // Reset barometer
+        if (elements.barometerScore) elements.barometerScore.textContent = '0';
+        if (elements.barometerLabel) elements.barometerLabel.textContent = 'Очікування аналізу...';
+        if (elements.barometerComment) elements.barometerComment.textContent = '';
+        if (elements.gaugeCircle) {
+            elements.gaugeCircle.style.strokeDasharray = '0 283';
+        }
+        
+        // Set new client
         state.currentClient = client;
         updateWorkspaceClientInfo(client);
         renderClientsList();
+        
+        // Load client-specific data
         loadAnalysisHistory(clientId);
+        updateRecommendationsHistory(clientId);
+        updateWorkspaceFragments();
+        
         saveAppState();
         
+        console.log(`✅ Client switched to: ${client.company}`);
         showNotification(`Обрано клієнта: ${client.company}`, 'success');
     }
     
