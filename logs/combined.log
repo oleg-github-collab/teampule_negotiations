@@ -9011,3 +9011,47 @@
   message: 'API Request',
   timestamp: '2025-08-14 11:20:36'
 }
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3010 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 17:47:46'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 17:47:46'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 17:47:46'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 17:47:46'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-14 17:47:46'
+}
+{
+  service: 'teampulse-turbo',
+  event: '404 - Resource not found',
+  details: {
+    ip: '127.0.0.1',
+    method: 'GET',
+    url: '/favicon.ico',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+    referer: undefined
+  },
+  timestamp: '2025-08-14 17:52:06',
+  level: 'warn',
+  message: 'Security Event'
+}

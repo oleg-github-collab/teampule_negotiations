@@ -701,6 +701,9 @@
     }
 
     function showClientForm(clientId = null) {
+        console.log('🔥 ===== SHOW CLIENT FORM CALLED =====');
+        console.log('📝 ClientId:', clientId, 'Type:', typeof clientId);
+        
         const isEdit = clientId !== null;
         
         if (elements.clientFormTitle) {
@@ -1319,7 +1322,11 @@
     const debouncedUpdateTextStats = debounce(updateTextStats, 300);
 
     async function startAnalysis() {
+        console.log('🔥 ===== START ANALYSIS CALLED =====');
+        console.log('🔥 Current client:', state.currentClient);
+        
         if (!state.currentClient) {
+            console.log('🔥 No client selected, showing warning');
             showNotification('Спочатку оберіть клієнта', 'warning');
             return;
         }
@@ -3176,7 +3183,17 @@
 
     // ===== View Controls =====
     function switchHighlightsView(view) {
+        console.log('🔥 ===== SWITCH HIGHLIGHTS VIEW CALLED =====');
         console.log('🔍 Switching highlights view to:', view);
+        console.log('🔍 Available elements:', {
+            listView: !!elements.listView,
+            textView: !!elements.textView,
+            highlightsView: !!elements.highlightsView,
+            filterView: !!elements.filterView,
+            highlightsList: !!elements.highlightsList,
+            fulltextContent: !!elements.fulltextContent
+        });
+        
         state.ui.highlightsView = view;
         
         // Update button states
@@ -4182,148 +4199,8 @@
 
     // Legacy global functions removed - now using event delegation
 
-    // ===== Event Handlers =====
-    function bindEvents() {
-        // Mobile menu toggle
-        elements.mobileMenuToggle?.addEventListener('click', () => {
-            console.log('📱 Mobile menu toggle clicked');
-            toggleMobileMenu();
-        });
-        
-        // Sidebar toggles (only right sidebar can be toggled now)
-        elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
-        elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
-        
-        // Product switcher
-        elements.productDropdownBtn?.addEventListener('click', toggleProductDropdown);
-        
-        // Close product dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.product-switcher')) {
-                closeProductDropdown();
-            }
-        });
-        
-        // Close mobile menu when clicking outside or on overlay
-        document.addEventListener('click', (e) => {
-            if (document.body.classList.contains('mobile-menu-open')) {
-                // Close if clicking outside sidebar or on overlay
-                if (!e.target.closest('.sidebar-left') || 
-                    e.target.closest('[data-action="select-client"]') ||
-                    e.target.closest('[data-action="load-analysis"]')) {
-                    toggleMobileMenu();
-                }
-            }
-        });
-
-        // Client search
-        elements.clientSearch?.addEventListener('input', debounce(renderClientsList, 300));
-
-        // Client management
-        elements.newClientBtn?.addEventListener('click', () => showClientForm());
-        elements.welcomeNewClient?.addEventListener('click', () => showClientForm());
-        elements.saveClientBtn?.addEventListener('click', saveClient);
-        elements.cancelClientBtn?.addEventListener('click', () => showSection('welcome-screen'));
-
-        // Navigation actions
-        $('#help-toggle')?.addEventListener('click', showOnboarding);
-        $('#logout-btn')?.addEventListener('click', () => {
-            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
-                console.log('🔐 Logout button clicked, calling logout function');
-                // Use the proper logout function from auth.js
-                if (window.logout) {
-                    window.logout();
-                } else {
-                    console.error('🔐 logout function not available, falling back to manual logout');
-                    // Fallback manual logout
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                    window.location.href = '/login.html';
-                }
-            }
-        });
-
-        // Onboarding
-        elements.welcomeHelp?.addEventListener('click', showOnboarding);
-        elements.skipOnboarding?.addEventListener('click', completeOnboarding);
-        elements.nextStep?.addEventListener('click', nextOnboardingStep);
-        elements.prevStep?.addEventListener('click', prevOnboardingStep);
-
-        // Input methods
-        elements.textMethod?.addEventListener('click', () => updateInputMethod('text'));
-        elements.fileMethod?.addEventListener('click', () => updateInputMethod('file'));
-
-        // Text analysis
-        elements.negotiationText?.addEventListener('input', debouncedUpdateTextStats);
-        
-        // Ensure textarea wrapper is clickable and transfers focus
-        const textWrapper = document.querySelector('.text-input-wrapper');
-        if (textWrapper && elements.negotiationText) {
-            textWrapper.addEventListener('click', (e) => {
-                // If clicking on the wrapper but not the textarea, focus the textarea
-                if (e.target === textWrapper || e.target.closest('.input-actions')) {
-                    return; // Don't interfere with button clicks
-                }
-                if (e.target !== elements.negotiationText) {
-                    elements.negotiationText.focus();
-                }
-            });
-        }
-        elements.startAnalysisBtn?.addEventListener('click', startAnalysis);
-        elements.newAnalysisBtn?.addEventListener('click', createNewAnalysis);
-        elements.clearTextBtn?.addEventListener('click', () => {
-            if (elements.negotiationText) {
-                elements.negotiationText.value = '';
-                updateTextStats();
-            }
-        });
-        elements.pasteBtn?.addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (elements.negotiationText) {
-                    elements.negotiationText.value = text;
-                    updateTextStats();
-                    showNotification('Текст вставлено з буферу обміну', 'success');
-                }
-            } catch (err) {
-                showNotification('Не вдалося вставити з буферу обміну', 'error');
-            }
-        });
-
-        // View controls
-        elements.listView?.addEventListener('click', () => {
-            console.log('🔍 List view button clicked');
-            switchHighlightsView('list');
-        });
-        elements.textView?.addEventListener('click', () => {
-            console.log('🔍 Text view button clicked');
-            switchHighlightsView('text');
-        });
-        elements.highlightsView?.addEventListener('click', () => {
-            console.log('🔍 Highlights view button clicked');
-            switchHighlightsView('highlights');
-        });
-        elements.filterView?.addEventListener('click', () => {
-            console.log('🔍 Filter view button clicked');
-            toggleFilters();
-        });
-
-        // Filter controls
-        elements.clearFiltersBtn?.addEventListener('click', clearFilters);
-        elements.applyFiltersBtn?.addEventListener('click', applyFilters);
-
-        // Workspace actions
-        elements.getAdviceBtn?.addEventListener('click', getPersonalizedAdvice);
-        elements.exportSelectedBtn?.addEventListener('click', exportSelectedFragments);
-        elements.clearWorkspaceBtn?.addEventListener('click', clearWorkspace);
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', handleKeyboardShortcuts);
-        
-        // Window resize
-        window.addEventListener('resize', debounce(handleResize, 100));
-    }
+    // ===== LEGACY FUNCTION REMOVED =====
+    // Old bindEvents function removed - now using unified event system
 
     function handleKeyboardShortcuts(e) {
         // Ctrl/Cmd + Enter to start analysis
@@ -5275,11 +5152,144 @@
         });
     }
 
-    // ===== Centralized Event Delegation System =====
-    function initializeEventDelegation() {
-        console.log('🎯 Initializing centralized event delegation...');
+    // ===== UNIFIED EVENT SYSTEM =====
+    function initializeUnifiedEventSystem() {
+        console.log('🎯 Initializing unified event system...');
         
-        // Single event handler for the entire document
+        // Part 1: Direct event handlers for static elements
+        bindStaticEvents();
+        
+        // Part 2: Event delegation for dynamic elements
+        initializeDynamicEventDelegation();
+        
+        console.log('🎯 Unified event system initialized');
+    }
+    
+    function bindStaticEvents() {
+        console.log('🔥 Binding static element events...');
+        
+        // Core UI elements that are always present
+        const staticBindings = [
+            { element: elements.mobileMenuToggle, event: 'click', handler: toggleMobileMenu, name: 'Mobile menu toggle' },
+            { element: elements.sidebarRightToggle, event: 'click', handler: () => toggleSidebar('right'), name: 'Right sidebar toggle' },
+            { element: elements.workspaceToggle, event: 'click', handler: () => toggleSidebar('right'), name: 'Workspace toggle' },
+            { element: elements.newClientBtn, event: 'click', handler: showClientForm, name: 'New client button' },
+            { element: elements.welcomeNewClient, event: 'click', handler: showClientForm, name: 'Welcome new client button' },
+            { element: elements.saveClientBtn, event: 'click', handler: saveClient, name: 'Save client button' },
+            { element: elements.cancelClientBtn, event: 'click', handler: () => showSection('welcome-screen'), name: 'Cancel client button' },
+            { element: elements.startAnalysisBtn, event: 'click', handler: startAnalysis, name: 'Start analysis button' },
+            { element: elements.newAnalysisBtn, event: 'click', handler: createNewAnalysis, name: 'New analysis button' },
+            { element: elements.listView, event: 'click', handler: () => switchHighlightsView('list'), name: 'List view button' },
+            { element: elements.textView, event: 'click', handler: () => switchHighlightsView('text'), name: 'Text view button' },
+            { element: elements.highlightsView, event: 'click', handler: () => switchHighlightsView('highlights'), name: 'Highlights view button' },
+            { element: elements.filterView, event: 'click', handler: () => toggleFilters(), name: 'Filter view button' },
+            { element: elements.getAdviceBtn, event: 'click', handler: getPersonalizedAdvice, name: 'Get advice button' },
+            { element: elements.exportSelectedBtn, event: 'click', handler: exportSelectedFragments, name: 'Export selected button' },
+            { element: elements.clearWorkspaceBtn, event: 'click', handler: clearWorkspace, name: 'Clear workspace button' },
+            { element: elements.clearFiltersBtn, event: 'click', handler: clearFilters, name: 'Clear filters button' },
+            { element: elements.applyFiltersBtn, event: 'click', handler: applyFilters, name: 'Apply filters button' },
+        ];
+        
+        let boundCount = 0;
+        staticBindings.forEach(({ element, event, handler, name }) => {
+            if (element) {
+                element.addEventListener(event, (e) => {
+                    console.log(`🔥 STATIC EVENT: ${name} clicked`);
+                    handler(e);
+                });
+                boundCount++;
+                console.log(`🔥 ✅ ${name} - bound successfully`);
+            } else {
+                console.log(`🔥 ❌ ${name} - element not found`);
+            }
+        });
+        
+        // Input events
+        if (elements.clientSearch) {
+            elements.clientSearch.addEventListener('input', debounce(renderClientsList, 300));
+            console.log('🔥 ✅ Client search input - bound successfully');
+        }
+        
+        if (elements.negotiationText) {
+            elements.negotiationText.addEventListener('input', debouncedUpdateTextStats);
+            console.log('🔥 ✅ Negotiation text input - bound successfully');
+        }
+        
+        // Special handlers
+        $('#help-toggle')?.addEventListener('click', showOnboarding);
+        $('#logout-btn')?.addEventListener('click', () => {
+            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
+                if (window.logout) {
+                    window.logout();
+                } else {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.href = '/login.html';
+                }
+            }
+        });
+        
+        // Additional UI handlers
+        elements.textMethod?.addEventListener('click', () => updateInputMethod('text'));
+        elements.fileMethod?.addEventListener('click', () => updateInputMethod('file'));
+        elements.clearTextBtn?.addEventListener('click', () => {
+            if (elements.negotiationText) {
+                elements.negotiationText.value = '';
+                updateTextStats();
+            }
+        });
+        elements.pasteBtn?.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (elements.negotiationText) {
+                    elements.negotiationText.value = text;
+                    updateTextStats();
+                    showNotification('Текст вставлено з буферу обміну', 'success');
+                }
+            } catch (err) {
+                showNotification('Не вдалося вставити з буферу обміну', 'error');
+            }
+        });
+        
+        // Onboarding handlers
+        elements.welcomeHelp?.addEventListener('click', showOnboarding);
+        elements.skipOnboarding?.addEventListener('click', completeOnboarding);
+        elements.nextStep?.addEventListener('click', nextOnboardingStep);
+        elements.prevStep?.addEventListener('click', prevOnboardingStep);
+        
+        // Product switcher
+        elements.productDropdownBtn?.addEventListener('click', toggleProductDropdown);
+        
+        // Global handlers
+        document.addEventListener('click', (e) => {
+            // Close product dropdown when clicking outside
+            if (!e.target.closest('.product-switcher')) {
+                closeProductDropdown();
+            }
+            
+            // Close mobile menu when clicking outside
+            if (document.body.classList.contains('mobile-menu-open')) {
+                if (!e.target.closest('.sidebar-left') || 
+                    e.target.closest('[data-action="select-client"]') ||
+                    e.target.closest('[data-action="load-analysis"]')) {
+                    toggleMobileMenu();
+                }
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', handleKeyboardShortcuts);
+        
+        // Window resize
+        window.addEventListener('resize', debounce(handleResize, 100));
+        
+        console.log(`🔥 Static events binding complete: ${boundCount} elements bound`);
+    }
+    
+    function initializeDynamicEventDelegation() {
+        console.log('🎯 Initializing dynamic event delegation...');
+        
+        // Single event handler for dynamic elements with data-action
         document.addEventListener('click', (e) => {
             const target = e.target.closest('[data-action]');
             if (!target) return;
@@ -5288,11 +5298,7 @@
             const id = target.dataset.id;
             const category = target.dataset.category;
             
-            console.log(`🎯 Event delegation: ${action}`, { id, category, target });
-            
-            // Prevent default and stop propagation for all actions
-            e.preventDefault();
-            e.stopPropagation();
+            console.log(`🔥 DYNAMIC EVENT DELEGATION: ${action}`, { id, category, target });
             
             switch (action) {
                 case 'select-client':
@@ -6028,8 +6034,8 @@
         // Setup drag & drop workspace
         setupWorkspaceDrop();
         
-        // Bind events
-        bindEvents();
+        // Initialize unified event system (replaces old bindEvents)
+        initializeUnifiedEventSystem();
         
         // Initialize displays
         updateTextStats();
@@ -6132,8 +6138,7 @@
         // Save state on page unload
         window.addEventListener('beforeunload', saveAppState);
         
-        // Initialize centralized event delegation
-        initializeEventDelegation();
+        // Event delegation is now part of unified event system
         
         // Initialize modal functionality
         initializeModalHandlers();
@@ -6144,12 +6149,40 @@
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }
 
+    // Make key functions globally available for testing/debugging
+    window.TeamPulseDebug = {
+        showClientForm,
+        startAnalysis,
+        saveClient,
+        state,
+        elements,
+        switchHighlightsView,
+        toggleSidebar,
+        toggleMobileMenu
+    };
+    
+    // ДІАГНОСТИКА: Додамо детальне логування ініціалізації
+    console.log('🔥 ======= TEAMPULSE TURBO NEON STARTUP =======');
+    console.log('🔥 Current auth status:', sessionStorage.getItem('teampulse-auth'));
+    console.log('🔥 DOM ready state:', document.readyState);
+    console.log('🔥 Available elements check:');
+    console.log('🔥   - sidebar-left:', !!$('#sidebar-left'));
+    console.log('🔥   - start-analysis-btn:', !!$('#start-analysis-btn'));
+    console.log('🔥   - new-client-btn:', !!$('#new-client-btn'));
+    console.log('🔥   - client-list:', !!$('#client-list'));
+    console.log('🔥 Functions exposed in window.TeamPulseDebug for testing');
+    
     // Initialize immediately if already authenticated, or wait for auth-success event
     if (sessionStorage.getItem('teampulse-auth') === 'true') {
+        console.log('🔥 Auth found, initializing immediately...');
         init();
     } else {
+        console.log('🔥 No auth found, waiting for auth-success event...');
         // Start when authenticated
-        window.addEventListener('auth-success', init);
+        window.addEventListener('auth-success', () => {
+            console.log('🔥 Auth-success event received, initializing...');
+            init();
+        });
     }
 
 })();

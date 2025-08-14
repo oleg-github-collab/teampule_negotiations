@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeamPulse - Button Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+            background: #1a1a1a;
+            color: white;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            background: #a855f7;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #9333ea;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 TeamPulse Button Test</h1>
+    <p>Тестування функціональності кнопок і подій</p>
+    
+    <div>
+        <button id="test-basic-btn">Базова кнопка</button>
+        <button id="test-show-client-form">Показати форму клієнта</button>
+        <button id="test-start-analysis">Запустити аналіз</button>
+        <button data-action="select-client" data-id="1">Test Data-Action</button>
+    </div>
+    
+    <div id="test-results" class="test-result">
+        <h3>Результати тестів:</h3>
+        <div id="results-log"></div>
+    </div>
+    
+    <script>
+        // Basic test
+        document.getElementById('test-basic-btn').addEventListener('click', function() {
+            log('✅ Базова кнопка працює!');
+        });
+        
+        function log(message) {
+            const resultsLog = document.getElementById('results-log');
+            resultsLog.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+        
+        // Test if main app functions exist
+        setTimeout(() => {
+            log('🔍 Перевірка існування функцій app-neon.js...');
+            
+            // Check if we can access functions from app-neon.js
+            if (typeof window.TeamPulseApp !== 'undefined') {
+                log('✅ TeamPulseApp доступний');
+            } else {
+                log('❌ TeamPulseApp недоступний');
+            }
+            
+            // Test basic DOM selection
+            const testElement = document.querySelector('#test-basic-btn');
+            if (testElement) {
+                log('✅ DOM селекція працює');
+            } else {
+                log('❌ DOM селекція не працює');
+            }
+            
+        }, 1000);
+    </script>
+    
+    <!-- Load main app script to test integration -->
+    <script src="/auth.js"></script>
+    <script src="/app-neon.js"></script>
+    
+    <script>
+        // Test integration with main app
+        setTimeout(() => {
+            log('🔍 Тестування інтеграції з основним додатком...');
+            
+            // Try to access main app elements
+            const mainAppBtn = document.querySelector('#new-client-btn');
+            if (mainAppBtn) {
+                log('✅ Елементи основного додатку знайдені');
+            } else {
+                log('⚠️ Елементи основного додатку не знайдені (це нормально для тестової сторінки)');
+            }
+            
+            // Test the functions we need
+            document.getElementById('test-show-client-form').addEventListener('click', function() {
+                log('🔥 Тестування showClientForm...');
+                try {
+                    if (window.TeamPulseDebug && window.TeamPulseDebug.showClientForm) {
+                        window.TeamPulseDebug.showClientForm();
+                        log('✅ showClientForm викликано успішно');
+                    } else {
+                        log('❌ TeamPulseDebug.showClientForm не існує');
+                        log('❌ Доступні функції: ' + (window.TeamPulseDebug ? Object.keys(window.TeamPulseDebug).join(', ') : 'none'));
+                    }
+                } catch (error) {
+                    log('❌ Помилка showClientForm: ' + error.message);
+                }
+            });
+            
+            document.getElementById('test-start-analysis').addEventListener('click', function() {
+                log('🔥 Тестування startAnalysis...');
+                try {
+                    if (window.TeamPulseDebug && window.TeamPulseDebug.startAnalysis) {
+                        window.TeamPulseDebug.startAnalysis();
+                        log('✅ startAnalysis викликано успішно');
+                    } else {
+                        log('❌ TeamPulseDebug.startAnalysis не існує');
+                        log('❌ Доступні функції: ' + (window.TeamPulseDebug ? Object.keys(window.TeamPulseDebug).join(', ') : 'none'));
+                    }
+                } catch (error) {
+                    log('❌ Помилка startAnalysis: ' + error.message);
+                }
+            });
+            
+            // Test data-action delegation
+            document.querySelector('[data-action="select-client"]').addEventListener('click', function() {
+                log('🔥 Тестування data-action кнопки...');
+            });
+            
+        }, 2000);
+    </script>
+</body>
+</html>

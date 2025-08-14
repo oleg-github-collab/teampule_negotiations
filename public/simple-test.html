@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple JS Test</title>
+</head>
+<body>
+    <h1>Simple Test</h1>
+    <button id="test-btn">Test Button</button>
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('test-btn').addEventListener('click', function() {
+            document.getElementById('result').innerHTML = '✅ JavaScript працює! Час: ' + new Date().toLocaleTimeString();
+            console.log('✅ Button clicked and working!');
+        });
+        
+        console.log('✅ Simple test script loaded');
+    </script>
+</body>
+</html>
