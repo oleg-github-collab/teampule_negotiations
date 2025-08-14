@@ -4638,7 +4638,7 @@
         }
         
         try {
-            const client = state.clients.find(c => c.id === clientId);
+            const client = state.clients.find(c => c.id === parseInt(clientId));
             console.log('✏️ Found client for editing:', client ? client.company : 'NOT FOUND');
             
             if (!client) {
@@ -4658,7 +4658,7 @@
     function showDeleteClientModal(clientId) {
         console.log('🗑️ showDeleteClientModal called with ID:', clientId);
         
-        const client = state.clients.find(c => c.id === clientId);
+        const client = state.clients.find(c => c.id === parseInt(clientId));
         if (!client) {
             console.error('❌ Client not found for deletion with ID:', clientId);
             showNotification('Клієнт не знайдений', 'error');
@@ -4732,7 +4732,7 @@
     async function performDeleteClient(clientId) {
         console.log('🗑️ performDeleteClient called with ID:', clientId);
         try {
-            const client = state.clients.find(c => c.id === clientId);
+            const client = state.clients.find(c => c.id === parseInt(clientId));
             console.log('🗑️ Found client for deletion:', client ? client.company : 'NOT FOUND');
 
             console.log('🗑️ Sending delete request...');
@@ -4748,10 +4748,10 @@
             }
 
             // Update state
-            state.clients = state.clients.filter(c => c.id !== clientId);
+            state.clients = state.clients.filter(c => c.id !== parseInt(clientId));
             
             // If deleted client was current, clear selection
-            if (state.currentClient?.id === clientId) {
+            if (state.currentClient?.id === parseInt(clientId)) {
                 state.currentClient = null;
                 state.currentAnalysis = null;
                 state.selectedFragments = [];
@@ -4797,7 +4797,7 @@
         if (editBtn) {
             e.preventDefault();
             e.stopPropagation();
-            const clientId = editBtn.dataset.clientId;
+            const clientId = parseInt(editBtn.dataset.clientId);
             console.log('🎯 Edit client button clicked for ID:', clientId);
             if (clientId) {
                 editClient(clientId, e);
@@ -4810,7 +4810,7 @@
         if (deleteBtn) {
             e.preventDefault();
             e.stopPropagation();
-            const clientId = deleteBtn.dataset.clientId;
+            const clientId = parseInt(deleteBtn.dataset.clientId);
             console.log('🎯 Delete client button clicked for ID:', clientId);
             if (clientId) {
                 deleteClient(clientId, e);
