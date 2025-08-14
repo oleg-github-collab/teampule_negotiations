@@ -5163,6 +5163,29 @@
         initializeDynamicEventDelegation();
         
         console.log('🎯 Unified event system initialized');
+        
+        // CRITICAL FIX: Expose functions globally for debugging and testing
+        window.TeamPulseDebug = {
+            showClientForm,
+            startAnalysis,
+            saveClient,
+            state,
+            elements,
+            switchHighlightsView,
+            toggleSidebar,
+            toggleMobileMenu,
+            // Test functions
+            testShowClientForm: () => {
+                console.log('🧪 TEST: Calling showClientForm...');
+                showClientForm();
+            },
+            testStartAnalysis: () => {
+                console.log('🧪 TEST: Calling startAnalysis...');
+                startAnalysis();
+            }
+        };
+        
+        console.log('🔧 TeamPulseDebug functions exposed globally:', Object.keys(window.TeamPulseDebug));
     }
     
     function bindStaticEvents() {
@@ -5195,7 +5218,14 @@
             if (element) {
                 element.addEventListener(event, (e) => {
                     console.log(`🔥 STATIC EVENT: ${name} clicked`);
-                    handler(e);
+                    console.log(`🔥 Handler function:`, handler);
+                    console.log(`🔥 Element:`, element);
+                    try {
+                        handler(e);
+                        console.log(`🔥 ✅ ${name} handler executed successfully`);
+                    } catch (error) {
+                        console.error(`🔥 ❌ ${name} handler failed:`, error);
+                    }
                 });
                 boundCount++;
                 console.log(`🔥 ✅ ${name} - bound successfully`);
@@ -6149,17 +6179,9 @@
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }
 
-    // Make key functions globally available for testing/debugging
-    window.TeamPulseDebug = {
-        showClientForm,
-        startAnalysis,
-        saveClient,
-        state,
-        elements,
-        switchHighlightsView,
-        toggleSidebar,
-        toggleMobileMenu
-    };
+    // TeamPulseDebug is already exposed in initializeUnifiedEventSystem
+    // Just confirm it's available
+    console.log('🔧 TeamPulseDebug available:', !!window.TeamPulseDebug);
     
     // ДІАГНОСТИКА: Додамо детальне логування ініціалізації
     console.log('🔥 ======= TEAMPULSE TURBO NEON STARTUP =======');
