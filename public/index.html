@@ -471,15 +471,24 @@
 
                             <!-- Statistics Overview -->
                             <div class="stats-grid">
-                                <div class="stat-card">
+                                <div class="stat-card counter" 
+                                     data-action="show-counter-modal" 
+                                     data-category="manipulation"
+                                     style="cursor: pointer;">
                                     <div class="stat-number" id="manipulations-count">0</div>
                                     <div class="stat-label">Маніпуляції</div>
                                 </div>
-                                <div class="stat-card">
+                                <div class="stat-card counter" 
+                                     data-action="show-counter-modal" 
+                                     data-category="cognitive_bias"
+                                     style="cursor: pointer;">
                                     <div class="stat-number" id="biases-count">0</div>
                                     <div class="stat-label">Викривлення</div>
                                 </div>
-                                <div class="stat-card">
+                                <div class="stat-card counter" 
+                                     data-action="show-counter-modal" 
+                                     data-category="rhetological_fallacy"
+                                     style="cursor: pointer;">
                                     <div class="stat-number" id="fallacies-count">0</div>
                                     <div class="stat-label">Софізми</div>
                                 </div>
@@ -539,9 +548,6 @@
                                         <button class="view-control" id="text-view" title="Повний текст">
                                             <i class="fas fa-file-text"></i>
                                         </button>
-                                        <button class="view-control" id="highlights-view" title="Виділені фрагменти">
-                                            <i class="fas fa-highlighter"></i>
-                                        </button>
                                         <button class="view-control" id="filter-view" title="Фільтри">
                                             <i class="fas fa-filter"></i>
                                         </button>
@@ -569,14 +575,6 @@
                                 </div>
 
                                 <!-- Highlighted Fragments View -->
-                                <div class="fragments-content" id="fragments-content" style="display: none;">
-                                    <div class="empty-state">
-                                        <div class="empty-icon">
-                                            <i class="fas fa-highlighter"></i>
-                                        </div>
-                                        <p>Виділені маніпулятивні фрагменти з'являться тут після аналізу</p>
-                                    </div>
-                                </div>
 
                                 <!-- Filters Panel -->
                                 <div class="filters-panel" id="filters-panel" style="display: none;">
@@ -887,6 +885,19 @@
 
     <!-- Notifications Container -->
     <div id="notifications" class="notifications"></div>
+
+    <!-- Modal for Counter Details -->
+    <div id="counter-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="counter-modal-title"></h3>
+                <button class="modal-close" id="counter-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="counter-items" id="counter-modal-items"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- Scripts -->
     <script src="/auth.js"></script>

@@ -638,7 +638,7 @@
 
         console.log('🎨 Rendering', filtered.length, 'client items');
 
-        // Render client items
+        // Render client items using data-action attributes for event delegation
         elements.clientList.innerHTML = filtered.map(client => {
             const isActive = state.currentClient?.id === client.id;
             const avatar = (client.company || 'C')[0].toUpperCase();
@@ -648,7 +648,8 @@
             
             return `
                 <div class="client-item ${isActive ? 'active' : ''}" 
-                     data-client-id="${client.id}">
+                     data-action="select-client"
+                     data-id="${client.id}">
                     <div class="client-avatar">${avatar}</div>
                     <div class="client-info">
                         <div class="client-name">${escapeHtml(client.company || 'Без назви')}</div>
@@ -658,53 +659,22 @@
                         </div>
                     </div>
                     <div class="client-actions">
-                        <button class="btn-icon edit-client-btn" data-client-id="${client.id}" title="Редагувати">
+                        <button class="btn-icon" 
+                                data-action="edit-client" 
+                                data-id="${client.id}" 
+                                title="Редагувати">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn-icon delete-client-btn" data-client-id="${client.id}" title="Видалити">
+                        <button class="btn-icon" 
+                                data-action="delete-client" 
+                                data-id="${client.id}" 
+                                title="Видалити">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
             `;
         }).join('');
-        
-        // Add event listeners to all client items
-        const clientItems = elements.clientList.querySelectorAll('.client-item');
-        clientItems.forEach(item => {
-            const clientId = parseInt(item.dataset.clientId);
-            
-            // Client selection - click on main area (not buttons)
-            item.addEventListener('click', (e) => {
-                // Only handle clicks that are not on buttons
-                if (!e.target.closest('.client-actions')) {
-                    console.log('🎯 Client item clicked:', clientId);
-                    selectClient(clientId);
-                }
-            });
-            
-            // Edit button
-            const editBtn = item.querySelector('.edit-client-btn');
-            if (editBtn) {
-                editBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('✏️ Edit button clicked for client:', clientId);
-                    editClient(clientId, e);
-                });
-            }
-            
-            // Delete button
-            const deleteBtn = item.querySelector('.delete-client-btn');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('🗑️ Delete button clicked for client:', clientId);
-                    deleteClient(clientId, e);
-                });
-            }
-        });
         
         console.log('🎨 Client list rendered successfully with event listeners');
     }
@@ -1196,13 +1166,22 @@
                 elements.saveClientBtn.disabled = true;
             }
 
-            const response = await fetch('/api/clients', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(clientData)
-            });
+            // Determine if we're creating new or updating existing
+            const isEditing = !!state.editingClientId;
+            const clientId = state.editingClientId;
+            
+            console.log('💾 Operation type:', isEditing ? 'UPDATE' : 'CREATE', isEditing ? `ID: ${clientId}` : '');
+
+            const response = await fetch(
+                isEditing ? `/api/clients/${clientId}` : '/api/clients',
+                {
+                    method: isEditing ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(clientData)
+                }
+            );
 
             const data = await response.json();
 
@@ -1210,31 +1189,63 @@
                 throw new Error(data.error || 'Помилка збереження');
             }
 
-            showNotification('Клієнта збережено успішно! 🎉', 'success');
+            const successMessage = isEditing 
+                ? 'Клієнта оновлено успішно! 🎉' 
+                : 'Клієнта створено успішно! 🎉';
             
-            // Set the new client as current and show analysis dashboard
-            state.currentClient = data.client;
+            showNotification(successMessage, 'success');
             
-            // Force refresh the clients list to ensure it appears
-            await loadClients(true); // Force refresh with cache busting
+            // Update or add client in state
+            if (isEditing) {
+                const clientIndex = state.clients.findIndex(c => c.id === clientId);
+                if (clientIndex >= 0) {
+                    state.clients[clientIndex] = { ...state.clients[clientIndex], ...data.client };
+                }
+                // Update current client if it's the one being edited
+                if (state.currentClient && state.currentClient.id === clientId) {
+                    state.currentClient = { ...state.currentClient, ...data.client };
+                }
+                // Clear editing state
+                state.editingClientId = null;
+            } else {
+                // Add new client to state and force refresh
+                await loadClients(true); // Force refresh with cache busting
+                // Set as current client
+                state.currentClient = data.client;
+            }
             
-            // Make sure the client appears in UI with delay for better UX
-            setTimeout(() => {
-                renderClientsList();
-                updateClientCount();
-            }, 200);
+            // Update UI
+            renderClientsList();
+            updateClientCount();
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
             
-            // Show analysis dashboard
-            showSection('analysis-dashboard');
+            // Hide form and show appropriate section
+            if (elements.clientForm) {
+                elements.clientForm.style.display = 'none';
+            }
+            
+            if (isEditing) {
+                // Stay on current section when editing
+                if (state.currentClient) {
+                    showSection('analysis-dashboard');
+                } else {
+                    showSection('welcome-screen');
+                }
+            } else {
+                // Show analysis dashboard for new client
+                showSection('analysis-dashboard');
+            }
+            
+            // Clear form
+            inputs.forEach(input => input.value = '');
             
             // Save state
             scheduleStateSave();
 
         } catch (error) {
-            console.error('Save client error:', error);
-            showNotification(error.message || 'Помилка при збереженні клієнта', 'error');
+            console.error('💾 Save client error:', error);
+            showNotification(error.message || 'Помилка збереження клієнта', 'error');
         } finally {
             // Remove loading state
             if (elements.saveClientBtn) {
@@ -1577,25 +1588,49 @@
                                     }
                                 }, 2000);
                                 
-                                // Generate and display highlighted text
+                                // Generate and display highlighted text - КРИТИЧНО ВАЖЛИВО!
+                                console.log('🔍 === FINAL HIGHLIGHTING PHASE ===');
+                                console.log('🔍 Original text available:', !!state.originalText, 'length:', state.originalText?.length);
+                                console.log('🔍 Highlights available:', analysisData.highlights?.length || 0);
+                                
+                                if (!state.currentAnalysis) state.currentAnalysis = {};
+                                
+                                // Save original text if not already saved
+                                if (!state.originalText && elements.negotiationText?.value) {
+                                    state.originalText = elements.negotiationText.value;
+                                    console.log('🔍 Rescued original text from textarea:', state.originalText?.length);
+                                }
+                                
                                 if (state.originalText && analysisData.highlights?.length > 0) {
-                                    console.log('🔍 Generating highlighted text from highlights');
+                                    console.log('🔍 ✅ Both original text and highlights available - generating highlighted text');
                                     const highlightedText = generateHighlightedText(state.originalText, analysisData.highlights);
                                     
-                                    // Ensure state.currentAnalysis exists
-                                    if (!state.currentAnalysis) state.currentAnalysis = {};
+                                    // Store everything in currentAnalysis
+                                    state.currentAnalysis.original_text = state.originalText;
                                     state.currentAnalysis.highlighted_text = highlightedText;
                                     state.currentAnalysis.highlights = analysisData.highlights;
                                     
-                                    console.log('🎨 Generated highlighted text, length:', highlightedText.length);
+                                    console.log('🎨 Generated highlighted text successfully, length:', highlightedText.length);
                                     
-                                    // Always update full text view so it's ready when user switches to text view
+                                    // FORCE update full text view
                                     updateFullTextView(highlightedText);
                                     
-                                    // Also update fragments view so it's ready
+                                    // Also update fragments view
                                     updateFragmentsView(analysisData.highlights);
                                     
-                                    console.log('🔍 Full text view and fragments view updated and ready');
+                                    console.log('🔍 ✅ Full text view and fragments view FORCE updated');
+                                } else if (state.originalText) {
+                                    console.log('🔍 ⚠️ Original text available but no highlights - showing plain text');
+                                    state.currentAnalysis.original_text = state.originalText;
+                                    updateFullTextView(null); // Will show plain text
+                                } else {
+                                    console.error('🔍 ❌ No original text available for highlighting!');
+                                    console.error('🔍 Debug info:', {
+                                        hasOriginalText: !!state.originalText,
+                                        hasTextArea: !!elements.negotiationText,
+                                        textAreaValue: elements.negotiationText?.value?.length,
+                                        analysisHighlights: analysisData.highlights?.length
+                                    });
                                 }
                             }
                         } catch (e) {
@@ -1720,7 +1755,7 @@
                 <div class="empty-state">
                     <div class="empty-icon"><i class="fas fa-filter"></i></div>
                     <p>Жодних результатів не знайдено за вашими фільтрами</p>
-                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
+                    <button class="btn-secondary btn-sm" data-action="clear-filters">Очистити фільтри</button>
                 </div>
             `;
             return;
@@ -2398,23 +2433,34 @@
         }
 
         elements.highlightsList.innerHTML = highlights.map((highlight, index) => `
-            <div class="highlight-item ${highlight.category || 'general'}" data-highlight-id="${index}">
+            <div class="highlight-item ${highlight.category || 'general'}" 
+                 data-highlight-id="${index}" 
+                 draggable="true">
                 <div class="highlight-header">
                     <div class="highlight-type ${highlight.category}">${highlight.category_label || 'Проблема'}</div>
                     <div class="highlight-actions">
-                        <button class="btn-icon" onclick="window.addToWorkspace(${index})" title="Додати до робочої області">
+                        <button class="btn-icon" 
+                                data-action="add-to-workspace" 
+                                data-id="${index}" 
+                                title="Додати до робочої області">
                             <i class="fas fa-plus"></i>
                         </button>
-                        <button class="btn-icon" onclick="window.shareHighlight(${index})" title="Поділитися">
+                        <button class="btn-icon" 
+                                data-action="share-highlight" 
+                                data-id="${index}" 
+                                title="Поділитися">
                             <i class="fas fa-share"></i>
                         </button>
                     </div>
                 </div>
                 <div class="highlight-text">${escapeHtml(highlight.text || '')}</div>
-                <div class="highlight-description">${escapeHtml(highlight.description || '')}</div>
+                <div class="highlight-description">${escapeHtml(highlight.explanation || highlight.description || '')}</div>
                 ${highlight.suggestion ? `<div class="highlight-suggestion"><strong>Рекомендація:</strong> ${escapeHtml(highlight.suggestion)}</div>` : ''}
             </div>
         `).join('');
+        
+        // Enable drag functionality after rendering
+        enableHighlightDrag();
     }
 
     function updateFullTextView(highlightedText) {
@@ -2496,116 +2542,144 @@
 
     function generateHighlightedText(originalText, highlights) {
         if (!originalText || !highlights || highlights.length === 0) {
-            console.log('🔍 No text or highlights to process');
+            console.log('🎯 No text or highlights to process');
             return `<div class="text-content">${escapeHtml(originalText || '')}</div>`;
         }
 
-        console.log('🔍 ========== HIGHLIGHTING PROCESS ==========');
-        console.log('🔍 Original text length:', originalText.length);
-        console.log('🔍 Number of highlights:', highlights.length);
-        console.log('🔍 Sample highlights:', highlights.slice(0, 3).map(h => ({ text: h.text?.substring(0, 50), category: h.category })));
+        console.log('🎯 ========== PRECISE COORDINATE HIGHLIGHTING ==========');
+        console.log('🎯 Original text length:', originalText.length);
+        console.log('🎯 Number of highlights:', highlights.length);
 
-        // Create segments array to track what to highlight
+        // Create segments array using EXACT coordinates from AI
         const segments = [];
-        let lastIndex = 0;
         
-        // Process each highlight
+        // Process each highlight using precise coordinates
         for (let i = 0; i < highlights.length; i++) {
             const highlight = highlights[i];
-            const searchText = highlight.text?.trim();
             
-            if (!searchText || searchText.length < 2) {
-                console.log(`🔍 Skipping highlight ${i}: empty or too short text`);
-                continue;
+            // Prefer exact coordinates if available
+            let start = highlight.char_start;
+            let end = highlight.char_end;
+            
+            // Fallback to text search only if coordinates are missing
+            if (start === undefined || end === undefined || start < 0 || end < 0) {
+                console.log(`🎯 No coordinates for highlight ${i}, attempting text search fallback`);
+                
+                const searchText = highlight.text?.trim();
+                if (searchText && searchText.length >= 2) {
+                    const index = originalText.indexOf(searchText);
+                    if (index !== -1) {
+                        start = index;
+                        end = index + searchText.length;
+                        console.log(`🎯   Fallback found at ${start}-${end}`);
+                    } else {
+                        console.warn(`🎯   Fallback failed, skipping highlight ${i}`);
+                        continue;
+                    }
+                } else {
+                    console.warn(`🎯   No usable text for highlight ${i}, skipping`);
+                    continue;
+                }
             }
             
-            console.log(`🔍 Processing highlight ${i}:`, {
-                text: searchText.substring(0, 50) + (searchText.length > 50 ? '...' : ''),
-                category: highlight.category
-            });
-            
-            // Find ALL occurrences of this text in the ENTIRE document
-            const searchLower = searchText.toLowerCase();
-            const originalLower = originalText.toLowerCase();
-            
-            let startIndex = 0;
-            let foundCount = 0;
-            
-            while (true) {
-                const index = originalLower.indexOf(searchLower, startIndex);
-                if (index === -1) break;
+            // Validate coordinates
+            if (start >= 0 && end > start && end <= originalText.length) {
+                const actualText = originalText.substring(start, end);
                 
-                const endIndex = index + searchText.length;
-                const actualText = originalText.substring(index, endIndex);
-                
-                foundCount++;
-                console.log(`🔍   Found occurrence ${foundCount} at position ${index}-${endIndex}: "${actualText}"`);
+                console.log(`🎯 Highlight ${i}: [${start}-${end}] "${actualText.substring(0, 50)}${actualText.length > 50 ? '...' : ''}"`);
                 
                 segments.push({
-                    start: index,
-                    end: endIndex,
-                    type: 'highlight',
-                    originalText: actualText,
+                    start: start,
+                    end: end,
+                    actualText: actualText,
                     highlight: highlight,
                     highlightIndex: i
                 });
-                
-                startIndex = index + 1; // Move past this occurrence
+            } else {
+                console.warn(`🎯 Invalid coordinates for highlight ${i}: [${start}-${end}] (text length: ${originalText.length})`);
             }
-            
-            console.log(`🔍   Total occurrences found for highlight ${i}: ${foundCount}`);
         }
         
-        // Sort segments by position
+        // Sort segments by start position
         segments.sort((a, b) => a.start - b.start);
-        console.log(`🔍 Total segments to process: ${segments.length}`);
+        console.log(`🎯 Valid segments to process: ${segments.length}`);
         
-        // Remove overlapping segments (keep first one)
-        const cleanSegments = [];
+        // Handle overlapping segments - merge or prioritize
+        const mergedSegments = [];
         for (const segment of segments) {
-            const hasOverlap = cleanSegments.some(existing => 
-                (segment.start >= existing.start && segment.start < existing.end) ||
-                (segment.end > existing.start && segment.end <= existing.end) ||
-                (segment.start <= existing.start && segment.end >= existing.end)
-            );
+            let merged = false;
             
-            if (!hasOverlap) {
-                cleanSegments.push(segment);
+            for (let i = 0; i < mergedSegments.length; i++) {
+                const existing = mergedSegments[i];
+                
+                // Check for overlap
+                if (segment.start < existing.end && segment.end > existing.start) {
+                    console.log(`🎯 Overlap detected: [${existing.start}-${existing.end}] vs [${segment.start}-${segment.end}]`);
+                    
+                    // Merge by taking the widest range and combining highlights
+                    const newStart = Math.min(existing.start, segment.start);
+                    const newEnd = Math.max(existing.end, segment.end);
+                    const newText = originalText.substring(newStart, newEnd);
+                    
+                    mergedSegments[i] = {
+                        start: newStart,
+                        end: newEnd,
+                        actualText: newText,
+                        highlight: existing.highlight, // Keep first highlight's properties
+                        highlightIndex: existing.highlightIndex,
+                        merged: true
+                    };
+                    
+                    console.log(`🎯   Merged into: [${newStart}-${newEnd}]`);
+                    merged = true;
+                    break;
+                }
+            }
+            
+            if (!merged) {
+                mergedSegments.push(segment);
             }
         }
         
-        console.log(`🔍 Clean segments after overlap removal: ${cleanSegments.length}`);
+        // Sort merged segments
+        mergedSegments.sort((a, b) => a.start - b.start);
+        console.log(`🎯 Final segments after merging: ${mergedSegments.length}`);
         
-        // Build the final HTML
+        // Build the final HTML with precise highlighting
         let result = '';
         let currentIndex = 0;
         
-        for (const segment of cleanSegments) {
-            // Add text before this segment
+        for (const segment of mergedSegments) {
+            // Add unhighlighted text before this segment
             if (segment.start > currentIndex) {
                 const beforeText = originalText.substring(currentIndex, segment.start);
                 result += escapeHtml(beforeText);
             }
             
-            // Add highlighted segment
+            // Add highlighted segment with proper styling
             const category = getCategoryClass(segment.highlight.category || 'manipulation');
-            const tooltip = escapeHtml(segment.highlight.explanation || segment.highlight.description || segment.highlight.label || '');
-            const highlightedText = escapeHtml(segment.originalText);
+            const tooltip = escapeHtml(
+                segment.highlight.explanation || 
+                segment.highlight.description || 
+                segment.highlight.label || 
+                'Проблемний фрагмент'
+            );
+            const highlightedText = escapeHtml(segment.actualText);
             
             result += `<span class="text-highlight ${category}" title="${tooltip}" data-highlight-index="${segment.highlightIndex}">${highlightedText}</span>`;
             
             currentIndex = segment.end;
         }
         
-        // Add remaining text
+        // Add remaining unhighlighted text
         if (currentIndex < originalText.length) {
             const remainingText = originalText.substring(currentIndex);
             result += escapeHtml(remainingText);
         }
         
-        console.log('🔍 ========== HIGHLIGHTING COMPLETED ==========');
-        console.log('🔍 Final result length:', result.length);
-        console.log('🔍 Applied highlights:', cleanSegments.length);
+        console.log('🎯 ========== PRECISE HIGHLIGHTING COMPLETED ==========');
+        console.log('🎯 Final result length:', result.length);
+        console.log('🎯 Applied precise highlights:', mergedSegments.length);
         
         return `<div class="text-content">${result}</div>`;
     }
@@ -2715,7 +2789,7 @@
                 <div class="empty-state">
                     <div class="empty-icon"><i class="fas fa-filter"></i></div>
                     <p>Жодних фрагментів не знайдено за вашими фільтрами</p>
-                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
+                    <button class="btn-secondary btn-sm" data-action="clear-filters">Очистити фільтри</button>
                 </div>
             `;
             return;
@@ -3171,7 +3245,10 @@
             <div class="fragment-item">
                 <div class="highlight-type ${fragment.category}">${fragment.label}</div>
                 <div class="fragment-text">"${fragment.text}"</div>
-                <button class="fragment-remove" onclick="removeFromWorkspace(${index})" title="Видалити">
+                <button class="fragment-remove" 
+                        data-action="remove-from-workspace" 
+                        data-id="${fragment.id}" 
+                        title="Видалити">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -3607,10 +3684,7 @@
         elements.productDropdownBtn.classList.remove('active');
     }
 
-    // Make functions globally accessible
-    window.addToWorkspace = addToWorkspace;
-    window.removeFromWorkspace = removeFromWorkspace;
-    window.copyAdviceToClipboard = copyAdviceToClipboard;
+    // Legacy global functions removed - now using event delegation
 
     // ===== Event Handlers =====
     function bindEvents() {
@@ -4338,46 +4412,9 @@
         }
     }
 
-    // ===== Global Functions =====
-    window.showClientForm = showClientForm;
-    window.selectClient = selectClient;
-    window.editClient = editClient;
-    window.deleteClient = deleteClient;
-    window.addToWorkspace = addToWorkspace;
-    window.removeFromWorkspace = removeFromWorkspace;
-    window.shareHighlight = (id) => console.log('Share highlight:', id);
-    window.loadAnalysis = loadAnalysis;
-    window.createNewAnalysis = createNewAnalysis;
-    window.clearFilters = clearFilters;
-    window.confirmDeleteAnalysis = confirmDeleteAnalysis;
-    window.removeRecommendation = removeRecommendation;
-    window.expandRecommendation = expandRecommendation;
-    window.copyRecommendation = copyRecommendation;
-    window.clearRecommendationsHistory = clearRecommendationsHistory;
-    window.confirmClearRecommendations = confirmClearRecommendations;
-    
-    // ===== Debug Testing Functions =====
-    window.testClientFunctions = function() {
-        console.log('🧪 Testing client functions availability:');
-        console.log('🧪 selectClient:', typeof window.selectClient);
-        console.log('🧪 editClient:', typeof window.editClient);
-        console.log('🧪 deleteClient:', typeof window.deleteClient);
-        console.log('🧪 Current clients:', state.clients.length);
-        if (state.clients.length > 0) {
-            console.log('🧪 Testing selectClient with first client...');
-            window.selectClient(state.clients[0].id);
-        }
-    };
-    
-    window.testEditClient = function(clientId) {
-        console.log('🧪 Testing editClient with ID:', clientId);
-        window.editClient(clientId || (state.clients[0] && state.clients[0].id));
-    };
-    
-    window.testDeleteClient = function(clientId) {
-        console.log('🧪 Testing deleteClient with ID:', clientId);
-        window.deleteClient(clientId || (state.clients[0] && state.clients[0].id));
-    };
+    // ===== Legacy Code Cleanup =====
+    // All global functions removed - using centralized event delegation system
+    // Debug functions removed - using modern event handling
 
     // ===== State Persistence =====
     function saveAppState() {
@@ -4655,6 +4692,472 @@
         });
     }
 
+    // ===== Centralized Event Delegation System =====
+    function initializeEventDelegation() {
+        console.log('🎯 Initializing centralized event delegation...');
+        
+        // Single event handler for the entire document
+        document.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+            
+            const action = target.dataset.action;
+            const id = target.dataset.id;
+            const category = target.dataset.category;
+            
+            console.log(`🎯 Event delegation: ${action}`, { id, category, target });
+            
+            // Prevent default and stop propagation for all actions
+            e.preventDefault();
+            e.stopPropagation();
+            
+            switch (action) {
+                case 'select-client':
+                    handleSelectClient(parseInt(id));
+                    break;
+                case 'edit-client':
+                    handleEditClient(parseInt(id));
+                    break;
+                case 'delete-client':
+                    handleDeleteClient(parseInt(id));
+                    break;
+                case 'add-to-workspace':
+                    handleAddToWorkspace(parseInt(id));
+                    break;
+                case 'show-counter-modal':
+                    handleShowCounterModal(category);
+                    break;
+                case 'close-modal':
+                    handleCloseModal();
+                    break;
+                case 'delete-analysis':
+                    handleDeleteAnalysis(parseInt(id));
+                    break;
+                case 'load-analysis':
+                    handleLoadAnalysis(parseInt(id));
+                    break;
+                case 'share-highlight':
+                    handleShareHighlight(parseInt(id));
+                    break;
+                case 'remove-from-workspace':
+                    handleRemoveFromWorkspace(id);
+                    break;
+                case 'clear-workspace':
+                    handleClearWorkspace();
+                    break;
+                case 'clear-filters':
+                    handleClearFilters();
+                    break;
+                default:
+                    console.warn('🎯 Unknown action:', action);
+            }
+        });
+        
+        // Handle drag and drop through delegation
+        document.addEventListener('dragstart', (e) => {
+            if (!e.target.matches('[draggable="true"]')) return;
+            
+            const highlightId = e.target.dataset.highlightId;
+            if (highlightId) {
+                e.dataTransfer.setData('text/plain', highlightId);
+                e.target.classList.add('dragging');
+                console.log('🎯 Drag started for highlight:', highlightId);
+            }
+        });
+        
+        document.addEventListener('dragend', (e) => {
+            if (!e.target.matches('[draggable="true"]')) return;
+            e.target.classList.remove('dragging');
+        });
+        
+        console.log('✅ Centralized event delegation initialized');
+    }
+    
+    // ===== Event Handlers =====
+    function handleSelectClient(clientId) {
+        if (!clientId) return;
+        
+        console.log('👤 Selecting client:', clientId);
+        const client = state.clients.find(c => c.id === clientId);
+        if (!client) {
+            console.warn('Client not found:', clientId);
+            return;
+        }
+        
+        state.currentClient = client;
+        updateWorkspaceClientInfo(client);
+        renderClientsList();
+        loadAnalysisHistory(clientId);
+        saveAppState();
+        
+        showNotification(`Обрано клієнта: ${client.company}`, 'success');
+    }
+    
+    function handleEditClient(clientId) {
+        console.log('✏️ Editing client:', clientId);
+        const client = state.clients.find(c => c.id === clientId);
+        if (!client) return;
+        
+        // Заповнити форму даними клієнта
+        if (elements.companyInput) elements.companyInput.value = client.company || '';
+        if (elements.negotiatorInput) elements.negotiatorInput.value = client.negotiator || '';
+        if (elements.sectorInput) elements.sectorInput.value = client.sector || '';
+        if (elements.goalInput) elements.goalInput.value = client.goal || '';
+        if (elements.criteriaInput) elements.criteriaInput.value = client.decision_criteria || '';
+        if (elements.constraintsInput) elements.constraintsInput.value = client.constraints || '';
+        if (elements.userGoalsInput) elements.userGoalsInput.value = client.user_goals || '';
+        if (elements.clientGoalsInput) elements.clientGoalsInput.value = client.client_goals || '';
+        if (elements.weeklyHoursInput) elements.weeklyHoursInput.value = client.weekly_hours || '';
+        if (elements.offeredServicesInput) elements.offeredServicesInput.value = client.offered_services || '';
+        if (elements.deadlinesInput) elements.deadlinesInput.value = client.deadlines || '';
+        if (elements.notesInput) elements.notesInput.value = client.notes || '';
+        
+        // Зберегти ID клієнта для оновлення
+        state.editingClientId = clientId;
+        
+        // Показати форму
+        if (elements.clientForm) {
+            elements.clientForm.style.display = 'block';
+            elements.companyInput?.focus();
+        }
+    }
+    
+    function handleDeleteClient(clientId) {
+        console.log('🗑️ Delete client requested:', clientId);
+        const client = state.clients.find(c => c.id === clientId);
+        if (!client) return;
+        
+        // Показати кастомне модальне вікно замість confirm()
+        showConfirmModal(
+            'Видалити клієнта',
+            `Ви дійсно хочете видалити клієнта "${client.company}"? Всі пов'язані аналізи також будуть видалені. Цю дію неможливо відмінити.`,
+            () => confirmDeleteClient(clientId)
+        );
+    }
+    
+    function handleAddToWorkspace(highlightIndex) {
+        console.log('➕ Adding to workspace:', highlightIndex);
+        addToWorkspace(highlightIndex);
+    }
+    
+    function handleShowCounterModal(category) {
+        console.log('📊 Showing counter modal:', category);
+        const titles = {
+            'manipulation': 'Маніпулятивні техніки',
+            'cognitive_bias': 'Когнітивні викривлення',
+            'rhetological_fallacy': 'Логічні помилки та софізми'
+        };
+        showCounterModal(category, titles[category] || 'Проблеми');
+    }
+    
+    function handleCloseModal() {
+        console.log('❌ Closing modal');
+        closeModal();
+        closeConfirmModal();
+    }
+    
+    function handleDeleteAnalysis(analysisId) {
+        console.log('🗑️ Delete analysis requested:', analysisId);
+        showConfirmModal(
+            'Видалити аналіз',
+            'Ви дійсно хочете видалити цей аналіз? Цю дію неможливо відмінити.',
+            () => confirmDeleteAnalysis(analysisId)
+        );
+    }
+    
+    function handleLoadAnalysis(analysisId) {
+        console.log('📄 Loading analysis:', analysisId);
+        loadAnalysisById(analysisId);
+    }
+    
+    function handleShareHighlight(highlightIndex) {
+        console.log('📤 Sharing highlight:', highlightIndex);
+        shareHighlight(highlightIndex);
+    }
+    
+    function handleRemoveFromWorkspace(fragmentId) {
+        console.log('❌ Removing from workspace:', fragmentId);
+        state.selectedFragments = state.selectedFragments.filter(f => f.id !== fragmentId);
+        updateWorkspaceFragments();
+        updateWorkspaceActions();
+        scheduleStateSave();
+        showNotification('Фрагмент видалено з робочої області', 'info');
+    }
+    
+    function handleClearWorkspace() {
+        console.log('🧹 Clearing workspace');
+        showConfirmModal(
+            'Очистити робочу область',
+            'Ви дійсно хочете видалити всі фрагменти з робочої області?',
+            () => {
+                state.selectedFragments = [];
+                updateWorkspaceFragments();
+                updateWorkspaceActions();
+                scheduleStateSave();
+                showNotification('Робочу область очищено', 'info');
+                closeConfirmModal();
+            }
+        );
+    }
+    
+    function handleClearFilters() {
+        console.log('🔍 Clearing filters');
+        // Reset all filter states
+        state.filters = {
+            category: 'all',
+            severity: 'all',
+            search: ''
+        };
+        
+        // Clear filter UI
+        if (elements.categoryFilter) elements.categoryFilter.value = 'all';
+        if (elements.severityFilter) elements.severityFilter.value = 'all';
+        if (elements.searchFilter) elements.searchFilter.value = '';
+        
+        // Refresh displays
+        if (state.currentAnalysis?.highlights) {
+            displayHighlights(state.currentAnalysis.highlights);
+            updateWorkspaceFragments();
+        }
+        
+        showNotification('Фільтри очищено', 'info');
+    }
+
+    // ===== Confirm Modal System =====
+    function showConfirmModal(title, message, onConfirm) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('confirm-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'confirm-modal';
+            modal.className = 'modal';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="confirm-modal-title"></h3>
+                        <button class="modal-close" data-action="close-modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="confirm-modal-message"></p>
+                        <div class="modal-actions" style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                            <button class="btn btn-secondary" data-action="close-modal">Скасувати</button>
+                            <button class="btn btn-danger" id="confirm-modal-confirm">Підтвердити</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Update content
+        document.getElementById('confirm-modal-title').textContent = title;
+        document.getElementById('confirm-modal-message').textContent = message;
+        
+        // Set up confirm handler
+        const confirmBtn = document.getElementById('confirm-modal-confirm');
+        confirmBtn.onclick = () => {
+            onConfirm();
+            closeConfirmModal();
+        };
+        
+        // Show modal
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        
+        console.log('✅ Confirm modal shown:', title);
+    }
+    
+    function closeConfirmModal() {
+        const modal = document.getElementById('confirm-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            console.log('✅ Confirm modal closed');
+        }
+    }
+    
+    // ===== Helper Functions for Confirmations =====
+    async function confirmDeleteClient(clientId) {
+        try {
+            console.log('🗑️ Confirming delete client:', clientId);
+            
+            const response = await fetch(`/api/clients/${clientId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Помилка видалення клієнта');
+            }
+            
+            // Remove from state
+            state.clients = state.clients.filter(c => c.id !== clientId);
+            
+            // If this was current client, clear it
+            if (state.currentClient && state.currentClient.id === clientId) {
+                state.currentClient = null;
+                state.currentAnalysis = null;
+                state.analyses = [];
+                state.selectedFragments = [];
+            }
+            
+            // Update UI
+            renderClientsList();
+            updateWorkspaceClientInfo(null);
+            updateWorkspaceFragments();
+            saveAppState();
+            
+            showNotification('Клієнта успішно видалено', 'success');
+            
+        } catch (error) {
+            console.error('Delete client error:', error);
+            showNotification(error.message, 'error');
+        }
+    }
+    
+    async function confirmDeleteAnalysis(analysisId) {
+        try {
+            console.log('🗑️ Confirming delete analysis:', analysisId);
+            
+            const response = await fetch(`/api/analyses/${analysisId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Помилка видалення аналізу');
+            }
+            
+            // Remove from state
+            state.analyses = state.analyses.filter(a => a.id !== analysisId);
+            
+            // If this was current analysis, clear it
+            if (state.currentAnalysis && state.currentAnalysis.id === analysisId) {
+                state.currentAnalysis = null;
+                state.selectedFragments = [];
+                // Clear UI
+                if (elements.highlightsList) {
+                    elements.highlightsList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon"><i class="fas fa-search"></i></div>
+                            <p>Проблемні моменти з'являться тут після аналізу</p>
+                        </div>
+                    `;
+                }
+                if (elements.fulltextContent) {
+                    elements.fulltextContent.innerHTML = '<p>Виберіть аналіз для перегляду повного тексту</p>';
+                }
+            }
+            
+            // Update UI
+            renderAnalysisHistory(state.analyses);
+            updateWorkspaceFragments();
+            saveAppState();
+            
+            showNotification('Аналіз успішно видалено', 'success');
+            
+        } catch (error) {
+            console.error('Delete analysis error:', error);
+            showNotification(error.message, 'error');
+        }
+    }
+
+    // ===== Modal Functionality =====
+    function initializeModalHandlers() {
+        console.log('🔗 Initializing modal handlers...');
+        
+        // Modal handlers are now managed by centralized event delegation
+        // Add escape key handler for modals
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeConfirmModal();
+            }
+        });
+        
+        console.log('✅ Modal handlers initialized with event delegation');
+    }
+    
+    function showCounterModal(category, title) {
+        console.log(`🔍 Opening modal for category: ${category}`);
+        
+        if (!state.currentAnalysis || !state.currentAnalysis.highlights) {
+            console.warn('⚠️ No current analysis available for modal');
+            return;
+        }
+        
+        const modal = document.getElementById('counter-modal');
+        const modalTitle = document.getElementById('counter-modal-title');
+        const modalItems = document.getElementById('counter-modal-items');
+        
+        if (!modal || !modalTitle || !modalItems) {
+            console.warn('⚠️ Modal elements not found');
+            return;
+        }
+        
+        // Filter highlights by category
+        const categoryHighlights = state.currentAnalysis.highlights.filter(h => h.category === category);
+        
+        console.log(`📊 Found ${categoryHighlights.length} highlights for category ${category}`);
+        
+        // Set modal title
+        modalTitle.textContent = `${title} (${categoryHighlights.length})`;
+        
+        // Clear and populate items
+        modalItems.innerHTML = '';
+        
+        if (categoryHighlights.length === 0) {
+            modalItems.innerHTML = `
+                <div class="counter-item">
+                    <div class="counter-item-header">
+                        <span class="counter-item-label">Проблеми не знайдено</span>
+                    </div>
+                    <div class="counter-item-explanation">
+                        У цій категорії поки що немає виявлених проблем.
+                    </div>
+                </div>
+            `;
+        } else {
+            categoryHighlights.forEach((highlight, index) => {
+                const itemHtml = `
+                    <div class="counter-item">
+                        <div class="counter-item-header">
+                            <span class="counter-item-label">${highlight.label || `Проблема ${index + 1}`}</span>
+                            <span class="counter-item-severity severity-${highlight.severity || 1}">
+                                Рівень ${highlight.severity || 1}
+                            </span>
+                        </div>
+                        ${highlight.text ? `
+                            <div class="counter-item-text">
+                                "${highlight.text}"
+                            </div>
+                        ` : ''}
+                        <div class="counter-item-explanation">
+                            ${highlight.explanation || 'Опис недоступний'}
+                        </div>
+                    </div>
+                `;
+                modalItems.insertAdjacentHTML('beforeend', itemHtml);
+            });
+        }
+        
+        // Show modal
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        
+        console.log('✅ Modal opened successfully');
+    }
+    
+    function closeModal() {
+        const modal = document.getElementById('counter-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            console.log('✅ Modal closed');
+        }
+    }
+
     // ===== Initialization =====
     function init() {
         console.log('🚀 TeamPulse Turbo Neon - Initializing...');
@@ -4784,6 +5287,12 @@
         
         // Save state on page unload
         window.addEventListener('beforeunload', saveAppState);
+        
+        // Initialize centralized event delegation
+        initializeEventDelegation();
+        
+        // Initialize modal functionality
+        initializeModalHandlers();
         
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }
