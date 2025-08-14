@@ -2601,7 +2601,6 @@
         const highlightPositions = [];
         
         highlights.forEach((highlight, index) => {
-            const highlight = highlights[i];
             
             // Strategy 1: Try exact coordinates if available  
             let start = highlight.char_start || highlight.start_pos;
