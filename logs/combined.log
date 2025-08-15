@@ -12443,3 +12443,400 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-15 22:30:15'
 }
+{
+  message: 'Received SIGTERM, starting graceful shutdown...',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:40:50'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:41:01'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:41:01'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:41:01'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:41:01'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:41:01'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:42:56 +0000] "GET /test-buttons.html HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:42:56'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:42:56 +0000] "GET /ultimate-button-controller.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:42:56'
+}
+{
+  service: 'teampulse-turbo',
+  event: '404 - Resource not found',
+  details: {
+    ip: '127.0.0.1',
+    method: 'GET',
+    url: '/favicon.ico',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+    referer: undefined
+  },
+  timestamp: '2025-08-15 22:42:57',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:42:57 +0000] "GET /favicon.ico HTTP/1.1" 404 69 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:42:57'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:13 +0000] "DELETE /api/clients/123 HTTP/1.1" 404 44 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:13'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/logout',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 3,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 22:43:28'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:28 +0000] "POST /api/logout HTTP/1.1" 200 16 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:28'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:28 +0000] "GET /login HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:28'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:28 +0000] "GET /styles-neon.css HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:28'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/login',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 35,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "POST /api/login HTTP/1.1" 200 16 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET / HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /styles-neon.css HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /api-client.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /ultimate-button-controller.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /analysis-manager.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /auth.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /application-manager.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /app-neon.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /health HTTP/1.1" 200 402 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:43:37 +0000] "GET /api/clients HTTP/1.1" 200 660 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:43:37'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:52:59 +0000] "GET / HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:52:59'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:52:59 +0000] "GET /styles-neon.css HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:52:59'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:52:59 +0000] "GET /auth.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:52:59'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:52:59 +0000] "GET /ultimate-button-controller.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:52:59'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:52:59 +0000] "GET /api-client.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:52:59'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:52:59 +0000] "GET /app-neon.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:52:59'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:52:59 +0000] "GET /analysis-manager.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:52:59'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:52:59 +0000] "GET /application-manager.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:52:59'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:00 +0000] "GET /api/clients HTTP/1.1" 200 660 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:00'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:00 +0000] "GET /health HTTP/1.1" 200 402 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:00'
+}
+{
+  service: 'teampulse-turbo',
+  event: 'Validation failed',
+  details: {
+    ip: '127.0.0.1',
+    errors: [
+      {
+        type: 'field',
+        value: '',
+        msg: 'Розмір компанії має бути одним з: startup, small, medium, large',
+        path: 'company_size',
+        location: 'body'
+      },
+      {
+        type: 'field',
+        value: '',
+        msg: 'Тип переговорів має бути одним з: sales, partnership, contract, investment, acquisition, licensing, other',
+        path: 'negotiation_type',
+        location: 'body'
+      }
+    ],
+    body: {
+      company: 'Тест',
+      negotiator: '',
+      sector: '',
+      goals: '',
+      deal_value: '',
+      negotiation_type: '',
+      company_size: ''
+    },
+    params: {},
+    query: {}
+  },
+  timestamp: '2025-08-15 22:53:11',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:11 +0000] "POST /api/clients HTTP/1.1" 400 392 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:11'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/logout',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 22:53:24'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:24 +0000] "POST /api/logout HTTP/1.1" 200 16 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:24'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:24 +0000] "GET /login HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:24'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:25 +0000] "GET /styles-neon.css HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:25'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/login',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 22:53:33'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:33 +0000] "POST /api/login HTTP/1.1" 200 16 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:33'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET / HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /styles-neon.css HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /auth.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /ultimate-button-controller.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /api-client.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /analysis-manager.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /application-manager.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /app-neon.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /api/clients HTTP/1.1" 200 660 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:20:53:34 +0000] "GET /health HTTP/1.1" 200 402 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 22:53:34'
+}

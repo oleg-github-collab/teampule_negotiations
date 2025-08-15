@@ -32,14 +32,12 @@ class ApplicationManager {
         try {
             console.log('🚀 Initializing SOLID application architecture...');
             
-            // Initialize in dependency order
+            // Initialize in dependency order - optimized for Ultimate Button Controller
             await this.initializeAPIClient();
-            await this.initializeButtonManager();
-            await this.initializeModalManager();
-            await this.initializeOnboardingManager();
-            await this.initializeClientManager();
             await this.initializeAnalysisManager();
             await this.initializeUIManager();
+            
+            // Ultimate Button Controller handles all button/modal/onboarding logic
             
             this.isInitialized = true;
             console.log('🚀 ✅ Application initialized successfully!');
@@ -49,12 +47,10 @@ class ApplicationManager {
             this.setupGlobalEvents();
             this.setupDebugHelpers();
             
-            // Start the application
-            this.startApplication();
-            
         } catch (error) {
             console.error('🚀 ❌ Application initialization failed:', error);
             this.handleInitializationError(error);
+            throw error;
         }
     }
     
@@ -62,588 +58,243 @@ class ApplicationManager {
     async initializeAPIClient() {
         console.log('🚀 Initializing APIClient...');
         
+        if (!window.APIClient) {
+            console.warn('🚀 ⚠️ APIClient not available - skipping');
+            return;
+        }
+        
         const apiClient = new window.APIClient();
         this.managers.set('api', apiClient);
         
         // Test connection
-        const connected = await apiClient.testConnection();
-        if (!connected) {
-            console.warn('🚀 ⚠️ API connection test failed - continuing anyway');
+        try {
+            const connected = await apiClient.testConnection();
+            if (!connected) {
+                console.warn('🚀 ⚠️ API connection test failed - continuing anyway');
+            }
+        } catch (error) {
+            console.warn('🚀 ⚠️ API test failed:', error.message);
         }
         
         // Make globally available
         window.apiClient = apiClient;
     }
     
-    // Single Responsibility: Initialize button manager
-    async initializeButtonManager() {
-        console.log('🚀 Initializing ButtonManager...');
-        
-        const buttonManager = new window.ButtonManager();
-        this.managers.set('buttons', buttonManager);
-        
-        // Make globally available
-        window.buttonManager = buttonManager;
-    }
-    
-    // Single Responsibility: Initialize modal manager
-    async initializeModalManager() {
-        console.log('🚀 Initializing ModalManager...');
-        
-        const modalManager = new window.ModalManager(window.buttonManager);
-        this.managers.set('modals', modalManager);
-        
-        // Make globally available
-        window.modalManager = modalManager;
-    }
-    
-    // Single Responsibility: Initialize onboarding manager
-    async initializeOnboardingManager() {
-        console.log('🚀 Initializing OnboardingManager...');
-        
-        const onboardingManager = new window.OnboardingManager();
-        this.managers.set('onboarding', onboardingManager);
-        
-        // Make globally available
-        window.onboardingManager = onboardingManager;
-        
-        // Setup notification system compatibility
-        if (window.legacyShowNotification) {
-            window.showNotification = window.legacyShowNotification;
-        }
-    }
-    
-    // Single Responsibility: Initialize client manager
-    async initializeClientManager() {
-        console.log('🚀 Initializing ClientManager...');
-        
-        const clientManager = new window.ClientManager(
-            window.buttonManager,
-            window.apiClient
-        );
-        this.managers.set('clients', clientManager);
-        
-        // Make globally available
-        window.clientManager = clientManager;
-    }
-    
     // Single Responsibility: Initialize analysis manager
     async initializeAnalysisManager() {
         console.log('🚀 Initializing AnalysisManager...');
         
-        const analysisManager = new window.AnalysisManager(
-            window.buttonManager,
-            window.apiClient
-        );
+        if (!window.AnalysisManager) {
+            console.warn('🚀 ⚠️ AnalysisManager not available - skipping');
+            return;
+        }
+        
+        const analysisManager = new window.AnalysisManager();
         this.managers.set('analysis', analysisManager);
         
         // Make globally available
         window.analysisManager = analysisManager;
     }
     
-    // Single Responsibility: Initialize UI manager for remaining UI operations
+    // Single Responsibility: Initialize UI manager (legacy app compatibility)
     async initializeUIManager() {
-        console.log('🚀 Initializing UIManager...');
+        console.log('🚀 Initializing UI compatibility layer...');
         
-        // Register remaining UI buttons
-        this.setupNavigationButtons();
-        this.setupUtilityButtons();
-        this.setupSidebarButtons();
-        
-        console.log('🚀 UIManager ready');
-    }
-    
-    // Single Responsibility: Setup navigation buttons
-    setupNavigationButtons() {
-        const buttonManager = window.buttonManager;
-        
-        // Logout button
-        buttonManager.register('#logout-btn', () => {
-            console.log('🔓 Logout button clicked');
-            this.handleLogout();
-        }, { description: 'Logout Button' });
-        
-        // Help button - force show onboarding
-        buttonManager.register('#help-toggle', () => {
-            console.log('🚀 Help button clicked - showing onboarding');
-            if (window.onboardingManager) {
-                window.onboardingManager.forceShow();
-            } else {
-                console.error('OnboardingManager not available');
+        // Initialize legacy app if available
+        if (window.initializeApp) {
+            try {
+                await window.initializeApp();
+                console.log('🚀 Legacy app initialized');
+            } catch (error) {
+                console.warn('🚀 ⚠️ Legacy app initialization failed:', error.message);
             }
-        }, { description: 'Help Button' });
+        }
         
-        // Product dropdown
-        buttonManager.register('#product-dropdown-btn', () => {
-            this.toggleProductDropdown();
-        }, { description: 'Product Dropdown Button' });
-        
-        // Workspace toggle
-        buttonManager.register('#workspace-toggle', () => {
-            this.toggleSidebar('right');
-        }, { description: 'Workspace Toggle Button' });
+        // Setup responsive design handlers
+        this.setupResponsiveHandlers();
     }
     
-    // Single Responsibility: Setup utility buttons
-    setupUtilityButtons() {
-        const buttonManager = window.buttonManager;
+    // Single Responsibility: Setup responsive design
+    setupResponsiveHandlers() {
+        const mediaQuery = window.matchMedia('(max-width: 768px)');
         
-        // Mobile menu toggle
-        buttonManager.register('#mobile-menu-toggle', () => {
-            this.toggleMobileMenu();
-        }, { description: 'Mobile Menu Toggle' });
+        const handleResponsive = (e) => {
+            document.body.classList.toggle('mobile-layout', e.matches);
+        };
         
-        // Sidebar toggle
-        buttonManager.register('#sidebar-right-toggle', () => {
-            this.toggleSidebar('right');
-        }, { description: 'Right Sidebar Toggle' });
-    }
-    
-    // Single Responsibility: Setup sidebar buttons
-    setupSidebarButtons() {
-        // These will be handled by specific managers
-        // Just ensuring proper delegation
-        console.log('🚀 Sidebar buttons delegated to specific managers');
+        handleResponsive(mediaQuery);
+        mediaQuery.addListener(handleResponsive);
     }
     
     // Single Responsibility: Setup global error handling
     setupGlobalErrorHandling() {
-        // Global error handler
+        // Uncaught exceptions
         window.addEventListener('error', (event) => {
-            console.error('🚀 Global error:', event.error);
-            
-            // Show user-friendly error message for critical errors
-            if (event.error?.message?.includes('Cannot read')) {
-                this.showCriticalErrorFallback('Помилка завантаження компонентів. Перезавантажте сторінку.');
-            }
-            
-            this.logClientError({
-                error: event.error?.message || 'Unknown error',
-                filename: event.filename,
-                lineno: event.lineno,
-                colno: event.colno,
-                stack: event.error?.stack
-            });
+            this.handleGlobalError(event.error, 'uncaught-exception');
         });
         
-        // Unhandled promise rejection handler
+        // Unhandled promise rejections
         window.addEventListener('unhandledrejection', (event) => {
-            console.error('🚀 Unhandled promise rejection:', event.reason);
-            
-            // Handle specific promise rejections gracefully
-            if (event.reason?.message?.includes('AbortError')) {
-                console.log('🚀 Request was aborted - handling gracefully');
-                event.preventDefault();
-                return;
-            }
-            
-            if (event.reason?.message?.includes('NetworkError')) {
-                this.showNetworkErrorFallback();
-                event.preventDefault();
-                return;
-            }
-            
-            this.logClientError({
-                error: 'Unhandled promise rejection: ' + event.reason,
-                type: 'unhandledrejection',
-                reason: event.reason?.toString(),
-                stack: event.reason?.stack
-            });
+            this.handleGlobalError(event.reason, 'unhandled-rejection');
+            event.preventDefault(); // Prevent console spam
         });
-        
-        console.log('🚀 Global error handling setup');
     }
     
     // Single Responsibility: Setup global events
     setupGlobalEvents() {
-        // Client change events
-        window.addEventListener('clientChanged', (event) => {
-            console.log('🚀 Client changed:', event.detail);
-            this.handleClientChange(event.detail);
-        });
-        
-        // Modal events
-        window.addEventListener('modalAction', (event) => {
-            console.log('🚀 Modal action:', event.detail);
-        });
-        
         // Keyboard shortcuts
         document.addEventListener('keydown', (event) => {
-            this.handleGlobalKeyboard(event);
+            // ESC to close modals (handled by Ultimate Button Controller)
+            // Ctrl+/ for help
+            if (event.ctrlKey && event.key === '/') {
+                event.preventDefault();
+                if (window.ultimateController) {
+                    // Trigger help via Ultimate Button Controller
+                    const helpBtn = document.querySelector('#help-toggle, #welcome-help');
+                    if (helpBtn) helpBtn.click();
+                }
+            }
         });
         
-        // Window resize
-        window.addEventListener('resize', this.debounce(() => {
-            this.handleResize();
-        }, 250));
+        // Focus management
+        document.addEventListener('focusin', (event) => {
+            // Add focus indicators for accessibility
+            event.target.classList.add('focused');
+        });
         
-        console.log('🚀 Global events setup');
+        document.addEventListener('focusout', (event) => {
+            event.target.classList.remove('focused');
+        });
     }
     
     // Single Responsibility: Setup debug helpers
     setupDebugHelpers() {
         // Global debug object
-        window.debug = {
-            app: this,
+        window.AppDebug = {
             managers: this.managers,
-            
-            // Quick access to managers
-            buttons: () => window.buttonManager,
-            modals: () => window.modalManager,
-            clients: () => window.clientManager,
-            analysis: () => window.analysisManager,
-            onboarding: () => window.onboardingManager,
-            api: () => window.apiClient,
-            
-            // Debug utilities
-            testAllButtons: () => this.testAllButtons(),
-            testConnection: () => window.apiClient?.testConnection(),
-            resetApp: () => this.resetApplication(),
-            getStats: () => this.getApplicationStats(),
-            
-            // Quick actions
-            closeOnboarding: () => window.onboardingManager?.forceComplete(),
-            showOnboarding: () => window.onboardingManager?.forceShow(),
-            resetOnboarding: () => window.onboardingManager?.reset(),
-            
-            // Modal helpers
-            alert: (msg) => window.modalManager?.showAlert(msg),
-            confirm: (msg, onConfirm) => window.modalManager?.showConfirmDialog({ message: msg, onConfirm }),
-            
-            // Client helpers
-            getClients: () => window.clientManager?.getClients(),
-            getCurrentClient: () => window.clientManager?.getCurrentClient(),
-            
-            // Analysis helpers
-            getCurrentAnalysis: () => window.analysisManager?.getCurrentAnalysis(),
-            isAnalyzing: () => window.analysisManager?.isAnalysisInProgress()
+            getManager: (name) => this.managers.get(name),
+            isInitialized: () => this.isInitialized,
+            restart: () => this.restart(),
+            version: '3.0.0'
         };
         
-        console.log('🚀 Debug helpers available at window.debug');
+        console.log('🚀 Debug helpers available: window.AppDebug');
     }
     
-    // Single Responsibility: Start application
-    startApplication() {
-        console.log('🚀 Starting application...');
+    // Single Responsibility: Handle global errors
+    handleGlobalError(error, type) {
+        console.error(`🚀 Global ${type}:`, error);
         
-        // Load initial data
-        this.loadInitialData();
+        // Don't spam for known harmless errors
+        const harmlessErrors = [
+            'Script error',
+            'ResizeObserver loop limit exceeded',
+            'Non-Error promise rejection captured'
+        ];
         
-        // Show initial UI state
-        this.showInitialState();
+        const isHarmless = harmlessErrors.some(msg => 
+            error?.message?.includes(msg) || 
+            error?.toString?.()?.includes(msg)
+        );
         
-        console.log('🚀 ✨ Application started successfully!');
-    }
-    
-    // Single Responsibility: Load initial data
-    async loadInitialData() {
-        try {
-            // Load token usage
-            const tokenUsage = await window.apiClient.getTokenUsage();
-            if (tokenUsage.success) {
-                this.updateTokenDisplay(tokenUsage.usage);
-            }
-            
-            console.log('🚀 Initial data loaded');
-        } catch (error) {
-            console.error('🚀 Failed to load initial data:', error);
-        }
-    }
-    
-    // Single Responsibility: Show initial UI state
-    showInitialState() {
-        // Check if client is selected
-        const currentClient = window.clientManager?.getCurrentClient();
+        if (isHarmless) return;
         
-        if (currentClient) {
-            // Show analysis dashboard
-            this.showSection('analysis-dashboard');
-        } else {
-            // Show welcome screen
-            this.showSection('welcome-screen');
-        }
-    }
-    
-    // Single Responsibility: Handle logout - FIXED
-    handleLogout() {
-        console.log('🚀 Starting logout process');
-        
-        if (!window.modalManager) {
-            // Direct logout if modal manager not available
-            this.performLogout();
-            return;
-        }
-
-        window.modalManager.showConfirmDialog({
-            title: 'Вихід',
-            message: 'Ви впевнені, що хочете вийти із системи?',
-            confirmText: 'Вийти',
-            onConfirm: () => {
-                this.performLogout();
-            }
-        });
-    }
-    
-    performLogout() {
-        console.log('🚀 Performing logout...');
-        
-        try {
-            // Clear all application state
-            localStorage.clear();
-            sessionStorage.clear();
-            
-            // Clear auth cookie
-            document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-            
-            // Make logout API call
-            fetch('/api/logout', { 
-                method: 'POST',
-                credentials: 'include' 
-            }).catch(e => console.log('Logout API call failed:', e));
-            
-        } catch (error) {
-            console.error('Error during logout:', error);
-        }
-        
-        // Force redirect
-        console.log('🚀 Redirecting to login');
-        window.location.href = '/login';
-    }
-    
-    // Single Responsibility: Handle client change
-    handleClientChange(client) {
-        console.log('🚀 Handling client change to:', client.company);
-        
-        // Update token usage for new client
-        this.loadInitialData();
-        
-        // Switch to analysis dashboard
-        this.showSection('analysis-dashboard');
-    }
-    
-    // Single Responsibility: Handle global keyboard shortcuts
-    handleGlobalKeyboard(event) {
-        // Only handle if no input is focused
-        if (document.activeElement?.tagName === 'INPUT' || 
-            document.activeElement?.tagName === 'TEXTAREA') {
-            return;
-        }
-        
-        switch (event.key) {
-            case 'Escape':
-                // Already handled by modal manager
-                break;
-                
-            case 'F1':
-                event.preventDefault();
-                window.onboardingManager?.forceShow();
-                break;
-                
-            case 'n':
-                if (event.ctrlKey || event.metaKey) {
-                    event.preventDefault();
-                    window.clientManager?.showClientForm();
-                }
-                break;
-        }
-    }
-    
-    // Single Responsibility: Handle window resize
-    handleResize() {
-        console.log('🚀 Handling resize');
-        
-        // Update mobile layout
-        const isMobile = window.innerWidth < 768;
-        document.body.classList.toggle('mobile-layout', isMobile);
-        
-        // Notify managers of resize
-        this.managers.forEach(manager => {
-            if (manager.handleResize) {
-                manager.handleResize();
-            }
-        });
-    }
-    
-    // Single Responsibility: Show a section
-    showSection(sectionId) {
-        const sections = ['welcome-screen', 'client-form', 'analysis-dashboard'];
-        
-        sections.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.style.display = id === sectionId ? 'block' : 'none';
-            }
-        });
-        
-        console.log(`🚀 Showing section: ${sectionId}`);
-    }
-    
-    // Single Responsibility: Update token display
-    updateTokenDisplay(usage) {
-        const elements = {
-            used: ['#used-tokens', '#workspace-used-tokens'],
-            total: ['#total-tokens', '#workspace-total-tokens'],
-            progress: ['#token-progress-fill', '#workspace-token-progress'],
-            percentage: ['#workspace-token-percentage']
-        };
-        
-        elements.used.forEach(selector => {
-            const el = document.querySelector(selector);
-            if (el) el.textContent = usage.used.toLocaleString();
-        });
-        
-        elements.total.forEach(selector => {
-            const el = document.querySelector(selector);
-            if (el) el.textContent = usage.total.toLocaleString();
-        });
-        
-        elements.progress.forEach(selector => {
-            const el = document.querySelector(selector);
-            if (el) el.style.width = `${usage.percentage}%`;
-        });
-        
-        elements.percentage.forEach(selector => {
-            const el = document.querySelector(selector);
-            if (el) el.textContent = `${usage.percentage.toFixed(1)}%`;
-        });
-    }
-    
-    // Utility methods
-    toggleProductDropdown() {
-        const dropdown = document.getElementById('product-dropdown');
-        if (dropdown) {
-            const isVisible = dropdown.style.display === 'block';
-            dropdown.style.display = isVisible ? 'none' : 'block';
-        }
-    }
-    
-    toggleSidebar(side) {
-        const sidebar = document.getElementById(`sidebar-${side}`);
-        if (sidebar) {
-            sidebar.classList.toggle('collapsed');
-        }
-    }
-    
-    toggleMobileMenu() {
-        document.body.classList.toggle('mobile-menu-open');
-    }
-    
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-    
-    // Debug and utility methods
-    async testAllButtons() {
-        const states = window.buttonManager.getAllStates();
-        console.log('🚀 All button states:', states);
-        return states;
-    }
-    
-    async logClientError(errorData) {
-        try {
-            await window.apiClient.logClientError({
-                ...errorData,
-                timestamp: new Date().toISOString(),
-                userAgent: navigator.userAgent,
-                url: window.location.href
+        // Log to API if available
+        const apiClient = this.managers.get('api');
+        if (apiClient) {
+            apiClient.logError(error, type).catch(() => {
+                // Ignore logging errors
             });
-        } catch (error) {
-            console.error('🚀 Failed to log client error:', error);
         }
     }
     
-    resetApplication() {
-        console.log('🚀 Resetting application...');
-        
-        // Reset all managers
-        this.managers.forEach(manager => {
-            if (manager.destroy) {
-                manager.destroy();
-            }
-        });
-        
-        // Clear managers
-        this.managers.clear();
-        
-        // Reinitialize
-        this.isInitialized = false;
-        this.initPromise = null;
-        this.init();
-    }
-    
-    getApplicationStats() {
-        return {
-            initialized: this.isInitialized,
-            managers: Array.from(this.managers.keys()),
-            buttonStates: window.buttonManager?.getAllStates(),
-            currentModal: window.modalManager?.getCurrentModal(),
-            currentClient: window.clientManager?.getCurrentClient(),
-            isAnalyzing: window.analysisManager?.isAnalysisInProgress(),
-            apiStats: window.apiClient?.getStats()
-        };
-    }
-    
+    // Single Responsibility: Handle initialization errors
     handleInitializationError(error) {
         console.error('🚀 💥 Critical initialization error:', error);
         
-        // Show error message to user
-        document.body.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #0a0a0a; color: white; font-family: Inter, sans-serif;">
-                <div style="text-align: center; max-width: 500px; padding: 2rem;">
-                    <h1 style="color: #ff0080; margin-bottom: 1rem;">❌ Помилка ініціалізації</h1>
-                    <p style="margin-bottom: 2rem;">Не вдалося запустити додаток. Спробуйте перезавантажити сторінку.</p>
-                    <button onclick="window.location.reload()" style="background: #a855f7; border: none; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer;">
-                        Перезавантажити
-                    </button>
-                    <details style="margin-top: 2rem; text-align: left;">
-                        <summary style="cursor: pointer; color: #a855f7;">Деталі помилки</summary>
-                        <pre style="background: #1a1a1a; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; overflow: auto; font-size: 0.875rem;">${error.stack || error.message}</pre>
-                    </details>
-                </div>
-            </div>
+        // Show user-friendly error
+        const errorMessage = `
+            Помилка ініціалізації додатка.
+            
+            Будь ласка, перезавантажте сторінку.
+            Якщо проблема повториться, зверніться до підтримки.
         `;
+        
+        // Create error UI
+        this.showCriticalError(errorMessage);
     }
     
-    // Interface Segregation: Public API
+    // Single Responsibility: Show critical error UI
+    showCriticalError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); color: white; z-index: 99999;
+            display: flex; align-items: center; justify-content: center;
+            font-family: Arial, sans-serif; text-align: center;
+        `;
+        
+        errorDiv.innerHTML = `
+            <div style="padding: 2rem; background: rgba(220,53,69,0.1); border-radius: 8px; max-width: 500px;">
+                <h2 style="color: #ff6b6b; margin-bottom: 1rem;">⚠️ Критична помилка</h2>
+                <p style="margin-bottom: 2rem; line-height: 1.5;">${message}</p>
+                <button onclick="window.location.reload()" 
+                        style="background: #28a745; color: white; border: none; 
+                               padding: 12px 24px; border-radius: 4px; cursor: pointer; 
+                               font-size: 16px; margin-right: 10px;">
+                    Перезавантажити
+                </button>
+                <button onclick="this.closest('div').remove()" 
+                        style="background: #6c757d; color: white; border: none; 
+                               padding: 12px 24px; border-radius: 4px; cursor: pointer; 
+                               font-size: 16px;">
+                    Закрити
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(errorDiv);
+    }
+    
+    // Single Responsibility: Restart application
+    async restart() {
+        console.log('🚀 Restarting application...');
+        
+        // Clear state
+        this.isInitialized = false;
+        this.initPromise = null;
+        this.managers.clear();
+        
+        // Reinitialize
+        await this.init();
+    }
+    
+    // Single Responsibility: Get manager by name
     getManager(name) {
         return this.managers.get(name);
     }
     
-    isReady() {
-        return this.isInitialized;
+    // Single Responsibility: Check if manager exists
+    hasManager(name) {
+        return this.managers.has(name);
     }
     
-    destroy() {
-        console.log('🚀 Destroying ApplicationManager...');
-        
-        this.managers.forEach(manager => {
-            if (manager.destroy) {
-                manager.destroy();
-            }
-        });
-        
-        this.managers.clear();
-        this.isInitialized = false;
+    // Single Responsibility: Get all manager names
+    getManagerNames() {
+        return Array.from(this.managers.keys());
     }
 }
 
-// Initialize application when DOM is ready
+// Auto-initialize on DOM ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        window.app = new ApplicationManager();
+        window.applicationManager = new ApplicationManager();
     });
 } else {
-    window.app = new ApplicationManager();
+    window.applicationManager = new ApplicationManager();
 }
 
-// Export for global use
-window.ApplicationManager = ApplicationManager;
-console.log('🚀 ApplicationManager class loaded');
+// Export for ES6 modules
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ApplicationManager;
+}
