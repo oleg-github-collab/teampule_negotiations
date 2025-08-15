@@ -14,7 +14,7 @@ const MAX_HIGHLIGHTS_PER_1000_WORDS = Number(
   process.env.MAX_HIGHLIGHTS_PER_1000_WORDS || 200
 ); // Збільшено для більш детального аналізу
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000); // Оригінальний ліміт
-const MAX_TEXT_LENGTH = 10000000; // 10M characters max - без обмежень для повного аналізу
+const MAX_TEXT_LENGTH = 5000000; // 5M characters max - оптимальний розмір
 const MIN_TEXT_LENGTH = 20; // Minimum text length
 
 // ===== Helpers =====
@@ -40,7 +40,7 @@ function splitToParagraphs(s) {
 }
 
 // Розумне чанкування тексту для повного аналізу
-function createSmartChunks(text, maxChunkSize = 6000) {
+function createSmartChunks(text, maxChunkSize = 3000) {
   console.log(`📦 Starting smart chunking for text of ${text.length} characters`);
 
   if (text.length <= maxChunkSize) {
@@ -674,7 +674,7 @@ r.post('/', validateFileUpload, async (req, res) => {
     }
 
     // Створюємо розумні чанки для великих текстів
-    const textChunks = createSmartChunks(text, 6000); // 6К символів на чанк для кращого аналізу
+    const textChunks = createSmartChunks(text, 3000); // 3К символів на чанк для стабільності
     console.log(`📦 Created ${textChunks.length} chunks for analysis`);
 
     const clientCtx = {

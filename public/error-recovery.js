@@ -283,12 +283,46 @@ class ErrorRecoveryManager {
         console.warn(`🛡️ Page unresponsive for ${delay}ms`);
         
         // Show loading indicator
-        this.showUnresponsivenessIndicator();
-        
-        // Try to recover
-        setTimeout(() => {
-            this.hideUnresponsivenessIndicator();
-        }, 3000);
+        try {
+            this.showUnresponsivenessIndicator();
+            
+            // Try to recover
+            setTimeout(() => {
+                this.hideUnresponsivenessIndicator();
+            }, 3000);
+        } catch (error) {
+            // Silently fail if methods don't exist
+            console.log('🛡️ Unresponsiveness indicator not available');
+        }
+    }
+    
+    // Show unresponsiveness indicator
+    showUnresponsivenessIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'unresponsive-indicator';
+        indicator.innerHTML = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        background: rgba(0,0,0,0.8); color: white; padding: 1rem; border-radius: 8px;
+                        z-index: 10001; font-family: Arial;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 20px; height: 20px; border: 2px solid #fff; border-top: 2px solid transparent; 
+                                border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <span>Сторінка не відповідає...</span>
+                </div>
+            </div>
+            <style>
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            </style>
+        `;
+        document.body.appendChild(indicator);
+    }
+    
+    // Hide unresponsiveness indicator
+    hideUnresponsivenessIndicator() {
+        const indicator = document.getElementById('unresponsive-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
     }
     
     // Show critical error dialog
