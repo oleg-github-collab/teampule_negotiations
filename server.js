@@ -72,7 +72,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'"],
@@ -301,6 +301,24 @@ app.post('/api/admin/cleanup-database', authMiddleware, async (req, res) => {
 app.use('/api/analyze', authMiddleware, analysisLimiter, analyzeRoutes);
 app.use('/api/clients', authMiddleware, clientsRoutes);
 app.use('/api/advice', authMiddleware, adviceRoutes);
+
+// Quick fix for recommendations endpoint
+app.get('/api/recommendations/:clientId', authMiddleware, async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    res.json({
+      success: true,
+      recommendations: [],
+      client_id: clientId
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load recommendations',
+      recommendations: []
+    });
+  }
+});
 
 // Enhanced health check for Railway
 app.get('/health', async (req, res) => {

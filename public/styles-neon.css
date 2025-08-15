@@ -627,6 +627,7 @@ body::before {
         background: rgba(0, 0, 0, 0.5);
         z-index: 100;
         backdrop-filter: blur(4px);
+        pointer-events: none;
     }
     
     .mobile-menu-open .sidebar-left.active {
@@ -1662,11 +1663,30 @@ mark.cognitive {
     grid-column: 1 / -1;
 }
 
+/* ===== Interactive Elements Fix ===== */
+button, 
+input, 
+select, 
+textarea, 
+a,
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-icon,
+[role="button"],
+.clickable {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 10;
+}
+
 /* ===== Buttons ===== */
 .btn-primary,
 .btn-secondary,
 .btn-ghost,
-.btn-icon {
+.btn-icon,
+button {
     padding: var(--spacing-md) var(--spacing-lg);
     border-radius: var(--radius-md);
     border: none;
@@ -1681,6 +1701,8 @@ mark.cognitive {
     text-decoration: none;
     position: relative;
     overflow: hidden;
+    z-index: 10;
+    pointer-events: auto !important;
 }
 
 .btn-primary {
@@ -2002,6 +2024,15 @@ mark.cognitive {
     justify-content: space-between;
     align-items: center;
     margin-top: var(--spacing-xl);
+    position: relative;
+    z-index: 100000;
+}
+
+.onboarding-actions button {
+    position: relative;
+    z-index: 100001 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
 }
 
 /* ===== Notifications ===== */
@@ -2081,8 +2112,20 @@ mark.cognitive {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
+    z-index: 100000 !important;
     padding: var(--spacing-lg);
+    pointer-events: auto !important;
+}
+
+/* Force onboarding modal buttons to be clickable */
+#onboarding-modal button,
+#onboarding-modal .btn-primary,
+#onboarding-modal .btn-secondary,
+#onboarding-modal .btn-ghost {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 100002 !important;
+    position: relative !important;
 }
 
 .onboarding-content {
@@ -2095,6 +2138,8 @@ mark.cognitive {
     width: 100%;
     box-shadow: var(--glass-shadow);
     position: relative;
+    z-index: 100000;
+    pointer-events: auto;
 }
 
 .onboarding-progress {
@@ -2230,6 +2275,15 @@ mark.cognitive {
     justify-content: space-between;
     align-items: center;
     margin-top: var(--spacing-xl);
+    position: relative;
+    z-index: 100000;
+}
+
+.onboarding-actions button {
+    position: relative;
+    z-index: 100001 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
 }
 
 .nav-buttons {
@@ -2630,6 +2684,57 @@ mark.cognitive {
 
 .analysis-history-item:hover .analysis-actions {
     opacity: 1;
+}
+
+/* Analysis history list styles */
+.analysis-history-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.analysis-history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
+    transition: all var(--transition-fast);
+}
+
+.analysis-history-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.analysis-history-item .analysis-info h4 {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 var(--spacing-xs) 0;
+}
+
+.analysis-history-item .analysis-info p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0 0 var(--spacing-xs) 0;
+}
+
+.analysis-history-item .analysis-info p:last-child {
+    margin-bottom: 0;
+}
+
+.analysis-history-item .analysis-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.analysis-history-item .btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.85rem;
+    min-width: auto;
 }
 
 .btn-duplicate,

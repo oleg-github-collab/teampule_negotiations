@@ -10,6 +10,27 @@ const r = Router();
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
 
+// GET recommendations for a client
+r.get('/recommendations/:clientId', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    
+    // For now, return empty array - we'll implement later if needed
+    res.json({
+      success: true,
+      recommendations: [],
+      client_id: clientId
+    });
+  } catch (error) {
+    logError('Failed to get recommendations', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load recommendations',
+      recommendations: []
+    });
+  }
+});
+
 // Daily limit helpers - FIXED: using sync DB calls like analyze.js
 async function getUsageRow() {
   const day = new Date().toISOString().slice(0, 10);

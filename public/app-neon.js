@@ -51,13 +51,13 @@
         workspaceToggle: $('#workspace-toggle'),
         
         // Onboarding
-        onboardingModal: $('#onboarding-modal'),
-        onboardingClose: $('#onboarding-close'),
-        onboardingProgress: $('#onboarding-progress'),
-        progressText: $('#progress-text'),
-        nextStep: $('#next-step'),
-        prevStep: $('#prev-step'),
-        skipOnboarding: $('#skip-onboarding'),
+        onboardingModal: document.getElementById('onboarding-modal'),
+        onboardingClose: document.getElementById('onboarding-close'),
+        onboardingProgress: document.getElementById('onboarding-progress'),
+        progressText: document.getElementById('progress-text'),
+        nextStep: document.getElementById('next-step'),
+        prevStep: document.getElementById('prev-step'),
+        skipOnboarding: document.getElementById('skip-onboarding'),
 
         // Client Management
         clientList: $('#client-list'),
@@ -509,27 +509,22 @@
 
     // ===== Onboarding System =====
     function initOnboarding() {
-        console.log('🎓 Initializing onboarding...');
-        const completed = localStorage.getItem('teampulse-onboarding-completed');
-        console.log('🎓 Onboarding completed:', completed);
+        console.log('🎓 Initializing NEW OnboardingManager...');
         
-        if (completed === 'true') {
-            state.onboardingCompleted = true;
-            console.log('🎓 Onboarding already completed, hiding modal');
-            if (elements.onboardingModal) {
-                elements.onboardingModal.style.display = 'none';
-            }
-            return;
+        // Use new SOLID-compliant OnboardingManager
+        if (window.OnboardingManager) {
+            window.onboardingManager = new window.OnboardingManager();
+        } else {
+            console.error('🎓 OnboardingManager not loaded!');
         }
-
-        // Show onboarding
-        showOnboarding();
     }
 
     function showOnboarding() {
-        if (elements.onboardingModal) {
-            elements.onboardingModal.style.display = 'flex';
-            updateOnboardingStep();
+        console.log('🎓 showOnboarding called - using NEW manager');
+        if (window.onboardingManager) {
+            window.onboardingManager.forceShow();
+        } else {
+            console.error('🎓 OnboardingManager not initialized!');
         }
     }
 
@@ -566,36 +561,7 @@
         }
     }
 
-    function nextOnboardingStep() {
-        if (state.onboardingStep < 4) {
-            state.onboardingStep++;
-            updateOnboardingStep();
-        } else {
-            completeOnboarding();
-        }
-    }
-
-    function prevOnboardingStep() {
-        if (state.onboardingStep > 1) {
-            state.onboardingStep--;
-            updateOnboardingStep();
-        }
-    }
-
-    function completeOnboarding() {
-        state.onboardingCompleted = true;
-        localStorage.setItem('teampulse-onboarding-completed', 'true');
-        
-        if (elements.onboardingModal) {
-            elements.onboardingModal.style.display = 'none';
-        }
-        
-        showNotification('Ласкаво просимо до TeamPulse Turbo! 🚀', 'success');
-        
-        // Load initial data
-        loadClients();
-        loadTokenUsage();
-    }
+    // Old onboarding functions replaced by OnboardingManager
 
     // ===== Reliable API Functions =====
     async function makeReliableApiRequest(url, options = {}, maxRetries = 3) {
@@ -3538,35 +3504,7 @@
         }
     }
 
-    function completeOnboarding() {
-        state.onboardingCompleted = true;
-        if (elements.onboardingModal) {
-            elements.onboardingModal.style.display = 'none';
-        }
-        
-        // Load initial data
-        loadClients();
-        loadTokenUsage();
-        
-        // Auto-refresh token usage
-        setInterval(loadTokenUsage, 30000);
-    }
-
-    function nextOnboardingStep() {
-        if (state.onboardingStep < 4) {
-            state.onboardingStep++;
-            updateOnboardingStep();
-        } else {
-            completeOnboarding();
-        }
-    }
-
-    function prevOnboardingStep() {
-        if (state.onboardingStep > 1) {
-            state.onboardingStep--;
-            updateOnboardingStep();
-        }
-    }
+    // Duplicate functions removed - using main definitions above
 
     function updateOnboardingStep() {
         // Hide all steps
@@ -4301,173 +4239,293 @@
 
     // ===== Event Handlers =====
     function bindEvents() {
-        // Sidebar toggles (only right sidebar can be toggled now)
-        elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
-        elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
+        console.log('🔧 Binding all event handlers...');
         
-        // Product switcher
-        elements.productDropdownBtn?.addEventListener('click', toggleProductDropdown);
+        // Remove any existing listeners first to prevent duplicates
+        const elementsToRebind = [
+            'sidebarRightToggle', 'workspaceToggle', 'productDropdownBtn', 
+            'newClientBtn', 'welcomeNewClient', 'saveClientBtn', 'cancelClientBtn',
+            'startAnalysisBtn', 'newAnalysisBtn', 'analysisHistoryBtn',
+            'textMethod', 'fileMethod', 'negotiationText', 'clearTextBtn', 'pasteBtn',
+            'listView', 'textView', 'filterView', 'getAdviceBtn', 'exportSelectedBtn', 'clearWorkspaceBtn'
+        ];
         
-        // Close product dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.product-switcher')) {
-                closeProductDropdown();
+        elementsToRebind.forEach(elementKey => {
+            const element = elements[elementKey];
+            if (element && element.hasAttribute && element.hasAttribute('data-listener-bound')) {
+                element.removeAttribute('data-listener-bound');
+                // Clone element to remove all listeners
+                const newElement = element.cloneNode(true);
+                element.parentNode.replaceChild(newElement, element);
+                elements[elementKey] = newElement;
             }
         });
 
+        // Sidebar toggles
+        if (elements.sidebarRightToggle && !elements.sidebarRightToggle.hasAttribute('data-listener-bound')) {
+            elements.sidebarRightToggle.addEventListener('click', () => toggleSidebar('right'));
+            elements.sidebarRightToggle.setAttribute('data-listener-bound', 'true');
+        }
+        
+        if (elements.workspaceToggle && !elements.workspaceToggle.hasAttribute('data-listener-bound')) {
+            elements.workspaceToggle.addEventListener('click', () => toggleSidebar('right'));
+            elements.workspaceToggle.setAttribute('data-listener-bound', 'true');
+        }
+        
+        // Product switcher
+        if (elements.productDropdownBtn && !elements.productDropdownBtn.hasAttribute('data-listener-bound')) {
+            elements.productDropdownBtn.addEventListener('click', toggleProductDropdown);
+            elements.productDropdownBtn.setAttribute('data-listener-bound', 'true');
+        }
+        
         // Client search
-        elements.clientSearch?.addEventListener('input', debounce(renderClientsList, 300));
+        if (elements.clientSearch && !elements.clientSearch.hasAttribute('data-listener-bound')) {
+            elements.clientSearch.addEventListener('input', debounce(renderClientsList, 300));
+            elements.clientSearch.setAttribute('data-listener-bound', 'true');
+        }
 
-        // Client management - додано детальні перевірки
+        // Client management buttons with proper cleanup
         console.log('🔧 Setting up client management event listeners...');
         
-        if (elements.newClientBtn) {
+        const newClientBtn = document.getElementById('new-client-btn');
+        if (newClientBtn && !newClientBtn.hasAttribute('data-listener-bound')) {
             console.log('✅ newClientBtn found, adding listener');
-            elements.newClientBtn.addEventListener('click', (e) => {
+            newClientBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('🎯 New client button clicked');
                 showClientForm();
             });
-        } else {
-            console.warn('⚠️ newClientBtn element not found');
+            newClientBtn.setAttribute('data-listener-bound', 'true');
+            elements.newClientBtn = newClientBtn;
         }
         
-        if (elements.welcomeNewClient) {
+        const welcomeNewClient = document.getElementById('welcome-new-client');
+        if (welcomeNewClient && !welcomeNewClient.hasAttribute('data-listener-bound')) {
             console.log('✅ welcomeNewClient found, adding listener');
-            elements.welcomeNewClient.addEventListener('click', (e) => {
+            welcomeNewClient.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('🎯 Welcome new client button clicked');
                 showClientForm();
             });
-        } else {
-            console.warn('⚠️ welcomeNewClient element not found');
+            welcomeNewClient.setAttribute('data-listener-bound', 'true');
+            elements.welcomeNewClient = welcomeNewClient;
         }
         
-        if (elements.saveClientBtn) {
+        const saveClientBtn = document.getElementById('save-client-btn');
+        if (saveClientBtn && !saveClientBtn.hasAttribute('data-listener-bound')) {
             console.log('✅ saveClientBtn found, adding listener');
-            elements.saveClientBtn.addEventListener('click', (e) => {
+            saveClientBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('🎯 Save client button clicked');
                 saveClient();
             });
-        } else {
-            console.warn('⚠️ saveClientBtn element not found');
+            saveClientBtn.setAttribute('data-listener-bound', 'true');
+            elements.saveClientBtn = saveClientBtn;
         }
         
-        if (elements.cancelClientBtn) {
+        const cancelClientBtn = document.getElementById('cancel-client-btn');
+        if (cancelClientBtn && !cancelClientBtn.hasAttribute('data-listener-bound')) {
             console.log('✅ cancelClientBtn found, adding listener');
-            elements.cancelClientBtn.addEventListener('click', (e) => {
+            cancelClientBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('🎯 Cancel client button clicked');
                 showSection('welcome-screen');
             });
-        } else {
-            console.warn('⚠️ cancelClientBtn element not found');
+            cancelClientBtn.setAttribute('data-listener-bound', 'true');
+            elements.cancelClientBtn = cancelClientBtn;
         }
 
-        // Navigation actions
-        $('#help-toggle')?.addEventListener('click', showOnboarding);
-        $('#logout-btn')?.addEventListener('click', () => {
-            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
-                console.log('🔐 Logout button clicked, calling logout function');
-                // Use the proper logout function from auth.js
-                if (window.logout) {
-                    window.logout();
-                } else {
-                    console.error('🔐 logout function not available, falling back to manual logout');
-                    // Fallback manual logout
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                    window.location.href = '/login.html';
-                }
-            }
-        });
-
-        // Onboarding
-        elements.welcomeHelp?.addEventListener('click', showOnboarding);
-        elements.skipOnboarding?.addEventListener('click', completeOnboarding);
-        elements.nextStep?.addEventListener('click', nextOnboardingStep);
-        elements.prevStep?.addEventListener('click', prevOnboardingStep);
-
-        // Input methods
-        elements.textMethod?.addEventListener('click', () => updateInputMethod('text'));
-        elements.fileMethod?.addEventListener('click', () => updateInputMethod('file'));
-
-        // Text analysis
-        elements.negotiationText?.addEventListener('input', debounce(updateTextStats, 300));
+        // Navigation actions - with proper binding check
+        const helpToggle = document.getElementById('help-toggle');
+        if (helpToggle && !helpToggle.hasAttribute('data-listener-bound')) {
+            helpToggle.addEventListener('click', showOnboarding);
+            helpToggle.setAttribute('data-listener-bound', 'true');
+        }
         
-        // Ensure textarea wrapper is clickable and transfers focus
-        const textWrapper = document.querySelector('.text-input-wrapper');
-        if (textWrapper && elements.negotiationText) {
-            textWrapper.addEventListener('click', (e) => {
-                // If clicking on the wrapper but not the textarea, focus the textarea
-                if (e.target === textWrapper || e.target.closest('.input-actions')) {
-                    return; // Don't interfere with button clicks
-                }
-                if (e.target !== elements.negotiationText) {
-                    elements.negotiationText.focus();
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn && !logoutBtn.hasAttribute('data-listener-bound')) {
+            logoutBtn.addEventListener('click', () => {
+                if (confirm('Ви впевнені, що хочете вийти із системи?')) {
+                    console.log('🔐 Logout button clicked, calling logout function');
+                    if (window.logout) {
+                        window.logout();
+                    } else {
+                        console.error('🔐 logout function not available, falling back to manual logout');
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                        window.location.href = '/login.html';
+                    }
                 }
             });
+            logoutBtn.setAttribute('data-listener-bound', 'true');
         }
-        elements.startAnalysisBtn?.addEventListener('click', startAnalysis);
-        elements.newAnalysisBtn?.addEventListener('click', createNewAnalysis);
-        elements.analysisHistoryBtn?.addEventListener('click', showAnalysisHistory);
-        elements.clearTextBtn?.addEventListener('click', () => {
-            if (elements.negotiationText) {
-                elements.negotiationText.value = '';
-                updateTextStats();
-            }
-        });
-        elements.pasteBtn?.addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (elements.negotiationText) {
-                    elements.negotiationText.value = text;
+
+        // Onboarding managed by OnboardingManager class
+        const welcomeHelp = document.getElementById('welcome-help');
+        if (welcomeHelp && !welcomeHelp.hasAttribute('data-listener-bound')) {
+            welcomeHelp.addEventListener('click', showOnboarding);
+            welcomeHelp.setAttribute('data-listener-bound', 'true');
+        }
+
+        // Input methods
+        const textMethod = document.getElementById('text-method');
+        if (textMethod && !textMethod.hasAttribute('data-listener-bound')) {
+            textMethod.addEventListener('click', () => updateInputMethod('text'));
+            textMethod.setAttribute('data-listener-bound', 'true');
+        }
+        
+        const fileMethod = document.getElementById('file-method');
+        if (fileMethod && !fileMethod.hasAttribute('data-listener-bound')) {
+            fileMethod.addEventListener('click', () => updateInputMethod('file'));
+            fileMethod.setAttribute('data-listener-bound', 'true');
+        }
+
+        // Text analysis
+        const negotiationText = document.getElementById('negotiation-text');
+        if (negotiationText && !negotiationText.hasAttribute('data-listener-bound')) {
+            negotiationText.addEventListener('input', debounce(updateTextStats, 300));
+            negotiationText.setAttribute('data-listener-bound', 'true');
+            elements.negotiationText = negotiationText;
+        }
+        
+        const startAnalysisBtn = document.getElementById('start-analysis-btn');
+        if (startAnalysisBtn && !startAnalysisBtn.hasAttribute('data-listener-bound')) {
+            startAnalysisBtn.addEventListener('click', startAnalysis);
+            startAnalysisBtn.setAttribute('data-listener-bound', 'true');
+            elements.startAnalysisBtn = startAnalysisBtn;
+        }
+        
+        const newAnalysisBtn = document.getElementById('new-analysis-btn');
+        if (newAnalysisBtn && !newAnalysisBtn.hasAttribute('data-listener-bound')) {
+            newAnalysisBtn.addEventListener('click', createNewAnalysis);
+            newAnalysisBtn.setAttribute('data-listener-bound', 'true');
+            elements.newAnalysisBtn = newAnalysisBtn;
+        }
+        
+        const analysisHistoryBtn = document.getElementById('analysis-history-btn');
+        if (analysisHistoryBtn && !analysisHistoryBtn.hasAttribute('data-listener-bound')) {
+            analysisHistoryBtn.addEventListener('click', showAnalysisHistory);
+            analysisHistoryBtn.setAttribute('data-listener-bound', 'true');
+            elements.analysisHistoryBtn = analysisHistoryBtn;
+        }
+        
+        const clearTextBtn = document.getElementById('clear-text-btn');
+        if (clearTextBtn && !clearTextBtn.hasAttribute('data-listener-bound')) {
+            clearTextBtn.addEventListener('click', () => {
+                const textArea = document.getElementById('negotiation-text');
+                if (textArea) {
+                    textArea.value = '';
                     updateTextStats();
-                    showNotification('Текст вставлено з буферу обміну', 'success');
                 }
-            } catch (err) {
-                showNotification('Не вдалося вставити з буферу обміну', 'error');
-            }
-        });
+            });
+            clearTextBtn.setAttribute('data-listener-bound', 'true');
+        }
+        
+        const pasteBtn = document.getElementById('paste-btn');
+        if (pasteBtn && !pasteBtn.hasAttribute('data-listener-bound')) {
+            pasteBtn.addEventListener('click', async () => {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    const textArea = document.getElementById('negotiation-text');
+                    if (textArea) {
+                        textArea.value = text;
+                        updateTextStats();
+                        showNotification('Текст вставлено з буферу обміну', 'success');
+                    }
+                } catch (err) {
+                    showNotification('Не вдалося вставити з буферу обміну', 'error');
+                }
+            });
+            pasteBtn.setAttribute('data-listener-bound', 'true');
+        }
 
         // View controls
-        elements.listView?.addEventListener('click', () => {
-            console.log('🔍 List view button clicked');
-            switchHighlightsView('list');
-        });
-        elements.textView?.addEventListener('click', () => {
-            console.log('🔍 Text view button clicked');
-            switchHighlightsView('text');
-        });
-        elements.highlightsView?.addEventListener('click', () => {
-            console.log('🔍 Highlights view button clicked');
-            switchHighlightsView('highlights');
-        });
-        elements.filterView?.addEventListener('click', () => {
-            console.log('🔍 Filter view button clicked');
-            toggleFilters();
-        });
+        const listView = document.getElementById('list-view');
+        if (listView && !listView.hasAttribute('data-listener-bound')) {
+            listView.addEventListener('click', () => {
+                console.log('🔍 List view button clicked');
+                switchHighlightsView('list');
+            });
+            listView.setAttribute('data-listener-bound', 'true');
+        }
+        
+        const textView = document.getElementById('text-view');
+        if (textView && !textView.hasAttribute('data-listener-bound')) {
+            textView.addEventListener('click', () => {
+                console.log('🔍 Text view button clicked');
+                switchHighlightsView('text');
+            });
+            textView.setAttribute('data-listener-bound', 'true');
+        }
+        
+        const filterView = document.getElementById('filter-view');
+        if (filterView && !filterView.hasAttribute('data-listener-bound')) {
+            filterView.addEventListener('click', () => {
+                console.log('🔍 Filter view button clicked');
+                toggleFilters();
+            });
+            filterView.setAttribute('data-listener-bound', 'true');
+        }
 
         // Filter controls
-        elements.clearFiltersBtn?.addEventListener('click', clearFilters);
-        elements.applyFiltersBtn?.addEventListener('click', applyFilters);
+        const clearFiltersBtn = document.getElementById('clear-filters');
+        if (clearFiltersBtn && !clearFiltersBtn.hasAttribute('data-listener-bound')) {
+            clearFiltersBtn.addEventListener('click', clearFilters);
+            clearFiltersBtn.setAttribute('data-listener-bound', 'true');
+        }
+        
+        const applyFiltersBtn = document.getElementById('apply-filters');
+        if (applyFiltersBtn && !applyFiltersBtn.hasAttribute('data-listener-bound')) {
+            applyFiltersBtn.addEventListener('click', applyFilters);
+            applyFiltersBtn.setAttribute('data-listener-bound', 'true');
+        }
 
         // Workspace actions
-        elements.getAdviceBtn?.addEventListener('click', getPersonalizedAdvice);
-        elements.exportSelectedBtn?.addEventListener('click', exportSelectedFragments);
-        elements.clearWorkspaceBtn?.addEventListener('click', clearWorkspace);
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', handleKeyboardShortcuts);
+        const getAdviceBtn = document.getElementById('get-advice-btn');
+        if (getAdviceBtn && !getAdviceBtn.hasAttribute('data-listener-bound')) {
+            getAdviceBtn.addEventListener('click', getPersonalizedAdvice);
+            getAdviceBtn.setAttribute('data-listener-bound', 'true');
+            elements.getAdviceBtn = getAdviceBtn;
+        }
         
-        // Window resize
-        window.addEventListener('resize', debounce(handleResize, 100));
+        const exportSelectedBtn = document.getElementById('export-selected-btn');
+        if (exportSelectedBtn && !exportSelectedBtn.hasAttribute('data-listener-bound')) {
+            exportSelectedBtn.addEventListener('click', exportSelectedFragments);
+            exportSelectedBtn.setAttribute('data-listener-bound', 'true');
+            elements.exportSelectedBtn = exportSelectedBtn;
+        }
+        
+        const clearWorkspaceBtn = document.getElementById('clear-workspace-btn');
+        if (clearWorkspaceBtn && !clearWorkspaceBtn.hasAttribute('data-listener-bound')) {
+            clearWorkspaceBtn.addEventListener('click', clearWorkspace);
+            clearWorkspaceBtn.setAttribute('data-listener-bound', 'true');
+            elements.clearWorkspaceBtn = clearWorkspaceBtn;
+        }
+
+        // Global event listeners (only bind once)
+        if (!document.hasAttribute('data-global-listeners-bound')) {
+            // Close product dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.product-switcher')) {
+                    closeProductDropdown();
+                }
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', handleKeyboardShortcuts);
+            
+            // Window resize
+            window.addEventListener('resize', debounce(handleResize, 100));
+            
+            document.setAttribute('data-global-listeners-bound', 'true');
+        }
+        
+        console.log('✅ All event handlers bound successfully');
     }
 
     function handleKeyboardShortcuts(e) {
@@ -5892,30 +5950,7 @@
             elements.negotiationText.addEventListener('input', updateTextStats);
         }
         
-        // Onboarding buttons - Add event handlers for all onboarding buttons
-        const onboardingNextBtn = document.getElementById('onboarding-next');
-        if (onboardingNextBtn) {
-            console.log('🎓 Adding onboarding next button handler');
-            onboardingNextBtn.addEventListener('click', nextOnboardingStep);
-        }
-        
-        const onboardingPrevBtn = document.getElementById('onboarding-prev');
-        if (onboardingPrevBtn) {
-            console.log('🎓 Adding onboarding prev button handler');
-            onboardingPrevBtn.addEventListener('click', prevOnboardingStep);
-        }
-        
-        const onboardingCompleteBtn = document.getElementById('onboarding-complete');
-        if (onboardingCompleteBtn) {
-            console.log('🎓 Adding onboarding complete button handler');
-            onboardingCompleteBtn.addEventListener('click', completeOnboarding);
-        }
-        
-        const onboardingSkipBtn = document.getElementById('onboarding-skip');
-        if (onboardingSkipBtn) {
-            console.log('🎓 Adding onboarding skip button handler');
-            onboardingSkipBtn.addEventListener('click', completeOnboarding);
-        }
+        // Onboarding buttons already handled above in main binding section
         
         console.log('✅ Event handlers bound successfully');
     }
@@ -5950,34 +5985,22 @@
         // Re-initialize DOM elements to ensure they are available
         reinitializeElements();
         
-        // Додатково перевіряємо та налаштовуємо кнопки створення клієнта
+        // Verify all button listeners are properly bound
         setTimeout(() => {
-            console.log('🔧 Double-checking client creation buttons...');
+            console.log('🔧 Verifying all buttons have listeners...');
             
-            const newClientBtn = document.getElementById('new-client-btn');
-            const welcomeNewClient = document.getElementById('welcome-new-client');
+            const buttonIds = [
+                'new-client-btn', 'welcome-new-client', 'save-client-btn', 'cancel-client-btn',
+                'start-analysis-btn', 'new-analysis-btn', 'analysis-history-btn'
+            ];
             
-            if (newClientBtn && !newClientBtn.hasAttribute('data-listener-attached')) {
-                console.log('🔧 Adding backup listener to new-client-btn');
-                newClientBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('🎯 Backup new client button clicked');
-                    showClientForm();
-                });
-                newClientBtn.setAttribute('data-listener-attached', 'true');
-            }
-            
-            if (welcomeNewClient && !welcomeNewClient.hasAttribute('data-listener-attached')) {
-                console.log('🔧 Adding backup listener to welcome-new-client');
-                welcomeNewClient.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('🎯 Backup welcome new client button clicked');
-                    showClientForm();
-                });
-                welcomeNewClient.setAttribute('data-listener-attached', 'true');
-            }
+            buttonIds.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn && !btn.hasAttribute('data-listener-bound')) {
+                    console.warn(`⚠️ Button ${id} missing listener, re-binding...`);
+                    bindEvents(); // Re-run binding for missed elements
+                }
+            });
         }, 100);
         
         // Load saved UI state
@@ -6109,16 +6132,22 @@
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }
 
+    // Legacy initialization disabled - now handled by ApplicationManager
+    console.log('🔐 Legacy app-neon.js loaded - SOLID managers will handle initialization');
+    
+    // Keep some backward compatibility functions
+    window.legacyShowNotification = showNotification;
+    
     // Initialize immediately if already authenticated, or wait for auth-success event
-    console.log('🔐 Auth status:', sessionStorage.getItem('teampulse-auth'));
-    if (sessionStorage.getItem('teampulse-auth') === 'true') {
-        console.log('🔐 Authenticated, initializing...');
-        init();
-    } else {
-        console.log('🔐 Not authenticated, waiting for auth-success event...');
-        // Start when authenticated
-        window.addEventListener('auth-success', init);
-    }
+    // console.log('🔐 Auth status:', sessionStorage.getItem('teampulse-auth'));
+    // if (sessionStorage.getItem('teampulse-auth') === 'true') {
+    //     console.log('🔐 Authenticated, initializing...');
+    //     init();
+    // } else {
+    //     console.log('🔐 Not authenticated, waiting for auth-success event...');
+    //     // Start when authenticated
+    //     window.addEventListener('auth-success', init);
+    // }
 
     // ===== Advanced Navigation System =====
     
@@ -7562,6 +7591,12 @@
     window.deleteClient = deleteClient;
     window.startAnalysis = startAnalysis;
     window.createNewAnalysis = createNewAnalysis;
+    
+    // Debug functions for NEW onboarding manager
+    window.debugCloseOnboarding = () => window.onboardingManager?.forceComplete();
+    window.debugShowOnboarding = () => window.onboardingManager?.forceShow();
+    window.debugResetOnboarding = () => window.onboardingManager?.reset();
+    window.debugGetState = () => window.onboardingManager?.getState();
     
     // Advanced navigation functions
     window.openAdvancedModal = openAdvancedModal;
