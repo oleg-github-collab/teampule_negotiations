@@ -12086,3 +12086,87 @@
   level: 'warn',
   message: 'Security Event'
 }
+{
+  message: 'Received SIGTERM, starting graceful shutdown...',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:56:06'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:56:31'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:56:31'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:56:31'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:56:31'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:56:31'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:58:16'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:58:16'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:58:16'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:58:16'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 17:58:16'
+}
+{
+  service: 'teampulse-turbo',
+  operation: 'analysis_duration',
+  duration: 19398.983198,
+  details: { textLength: 149, chunks: 1 },
+  level: 'info',
+  message: 'Performance Metric',
+  timestamp: '2025-08-15 18:00:52'
+}
+{
+  service: 'teampulse-turbo',
+  tokens: 'gpt-4o',
+  model: 5240,
+  operation: { route: '/analyze' },
+  timestamp: '2025-08-15 18:00:52',
+  level: 'info',
+  message: 'AI Usage'
+}

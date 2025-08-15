@@ -174,14 +174,14 @@ class AnalysisManager {
         }
     }
     
-    // Single Responsibility: Start analysis
+    // Single Responsibility: Start analysis with real-time streaming
     async startAnalysis() {
         if (this.isAnalyzing) {
             console.log('📊 Analysis already in progress');
             return;
         }
         
-        console.log('📊 Starting analysis...');
+        console.log('📊 Starting streaming analysis...');
         
         try {
             // Get analysis input
@@ -193,17 +193,24 @@ class AnalysisManager {
             // Set analyzing state
             this.setAnalyzingState(true);
             
-            // Show results section and progress
+            // Show results section and initialize UI
             this.showResultsSection();
-            this.startProgressAnimation();
+            this.initializeAnalysisUI();
             
-            // Perform analysis
-            const result = await this.apiClient.analyzeText(analysisData);
+            // Clear previous results
+            this.clearPreviousResults();
+            
+            // Start real-time analysis with streaming callbacks
+            const result = await this.apiClient.analyzeText(
+                analysisData,
+                (progressData) => this.handleProgressUpdate(progressData),
+                (highlightData) => this.handleHighlightReceived(highlightData)
+            );
             
             if (result.success) {
                 console.log('📊 Analysis completed successfully');
                 this.currentAnalysis = result.analysis;
-                this.displayAnalysisResults(result.analysis);
+                this.finalizeAnalysisResults(result.analysis);
                 this.showNotification('Аналіз завершено!', 'success');
             } else {
                 throw new Error(result.error || 'Analysis failed');
@@ -215,7 +222,245 @@ class AnalysisManager {
             this.hideResultsSection();
         } finally {
             this.setAnalyzingState(false);
+            this.hideProgressAnimation();
         }
+    }
+    
+    // Single Responsibility: Handle progress updates from SSE stream
+    handleProgressUpdate(progressData) {
+        console.log('📊 Progress update:', progressData);
+        
+        // Update progress bar
+        this.updateProgressBar(progressData.progress || 0);
+        
+        // Update status message
+        this.updateProgressMessage(progressData.message || 'Обробка...');
+        
+        // Update chunk information if available
+        if (progressData.chunks) {
+            this.updateChunkInfo(progressData.chunks);
+        }
+    }
+    
+    // Single Responsibility: Handle real-time highlight reception
+    handleHighlightReceived(highlightData) {
+        console.log('📊 New highlight received:', highlightData);
+        
+        // Add highlight to results immediately
+        this.addHighlightToResults(highlightData);
+        
+        // Update text highlighting in real-time
+        this.updateTextHighlighting(highlightData);
+        
+        // Update statistics
+        this.updateAnalysisStatistics();
+        
+        // Show highlight notification for high-severity issues
+        if (highlightData.severity >= 3) {
+            this.showHighlightNotification(highlightData);
+        }
+    }
+    
+    // Single Responsibility: Initialize analysis UI
+    initializeAnalysisUI() {
+        console.log('📊 Initializing analysis UI...');
+        
+        // Show progress section
+        this.showProgressSection();
+        
+        // Initialize highlighted text display
+        this.initializeHighlightedTextDisplay();
+        
+        // Reset counters and statistics
+        this.resetAnalysisCounters();
+        
+        // Prepare results containers
+        this.prepareResultsContainers();
+    }
+    
+    // Single Responsibility: Clear previous analysis results
+    clearPreviousResults() {
+        // Clear highlights list
+        const highlightsList = document.getElementById('highlights-list');
+        if (highlightsList) {
+            highlightsList.innerHTML = '';
+        }
+        
+        // Clear highlighted text
+        const highlightedTextContainer = document.getElementById('highlighted-text');
+        if (highlightedTextContainer) {
+            highlightedTextContainer.innerHTML = '';
+        }
+        
+        // Clear statistics
+        this.clearStatistics();
+        
+        // Reset progress
+        this.updateProgressBar(0);
+        this.updateProgressMessage('Підготовка до аналізу...');
+    }
+    
+    // Single Responsibility: Add highlight to results in real-time
+    addHighlightToResults(highlight) {
+        const highlightsList = document.getElementById('highlights-list');
+        if (!highlightsList) return;
+        
+        const highlightElement = this.createHighlightElement(highlight);
+        
+        // Add with animation
+        highlightElement.style.opacity = '0';
+        highlightElement.style.transform = 'translateY(-10px)';
+        highlightsList.appendChild(highlightElement);
+        
+        // Animate in
+        requestAnimationFrame(() => {
+            highlightElement.style.transition = 'all 0.3s ease';
+            highlightElement.style.opacity = '1';
+            highlightElement.style.transform = 'translateY(0)';
+        });
+        
+        // Scroll to show new highlight
+        highlightElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    // Single Responsibility: Update text highlighting in real-time
+    updateTextHighlighting(highlight) {
+        const highlightedTextContainer = document.getElementById('highlighted-text');
+        if (!highlightedTextContainer) return;
+        
+        // Get current text or original if first highlight
+        let currentHTML = highlightedTextContainer.innerHTML;
+        if (!currentHTML) {
+            const analysisData = this.getAnalysisData();
+            currentHTML = this.escapeHtml(analysisData.text || '');
+            highlightedTextContainer.innerHTML = currentHTML;
+        }
+        
+        // Apply new highlight
+        const highlightedHTML = this.applyHighlightToText(currentHTML, highlight);
+        highlightedTextContainer.innerHTML = highlightedHTML;
+    }
+    
+    // Single Responsibility: Create HTML element for a highlight
+    createHighlightElement(highlight) {
+        const element = document.createElement('div');
+        element.className = `highlight-item ${highlight.category} severity-${highlight.severity}`;
+        element.setAttribute('data-highlight-id', highlight.id);
+        
+        const categoryIcons = {
+            manipulation: '🎭',
+            cognitive_bias: '🧠',
+            rhetological_fallacy: '🗣️'
+        };
+        
+        const severityLabels = {
+            1: 'Низький',
+            2: 'Середній', 
+            3: 'Високий'
+        };
+        
+        element.innerHTML = `
+            <div class="highlight-header">
+                <span class="highlight-icon">${categoryIcons[highlight.category] || '⚠️'}</span>
+                <span class="highlight-label">${highlight.label}</span>
+                <span class="highlight-severity severity-${highlight.severity}">
+                    ${severityLabels[highlight.severity] || 'Невідомо'}
+                </span>
+            </div>
+            <div class="highlight-text">"${highlight.text}"</div>
+            <div class="highlight-explanation">${highlight.explanation}</div>
+            <div class="highlight-actions">
+                <button class="btn-sm btn-secondary highlight-text-btn" data-text="${this.escapeHtml(highlight.text)}">
+                    <i class="fas fa-search"></i> Знайти в тексті
+                </button>
+            </div>
+        `;
+        
+        // Bind highlight text button
+        const highlightTextBtn = element.querySelector('.highlight-text-btn');
+        if (highlightTextBtn) {
+            highlightTextBtn.addEventListener('click', () => {
+                this.highlightTextInDocument(highlight.text);
+            });
+        }
+        
+        return element;
+    }
+    
+    // Single Responsibility: Apply highlight to text
+    applyHighlightToText(currentHTML, highlight) {
+        if (!highlight.text) return currentHTML;
+        
+        const categoryClass = this.getCategoryClass(highlight.category);
+        const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        const regex = new RegExp(`(${escapeRegExp(highlight.text)})`, 'gi');
+        
+        return currentHTML.replace(regex, 
+            `<mark class="text-highlight ${categoryClass}" data-highlight-id="${highlight.id}" 
+                   data-severity="${highlight.severity}" title="${this.escapeHtml(highlight.explanation)}">$1</mark>`
+        );
+    }
+    
+    // Single Responsibility: Get CSS class for category
+    getCategoryClass(category) {
+        const categoryMap = {
+            manipulation: 'manipulation',
+            cognitive_bias: 'bias',
+            rhetological_fallacy: 'fallacy'
+        };
+        return categoryMap[category] || 'manipulation';
+    }
+    
+    // Single Responsibility: Escape HTML
+    escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+    
+    // Single Responsibility: Update progress bar
+    updateProgressBar(progress) {
+        const progressBar = document.getElementById('analysis-progress');
+        const progressText = document.getElementById('analysis-progress-text');
+        
+        if (progressBar) {
+            progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+        }
+        
+        if (progressText) {
+            progressText.textContent = `${Math.round(progress)}%`;
+        }
+    }
+    
+    // Single Responsibility: Update progress message
+    updateProgressMessage(message) {
+        const messageElement = document.getElementById('analysis-status-message');
+        if (messageElement) {
+            messageElement.textContent = message;
+        }
+    }
+    
+    // Single Responsibility: Finalize analysis results
+    finalizeAnalysisResults(analysis) {
+        console.log('📊 Finalizing analysis results...');
+        
+        // Update summary and barometer
+        this.displaySummary(analysis.summary);
+        this.displayBarometer(analysis.barometer);
+        
+        // Update final statistics
+        this.updateFinalStatistics(analysis);
+        
+        // Enable export and other actions
+        this.enableAnalysisActions();
+        
+        // Hide progress section
+        this.hideProgressSection();
     }
     
     // Single Responsibility: Create new analysis
@@ -706,6 +951,224 @@ class AnalysisManager {
             clearTimeout(timeout);
             timeout = setTimeout(later, wait);
         };
+    }
+    
+    // Single Responsibility: Show/hide sections
+    showProgressSection() {
+        const progressSection = document.getElementById('analysis-progress-section');
+        if (progressSection) {
+            progressSection.style.display = 'block';
+        }
+    }
+    
+    hideProgressSection() {
+        const progressSection = document.getElementById('analysis-progress-section');
+        if (progressSection) {
+            progressSection.style.display = 'none';
+        }
+    }
+    
+    showResultsSection() {
+        const resultsSection = document.getElementById('analysis-results');
+        if (resultsSection) {
+            resultsSection.style.display = 'block';
+        }
+    }
+    
+    hideResultsSection() {
+        const resultsSection = document.getElementById('analysis-results');
+        if (resultsSection) {
+            resultsSection.style.display = 'none';
+        }
+    }
+    
+    // Single Responsibility: Progress management
+    hideProgressAnimation() {
+        this.hideProgressSection();
+    }
+    
+    startProgressAnimation() {
+        this.showProgressSection();
+        this.updateProgressBar(0);
+        this.updateProgressMessage('Розпочинаю аналіз...');
+    }
+    
+    // Single Responsibility: Statistics and counters
+    resetAnalysisCounters() {
+        this.analysisStats = {
+            totalHighlights: 0,
+            manipulationCount: 0,
+            biasCount: 0,
+            fallacyCount: 0
+        };
+    }
+    
+    updateAnalysisStatistics() {
+        this.analysisStats.totalHighlights++;
+        this.displayCurrentStats();
+    }
+    
+    displayCurrentStats() {
+        const statsElement = document.getElementById('analysis-current-stats');
+        if (statsElement) {
+            statsElement.innerHTML = `
+                <span class="stat-item">
+                    <span class="stat-label">Знайдено проблем:</span>
+                    <span class="stat-value">${this.analysisStats.totalHighlights}</span>
+                </span>
+            `;
+        }
+    }
+    
+    clearStatistics() {
+        const statsElement = document.getElementById('analysis-current-stats');
+        if (statsElement) {
+            statsElement.innerHTML = '';
+        }
+    }
+    
+    // Single Responsibility: UI preparation and initialization
+    initializeHighlightedTextDisplay() {
+        const container = document.getElementById('highlighted-text');
+        if (container) {
+            container.innerHTML = '';
+            container.style.display = 'block';
+        }
+    }
+    
+    prepareResultsContainers() {
+        // Ensure results containers exist and are ready
+        const containers = ['highlights-list', 'analysis-summary', 'analysis-barometer'];
+        containers.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.innerHTML = '';
+                element.style.display = 'block';
+            }
+        });
+    }
+    
+    updateChunkInfo(chunks) {
+        const chunkInfo = document.getElementById('analysis-chunk-info');
+        if (chunkInfo) {
+            chunkInfo.textContent = `Обробка у ${chunks} частинах`;
+        }
+    }
+    
+    // Single Responsibility: Highlight notifications
+    showHighlightNotification(highlight) {
+        const message = `Виявлено критичну проблему: ${highlight.label}`;
+        if (window.modalManager) {
+            window.modalManager.showAlert(message, 'Критична проблема');
+        } else {
+            this.showNotification(message, 'warning');
+        }
+    }
+    
+    // Single Responsibility: Text search and highlighting
+    highlightTextInDocument(text) {
+        const container = document.getElementById('highlighted-text');
+        if (!container) return;
+        
+        // Find and scroll to the text
+        const textNodes = this.getTextNodes(container);
+        for (const node of textNodes) {
+            if (node.textContent.toLowerCase().includes(text.toLowerCase())) {
+                const range = document.createRange();
+                const startIndex = node.textContent.toLowerCase().indexOf(text.toLowerCase());
+                range.setStart(node, startIndex);
+                range.setEnd(node, startIndex + text.length);
+                
+                const rect = range.getBoundingClientRect();
+                if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                    range.startContainer.parentElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                }
+                break;
+            }
+        }
+    }
+    
+    getTextNodes(element) {
+        const textNodes = [];
+        const walk = document.createTreeWalker(
+            element,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+        
+        let node;
+        while (node = walk.nextNode()) {
+            textNodes.push(node);
+        }
+        
+        return textNodes;
+    }
+    
+    // Single Responsibility: Results finalization
+    displaySummary(summary) {
+        const summaryElement = document.getElementById('analysis-summary');
+        if (summaryElement && summary) {
+            summaryElement.innerHTML = `
+                <div class="summary-content">
+                    <h3>Підсумок аналізу</h3>
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Маніпуляції:</span>
+                            <span class="stat-value">${summary.counts_by_category?.manipulation || 0}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Когнітивні упередження:</span>
+                            <span class="stat-value">${summary.counts_by_category?.cognitive_bias || 0}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Логічні помилки:</span>
+                            <span class="stat-value">${summary.counts_by_category?.rhetological_fallacy || 0}</span>
+                        </div>
+                    </div>
+                    <div class="summary-observations">
+                        <p><strong>Загальна оцінка:</strong> ${summary.overall_observations || 'Аналіз завершено'}</p>
+                        <p><strong>Стратегічна оцінка:</strong> ${summary.strategic_assessment || 'Оцінка недоступна'}</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    displayBarometer(barometer) {
+        const barometerElement = document.getElementById('analysis-barometer');
+        if (barometerElement && barometer) {
+            barometerElement.innerHTML = `
+                <div class="barometer-content">
+                    <h3>Барометр складності</h3>
+                    <div class="barometer-score">
+                        <div class="score-circle">
+                            <span class="score-value">${barometer.score || 0}</span>
+                            <span class="score-max">/100</span>
+                        </div>
+                        <div class="score-label">${barometer.label || 'Невідомо'}</div>
+                    </div>
+                    <div class="barometer-rationale">
+                        <p>${barometer.rationale || 'Оцінка недоступна'}</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    updateFinalStatistics(analysis) {
+        this.analysisStats.totalHighlights = analysis.highlights?.length || 0;
+        this.displayCurrentStats();
+    }
+    
+    enableAnalysisActions() {
+        const actionButtons = document.querySelectorAll('.analysis-action-btn');
+        actionButtons.forEach(btn => {
+            btn.disabled = false;
+        });
     }
     
     showNotification(message, type = 'info') {

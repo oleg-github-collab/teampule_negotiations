@@ -103,6 +103,20 @@ try {
 }
 
 try {
+  db.exec(`ALTER TABLE analyses ADD COLUMN issues_count INTEGER DEFAULT 0;`);
+  console.log('✅ Added issues_count column to analyses');
+} catch (e) {
+  // Column already exists
+}
+
+try {
+  db.exec(`ALTER TABLE analyses ADD COLUMN complexity_score INTEGER DEFAULT 0;`);
+  console.log('✅ Added complexity_score column to analyses');
+} catch (e) {
+  // Column already exists
+}
+
+try {
   db.exec(`ALTER TABLE analyses ADD COLUMN highlighted_text TEXT;`);
   console.log('✅ Added highlighted_text column to analyses');
 } catch (e) {

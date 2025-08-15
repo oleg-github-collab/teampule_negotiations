@@ -152,27 +152,138 @@ class APIClient {
     
     // Interface Segregation: Analysis operations
     
-    // Analyze text
-    async analyzeText(analysisData) {
+    // Analyze text with SSE streaming
+    async analyzeText(analysisData, onProgress = null, onHighlight = null) {
         try {
-            // Prepare request data
-            const requestData = {
-                client_id: analysisData.client_id,
-                text: analysisData.text,
-                method: analysisData.method || 'text'
-            };
+            console.log('🌐 Starting streaming analysis...');
             
-            const data = await this.makeRequest('/api/analyze', {
+            // Prepare FormData for multipart request
+            const formData = new FormData();
+            formData.append('client_id', analysisData.client_id);
+            
+            if (analysisData.method === 'file' && analysisData.file) {
+                formData.append('file', analysisData.file);
+                formData.append('method', 'file');
+            } else {
+                formData.append('text', analysisData.text || '');
+                formData.append('method', 'text');
+            }
+            
+            // Get client profile for context
+            const currentClient = window.clientManager?.getCurrentClient();
+            if (currentClient) {
+                const profile = {
+                    company: currentClient.company,
+                    negotiator: currentClient.negotiator,
+                    sector: currentClient.sector,
+                    goal: currentClient.goals,
+                    criteria: currentClient.decision_criteria,
+                    constraints: currentClient.constraints
+                };
+                formData.append('profile', JSON.stringify(profile));
+            }
+            
+            // Start SSE connection for streaming results
+            const response = await fetch(this.baseURL + '/api/analyze', {
                 method: 'POST',
-                body: JSON.stringify(requestData)
+                body: formData,
+                headers: {
+                    // Don't set Content-Type - let browser set it with boundary
+                }
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            // Handle SSE streaming
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            let highlights = [];
+            let summary = null;
+            let barometer = null;
+            let buffer = '';
+            
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) {
+                        break;
+                    }
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    // Process complete SSE messages
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                
+                                switch (data.type) {
+                                    case 'progress':
+                                        if (onProgress) onProgress(data);
+                                        break;
+                                        
+                                    case 'highlight':
+                                        highlights.push(data);
+                                        if (onHighlight) onHighlight(data);
+                                        break;
+                                        
+                                    case 'merged_highlights':
+                                        highlights = data.items || highlights;
+                                        break;
+                                        
+                                    case 'summary':
+                                        summary = data;
+                                        break;
+                                        
+                                    case 'barometer':
+                                        barometer = data;
+                                        break;
+                                        
+                                    case 'complete':
+                                        console.log('🌐 Analysis streaming completed');
+                                        break;
+                                        
+                                    case 'error':
+                                        throw new Error(data.message || 'Analysis error');
+                                        
+                                    case 'analysis_started':
+                                        console.log('🌐 Analysis started:', data.message);
+                                        if (onProgress) onProgress(data);
+                                        break;
+                                        
+                                    case 'analysis_saved':
+                                        console.log('🌐 Analysis saved:', data.message);
+                                        break;
+                                }
+                            } catch (parseError) {
+                                console.warn('🌐 Failed to parse SSE data:', line, parseError);
+                            }
+                        }
+                    }
+                }
+            } finally {
+                reader.releaseLock();
+            }
             
             return {
                 success: true,
-                analysis: data.analysis
+                analysis: {
+                    highlights,
+                    summary,
+                    barometer,
+                    total_highlights: highlights.length
+                }
             };
+            
         } catch (error) {
-            console.error('🌐 Analyze text error:', error);
+            console.error('🌐 Streaming analysis error:', error);
             return {
                 success: false,
                 error: error.message

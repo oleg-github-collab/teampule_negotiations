@@ -1443,3 +1443,16 @@
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":2,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-15 14:02:15","url":"/api/usage?date=2025-08-15&_=1755259335731","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
 {"ip":"127.0.0.1","level":"info","message":"API Request","method":"GET","responseTime":8,"service":"teampulse-turbo","statusCode":200,"timestamp":"2025-08-15 14:03:36","url":"/api/usage","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}
 {"details":{"clientId":27,"company":"Тест","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"},"event":"Client deletion","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-15 14:03:47"}
+{"level":"info","message":"Received SIGTERM, starting graceful shutdown...","service":"teampulse-turbo","timestamp":"2025-08-15 17:56:06"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-15 17:56:31"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-15 17:56:31"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-15 17:56:31"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-15 17:56:31"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-15 17:56:31"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)","service":"teampulse-turbo","timestamp":"2025-08-15 17:58:16"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-15 17:58:16"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-15 17:58:16"}
+{"level":"info","message":"🔒 Security features enabled: NO","service":"teampulse-turbo","timestamp":"2025-08-15 17:58:16"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-15 17:58:16"}
+{"details":{"chunks":1,"textLength":149},"duration":19398.983198,"level":"info","message":"Performance Metric","operation":"analysis_duration","service":"teampulse-turbo","timestamp":"2025-08-15 18:00:52"}
+{"level":"info","message":"AI Usage","model":5240,"operation":{"route":"/analyze"},"service":"teampulse-turbo","timestamp":"2025-08-15 18:00:52","tokens":"gpt-4o"}
