@@ -159,6 +159,7 @@ class ApplicationManager {
         
         // Logout button
         buttonManager.register('#logout-btn', () => {
+            console.log('🔓 Logout button clicked');
             this.handleLogout();
         }, { description: 'Logout Button' });
         
@@ -363,26 +364,50 @@ class ApplicationManager {
         }
     }
     
-    // Single Responsibility: Handle logout
+    // Single Responsibility: Handle logout - FIXED
     handleLogout() {
+        console.log('🚀 Starting logout process');
+        
+        if (!window.modalManager) {
+            // Direct logout if modal manager not available
+            this.performLogout();
+            return;
+        }
+
         window.modalManager.showConfirmDialog({
             title: 'Вихід',
             message: 'Ви впевнені, що хочете вийти із системи?',
             confirmText: 'Вийти',
             onConfirm: () => {
-                console.log('🚀 Logging out...');
-                
-                if (window.logout) {
-                    window.logout();
-                } else {
-                    // Fallback logout
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                    window.location.href = '/';
-                }
+                this.performLogout();
             }
         });
+    }
+    
+    performLogout() {
+        console.log('🚀 Performing logout...');
+        
+        try {
+            // Clear all application state
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Clear auth cookie
+            document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            
+            // Make logout API call
+            fetch('/api/logout', { 
+                method: 'POST',
+                credentials: 'include' 
+            }).catch(e => console.log('Logout API call failed:', e));
+            
+        } catch (error) {
+            console.error('Error during logout:', error);
+        }
+        
+        // Force redirect
+        console.log('🚀 Redirecting to login');
+        window.location.href = '/login';
     }
     
     // Single Responsibility: Handle client change

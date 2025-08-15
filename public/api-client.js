@@ -13,7 +13,7 @@ class APIClient {
         this.defaultHeaders = {
             'Content-Type': 'application/json',
         };
-        this.timeout = 60000; // 60 seconds for analysis
+        this.timeout = 120000; // 120 seconds for analysis
         this.retryAttempts = 3;
         this.retryDelay = 1000; // 1 second
         this.connectionStatus = 'online';
@@ -304,6 +304,12 @@ class APIClient {
                                         break;
                                         
                                     case 'error':
+                                        console.error('🌐 Analysis error received:', data);
+                                        // Don't throw immediately, let other chunks complete
+                                        if (data.chunkNumber) {
+                                            console.warn(`🌐 Chunk ${data.chunkNumber} failed: ${data.message}`);
+                                            break; // Continue processing other chunks
+                                        }
                                         throw new Error(data.message || 'Analysis error');
                                         
                                     case 'analysis_started':

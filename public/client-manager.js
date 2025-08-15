@@ -288,13 +288,23 @@ class ClientManager {
             }
         });
         
-        // Delete buttons
+        // Delete buttons - FIXED
         document.querySelectorAll('.delete-client-btn').forEach(btn => {
             if (!btn.hasAttribute('data-handler-bound')) {
                 btn.addEventListener('click', (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
-                    const clientId = btn.dataset.clientId;
-                    this.deleteClient(clientId);
+                    console.log('👥 Delete button clicked - FIXED');
+                    
+                    const clientId = parseInt(btn.dataset.clientId);
+                    console.log('👥 Client ID:', clientId, typeof clientId);
+                    
+                    if (clientId && !isNaN(clientId)) {
+                        this.deleteClient(clientId);
+                    } else {
+                        console.error('👥 Invalid client ID for deletion:', clientId);
+                        alert('Помилка: невалідний ID клієнта');
+                    }
                 });
                 btn.setAttribute('data-handler-bound', 'true');
             }
@@ -323,49 +333,100 @@ class ClientManager {
         this.showClientForm(clientId);
     }
     
-    // Single Responsibility: Delete a client
+    // Single Responsibility: Delete a client - FIXED
     async deleteClient(clientId) {
-        const client = this.clients.find(c => c.id == clientId);
-        if (!client) return;
+        console.log('👥 deleteClient called with ID:', clientId, typeof clientId);
         
-        // Use modal manager for confirmation
-        window.modalManager.showConfirmDialog({
-            title: 'Видалення клієнта',
-            message: `Ви впевнені, що хочете видалити клієнта "${client.company}"? Ця дія незворотна.`,
-            confirmText: 'Видалити',
-            onConfirm: async () => {
-                try {
-                    console.log('👥 Deleting client:', client.company);
-                    
-                    // Show loading modal
-                    window.modalManager.showLoadingModal('Видалення клієнта...');
-                    
-                    const result = await this.apiClient.deleteClient(clientId);
-                    
-                    // Hide loading modal
-                    window.modalManager.hideLoadingModal();
-                    
-                    if (result.success) {
-                        this.showNotification('Клієнт видалено успішно', 'success');
-                        await this.loadClients();
-                        
-                        // If deleted client was selected, clear selection
-                        if (this.currentClient?.id == clientId) {
-                            this.currentClient = null;
-                            this.showWelcomeOrDashboard();
-                        }
-                    } else {
-                        throw new Error(result.error || 'Failed to delete client');
-                    }
-                    
-                } catch (error) {
-                    // Hide loading modal
-                    window.modalManager.hideLoadingModal();
-                    console.error('👥 Error deleting client:', error);
-                    window.modalManager.showAlert('Помилка видалення клієнта: ' + error.message, 'Помилка');
-                }
+        const client = this.clients.find(c => c.id == clientId);
+        if (!client) {
+            console.error('👥 Client not found:', clientId);
+            alert('Помилка: клієнт не знайдений');
+            return;
+        }
+        
+        console.log('👥 Found client to delete:', client.company);
+        
+        // Check if modal manager is available
+        if (!window.modalManager) {
+            console.error('👥 Modal manager not available, using confirm dialog');
+            if (confirm(`Ви впевнені, що хочете видалити клієнта "${client.company}"?`)) {
+                this.performClientDeletion(clientId);
             }
-        });
+            return;
+        }
+        
+        try {
+            // Use modal manager for confirmation
+            window.modalManager.showConfirmDialog({
+                title: 'Видалення клієнта',
+                message: `Ви впевнені, що хочете видалити клієнта "${client.company}"? Ця дія незворотна.`,
+                confirmText: 'Видалити',
+                cancelText: 'Скасувати',
+                onConfirm: () => {
+                    console.log('👥 User confirmed deletion');
+                    this.performClientDeletion(clientId);
+                },
+                onCancel: () => {
+                    console.log('👥 User cancelled deletion');
+                }
+            });
+        } catch (error) {
+            console.error('👥 Error showing confirmation dialog:', error);
+            // Fallback to browser confirm
+            if (confirm(`Ви впевнені, що хочете видалити клієнта "${client.company}"?`)) {
+                this.performClientDeletion(clientId);
+            }
+        }
+    }
+    
+    // Perform the actual client deletion
+    async performClientDeletion(clientId) {
+        try {
+            console.log('👥 Performing deletion for client ID:', clientId);
+            
+            // Show loading if modal manager available
+            if (window.modalManager) {
+                window.modalManager.showLoadingModal('Видалення клієнта...');
+            }
+            
+            const result = await this.apiClient.deleteClient(clientId);
+            
+            // Hide loading modal
+            if (window.modalManager) {
+                window.modalManager.hideLoadingModal();
+            }
+            
+            if (result.success) {
+                console.log('👥 Client deleted successfully');
+                
+                if (window.modalManager) {
+                    this.showNotification('Клієнт видалено успішно', 'success');
+                } else {
+                    alert('Клієнт видалено успішно');
+                }
+                
+                await this.loadClients();
+                
+                // If deleted client was selected, clear selection
+                if (this.currentClient?.id == clientId) {
+                    this.currentClient = null;
+                    this.showWelcomeOrDashboard();
+                }
+            } else {
+                throw new Error(result.error || 'Failed to delete client');
+            }
+            
+        } catch (error) {
+            console.error('👥 Error deleting client:', error);
+            
+            // Hide loading modal
+            if (window.modalManager) {
+                window.modalManager.hideLoadingModal();
+                window.modalManager.showAlert('Помилка видалення клієнта: ' + error.message, 'Помилка');
+            } else {
+                alert('Помилка видалення клієнта: ' + error.message);
+            }
+        }
     }
     
     // Single Responsibility: Update client count display
