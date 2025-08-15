@@ -220,6 +220,7 @@ class ModalManager {
                 break;
                 
             case 'confirm':
+                console.log(`🪟 Handling confirm action for ${modalId}`);
                 this.handleConfirmAction(modalId, event, button);
                 break;
                 
@@ -242,20 +243,32 @@ class ModalManager {
         }
     }
     
-    // Single Responsibility: Handle confirm actions
+    // Single Responsibility: Handle confirm actions - FIXED
     handleConfirmAction(modalId, event, button) {
+        console.log(`🪟 handleConfirmAction called for ${modalId}`);
         const config = this.modals.get(modalId);
-        if (!config) return;
+        if (!config) {
+            console.error(`🪟 Config not found for modal ${modalId}`);
+            return;
+        }
         
-        // Get form data if exists
-        const form = config.element.querySelector('form');
-        const formData = form ? new FormData(form) : new FormData();
+        // Close modal first
+        this.closeModal(modalId);
         
-        // Dispatch confirm event
+        // Execute onConfirm callback immediately
+        if (config.onConfirm) {
+            console.log(`🪟 Executing onConfirm callback for ${modalId}`);
+            try {
+                config.onConfirm();
+            } catch (error) {
+                console.error(`🪟 Error in onConfirm callback:`, error);
+            }
+        }
+        
+        // Also dispatch event for legacy compatibility
         const confirmEvent = new CustomEvent('modalConfirm', {
             detail: {
                 modalId,
-                formData: Object.fromEntries(formData),
                 event,
                 button
             }

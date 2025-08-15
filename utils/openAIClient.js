@@ -24,7 +24,7 @@ try {
   if (apiKey && apiKey !== 'demo' && apiKey.startsWith('sk-')) {
     _client = new OpenAI({ 
       apiKey: apiKey,
-      timeout: 45000, // 45 second timeout
+      timeout: 180000, // 3 minutes timeout
       maxRetries: 0, // We handle retries manually
     });
     console.log('✅ OpenAI client initialized successfully');

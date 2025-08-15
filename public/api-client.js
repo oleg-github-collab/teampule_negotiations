@@ -13,7 +13,7 @@ class APIClient {
         this.defaultHeaders = {
             'Content-Type': 'application/json',
         };
-        this.timeout = 120000; // 120 seconds for analysis
+        this.timeout = 300000; // 5 minutes for analysis
         this.retryAttempts = 3;
         this.retryDelay = 1000; // 1 second
         this.connectionStatus = 'online';
