@@ -22,6 +22,7 @@ import { validateSecurityHeaders } from './middleware/validators.js';
 import analyzeRoutes from './routes/analyze.js';
 import clientsRoutes from './routes/clients.js';
 import adviceRoutes from './routes/advice.js';
+import recommendationsRoutes from './routes/recommendations.js';
 
 // Validate required environment variables
 const requiredEnvVars = ['OPENAI_API_KEY', 'NODE_ENV'];
@@ -308,6 +309,7 @@ app.post('/api/admin/cleanup-database', authMiddleware, async (req, res) => {
 app.use('/api/analyze', authMiddleware, analysisLimiter, analyzeRoutes);
 app.use('/api/clients', authMiddleware, clientsRoutes);
 app.use('/api/advice', authMiddleware, adviceRoutes);
+app.use('/api/recommendations', authMiddleware, recommendationsRoutes);
 
 // Enhanced health check for Railway
 app.get('/health', async (req, res) => {

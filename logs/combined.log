@@ -9445,3 +9445,970 @@
   level: 'info',
   message: 'AI Usage'
 }
+{
+  service: 'teampulse-turbo',
+  event: 'Attempt to access non-existent client',
+  details: { clientId: 1, ip: '127.0.0.1', userAgent: 'curl/8.7.1' },
+  timestamp: '2025-08-15 08:49:23',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755240863134',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 3,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:54:23'
+}
+{
+  service: 'teampulse-turbo',
+  event: 'Client deletion',
+  details: {
+    clientId: 24,
+    company: 'Тест',
+    ip: '127.0.0.1',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
+  },
+  timestamp: '2025-08-15 08:54:31',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755240893696',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:54:53'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755240922828',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:55:22'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755240952824',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:55:52'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755240982824',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:56:22'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241012823',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:56:52'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241042824',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:57:22'
+}
+{
+  service: 'teampulse-turbo',
+  operation: 'analysis_duration',
+  duration: 143450.48931200057,
+  details: { textLength: 18020, chunks: 4 },
+  level: 'info',
+  message: 'Performance Metric',
+  timestamp: '2025-08-15 08:57:26'
+}
+{
+  service: 'teampulse-turbo',
+  tokens: 'gpt-4o',
+  model: 14086,
+  operation: { route: '/analyze' },
+  timestamp: '2025-08-15 08:57:26',
+  level: 'info',
+  message: 'AI Usage'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241072824',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:57:52'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241105697',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:58:25'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241133220',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:58:53'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241176697',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 08:59:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241225025',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:00:25'
+}
+{
+  service: 'teampulse-turbo',
+  tokens: 1620,
+  model: 'gpt-4o',
+  operation: 'advice_generation',
+  timestamp: '2025-08-15 09:00:51',
+  level: 'info',
+  message: 'AI Usage'
+}
+{
+  service: 'teampulse-turbo',
+  operation: 'Advice Generation',
+  duration: 11279.504611998796,
+  details: { itemsCount: 2, tokensUsed: 1620 },
+  level: 'info',
+  message: 'Performance Metric',
+  timestamp: '2025-08-15 09:00:51'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241251243',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:00:51'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241252827',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:00:52'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241283753',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:01:23'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241313733',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:01:53'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241356732',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:02:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241373176',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:02:53'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241404713',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:03:24'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241476714',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:04:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241536760',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:05:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241596781',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:06:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241656724',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:07:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241716721',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 3,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:08:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241776760',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:09:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241836729',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 3,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:10:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241896733',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:11:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755241956753',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:12:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242016728',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:13:36'
+}
+{
+  service: 'teampulse-turbo',
+  operation: 'analysis_duration',
+  duration: 27758.71544099599,
+  details: { textLength: 295, chunks: 1 },
+  level: 'info',
+  message: 'Performance Metric',
+  timestamp: '2025-08-15 09:14:22'
+}
+{
+  service: 'teampulse-turbo',
+  tokens: 'gpt-4o',
+  model: 4910,
+  operation: { route: '/analyze' },
+  timestamp: '2025-08-15 09:14:22',
+  level: 'info',
+  message: 'AI Usage'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242076839',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:14:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242136744',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:15:36'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:16:06'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:16:06'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:16:06'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:16:06'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:16:06'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242196739',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:16:36'
+}
+{
+  service: 'teampulse-turbo',
+  event: 'Unauthorized access attempt',
+  details: {
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1',
+    path: '/',
+    method: 'POST'
+  },
+  timestamp: '2025-08-15 09:17:28',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242256745',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 6,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:17:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242316737',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:18:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242376741',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 4,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:19:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242436718',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:20:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242496714',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:21:36'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:22:21'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:22:21'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:22:21'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:22:21'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 09:22:21'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242556714',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 11,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:22:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242616735',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:23:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242676741',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:24:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242736753',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:25:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242796762',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:26:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242856778',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:27:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242916758',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:28:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755242976754',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:29:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243036751',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:30:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243096752',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:31:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243156756',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:32:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243216763',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:33:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243276755',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:34:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243336757',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:35:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243396761',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:36:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243456761',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:37:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243516753',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:38:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243576751',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 5,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:39:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243636752',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:40:36'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243639786',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:40:39'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243657176',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:40:57'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243669739',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:41:09'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243687268',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 3,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:41:27'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243699741',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:41:39'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243719063',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:41:59'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-15&_=1755243729740',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 0,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 09:42:09'
+}

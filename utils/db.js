@@ -70,10 +70,21 @@ CREATE TABLE IF NOT EXISTS usage_daily(
   locked_until TEXT
 );
 
+CREATE TABLE IF NOT EXISTS recommendations(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id INTEGER NOT NULL,
+  advice TEXT NOT NULL,
+  fragments_count INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(client_id) REFERENCES clients(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_analyses_client ON analyses(client_id);
 CREATE INDEX IF NOT EXISTS idx_analyses_created ON analyses(created_at);
 CREATE INDEX IF NOT EXISTS idx_clients_company ON clients(company);
+CREATE INDEX IF NOT EXISTS idx_recommendations_client ON recommendations(client_id);
+CREATE INDEX IF NOT EXISTS idx_recommendations_created ON recommendations(created_at);
 `);
 
 // Migration: Add missing columns to existing tables

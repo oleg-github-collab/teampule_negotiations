@@ -159,7 +159,6 @@
         analysisHistory: $('#analysis-history'),
         analysisCount: $('#analysis-count'),
         newAnalysisBtn: $('#new-analysis-btn'),
-        analysisHistoryBtn: $('#analysis-history-btn'),
         
         // Notifications
         notifications: $('#notifications'),
@@ -1063,8 +1062,7 @@
         // Show and update recommendations history
         if (elements.recommendationsHistorySection) {
             elements.recommendationsHistorySection.style.display = 'block';
-            // Load recommendations from API first, then update display
-            loadRecommendationsFromAPI(client.id);
+            updateRecommendationsHistory(client.id);
         }
     }
 
@@ -1454,187 +1452,6 @@
             scheduleStateSave();
             showNotification('Рекомендацію видалено', 'info');
         }
-    }
-    
-    // API-based recommendations functions
-    async function saveRecommendationToAPI(clientId, advice, fragmentsCount = 0) {
-        try {
-            const response = await fetch('/api/recommendations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ clientId, advice, fragmentsCount })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to save recommendation');
-            }
-            
-            const result = await response.json();
-            showNotification('Рекомендацію збережено', 'success');
-            return result.recommendation;
-        } catch (error) {
-            console.error('Save recommendation error:', error);
-            showNotification('Помилка збереження рекомендації', 'error');
-            return null;
-        }
-    }
-    
-    async function loadRecommendationsFromAPI(clientId) {
-        try {
-            const response = await fetch(`/api/recommendations/${clientId}`);
-            
-            if (!response.ok) {
-                throw new Error('Failed to load recommendations');
-            }
-            
-            const result = await response.json();
-            state.recommendationsHistory[clientId] = result.recommendations || [];
-            updateRecommendationsHistory(clientId);
-            return result.recommendations;
-        } catch (error) {
-            console.error('Load recommendations error:', error);
-            showNotification('Помилка завантаження рекомендацій', 'error');
-            return [];
-        }
-    }
-    
-    async function deleteRecommendationFromAPI(recommendationId) {
-        try {
-            const response = await fetch(`/api/recommendations/${recommendationId}`, {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to delete recommendation');
-            }
-            
-            showNotification('Рекомендацію видалено', 'success');
-            return true;
-        } catch (error) {
-            console.error('Delete recommendation error:', error);
-            showNotification('Помилка видалення рекомендації', 'error');
-            return false;
-        }
-    }
-    
-    // Button handler functions
-    function expandRecommendation(button) {
-        const recItem = button.closest('.recommendation-item');
-        const content = recItem.querySelector('.recommendation-content');
-        const recId = recItem.dataset.recommendationId;
-        const clientId = recItem.dataset.clientId;
-        
-        // Find the full recommendation data
-        const recommendations = state.recommendationsHistory[clientId] || [];
-        const recommendation = recommendations.find(r => r.id == recId);
-        
-        if (!recommendation) {
-            showNotification('Рекомендацію не знайдено', 'error');
-            return;
-        }
-        
-        // Show full content in modal
-        showRecommendationModal(recommendation);
-    }
-    
-    function copyRecommendation(button) {
-        const recItem = button.closest('.recommendation-item');
-        const recId = recItem.dataset.recommendationId;
-        const clientId = recItem.dataset.clientId;
-        
-        // Find the full recommendation data
-        const recommendations = state.recommendationsHistory[clientId] || [];
-        const recommendation = recommendations.find(r => r.id == recId);
-        
-        if (!recommendation) {
-            showNotification('Рекомендацію не знайдено', 'error');
-            return;
-        }
-        
-        // Copy to clipboard
-        navigator.clipboard.writeText(recommendation.advice).then(() => {
-            showNotification('Рекомендацію скопійовано', 'success');
-        }).catch(error => {
-            console.error('Copy error:', error);
-            showNotification('Помилка копіювання', 'error');
-        });
-    }
-    
-    async function deleteRecommendation(button) {
-        const recItem = button.closest('.recommendation-item');
-        const recId = recItem.dataset.recommendationId;
-        const clientId = recItem.dataset.clientId;
-        
-        if (!confirm('Видалити цю рекомендацію?')) {
-            return;
-        }
-        
-        // Delete from API
-        const success = await deleteRecommendationFromAPI(recId);
-        
-        if (success) {
-            // Remove from local state
-            const recommendations = state.recommendationsHistory[clientId] || [];
-            const index = recommendations.findIndex(r => r.id == recId);
-            if (index >= 0) {
-                recommendations.splice(index, 1);
-                updateRecommendationsHistory(clientId);
-            }
-        }
-    }
-    
-    function showRecommendationModal(recommendation) {
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content recommendation-modal">
-                <div class="modal-header">
-                    <h3>Персональна рекомендація</h3>
-                    <button class="close-modal" title="Закрити">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="recommendation-full-content">
-                        ${escapeHtml(recommendation.advice)}
-                    </div>
-                    ${recommendation.fragments_count ? `
-                        <div class="recommendation-meta">
-                            <i class="fas fa-bookmark"></i>
-                            Базується на ${recommendation.fragments_count} фрагментах
-                        </div>
-                    ` : ''}
-                    <div class="recommendation-date">
-                        <i class="fas fa-clock"></i>
-                        Створено: ${getTimeAgo(new Date(recommendation.created_at))}
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-secondary close-modal">
-                        <i class="fas fa-times"></i> Закрити
-                    </button>
-                    <button class="btn-primary copy-full-rec-btn">
-                        <i class="fas fa-copy"></i> Копіювати
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Event handlers
-        modal.addEventListener('click', (e) => {
-            if (e.target.matches('.close-modal') || e.target === modal) {
-                modal.remove();
-            } else if (e.target.matches('.copy-full-rec-btn')) {
-                navigator.clipboard.writeText(recommendation.advice).then(() => {
-                    showNotification('Рекомендацію скопійовано', 'success');
-                }).catch(error => {
-                    console.error('Copy error:', error);
-                    showNotification('Помилка копіювання', 'error');
-                });
-            }
-        });
     }
     
     function expandRecommendation(clientId, index) {
@@ -3044,6 +2861,252 @@
         console.log(`📊 Progress: ${stage} - ${percent}%`);
     }
 
+    function updateWorkspaceClientInfo(client) {
+        if (!elements.workspaceClientInfo) return;
+
+        // Додати останній текст після всіх хайлайтів
+        if (lastIndex < originalText.length) {
+            segments.push({
+                type: 'text',
+                start: lastIndex,
+                end: originalText.length,
+                content: originalText.substring(lastIndex)
+            });
+        }
+
+        console.log('🎨 Segments built:', segments.length);
+
+        // 4. Побудувати HTML
+        let result = '';
+        segments.forEach((segment, index) => {
+            if (segment.type === 'text') {
+                result += escapeHtml(segment.content);
+            } else if (segment.type === 'highlight') {
+                const categoryClass = getCategoryClass(segment.highlight.category || 'manipulation');
+                const tooltip = escapeHtml(segment.highlight.explanation || segment.highlight.label || segment.highlight.description || '');
+                const highlightId = segment.highlight.id || index;
+                
+                result += `<span class="text-highlight ${categoryClass} interactive-highlight" title="${tooltip}" data-highlight-id="${highlightId}" data-tooltip="${tooltip}">${escapeHtml(segment.content)}</span>`;
+                
+                console.log('🎨 ✅ Highlight added:', {
+                    category: segment.highlight.category,
+                    class: categoryClass,
+                    content_length: segment.content.length,
+                    content_preview: segment.content.substring(0, 50)
+                });
+            }
+        });
+
+        const finalHtml = `<div class="text-content">${result}</div>`;
+        
+        console.log('🎨 === GENERATE HIGHLIGHTED TEXT COMPLETE ===');
+        console.log('🎨 Final HTML length:', finalHtml.length);
+        console.log('🎨 Highlights in final HTML:', (finalHtml.match(/text-highlight/g) || []).length);
+        
+        return finalHtml;
+    }
+
+    // Simplified helper function for category CSS classes
+    function getCategoryClass(category) {
+        const categoryMap = {
+            'manipulation': 'manipulation',
+            'cognitive_bias': 'bias',
+            'social_manipulation': 'manipulation',
+            'rhetological_fallacy': 'fallacy',
+            'logical_fallacy': 'fallacy'
+        };
+        return categoryMap[category] || 'manipulation';
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // ===== View Controls =====
+    function switchHighlightsView(view) {
+        console.log('🔍 Switching highlights view to:', view);
+        state.ui.highlightsView = view;
+        
+        // Update button states
+        elements.listView?.classList.toggle('active', view === 'list');
+        elements.textView?.classList.toggle('active', view === 'text');
+        elements.highlightsView?.classList.toggle('active', view === 'highlights');
+        elements.filterView?.classList.toggle('active', view === 'filter');
+        
+        // Show/hide content panels
+        if (elements.highlightsList) {
+            elements.highlightsList.style.display = view === 'list' ? 'block' : 'none';
+        }
+        if (elements.fulltextContent) {
+            elements.fulltextContent.style.display = view === 'text' ? 'block' : 'none';
+            
+            // Always update full text view when switching to text view
+            if (view === 'text') {
+                console.log('🔍 Switching to text view, force updating content');
+                
+                // Priority 1: Use cached highlighted text
+                if (state.currentAnalysis?.highlighted_text) {
+                    console.log('🔍 Using cached highlighted text');
+                    updateFullTextView(state.currentAnalysis.highlighted_text);
+                }
+                // Priority 2: Generate from highlights and original text
+                else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
+                    console.log('🔍 Generating highlighted text from analysis data');
+                    const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
+                    const highlightedText = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
+                    
+                    // Cache the generated text
+                    if (state.currentAnalysis) {
+                        state.currentAnalysis.highlighted_text = highlightedText;
+                    }
+                    
+                    updateFullTextView(highlightedText);
+                }
+                // Priority 3: Show original text if available
+                else if (state.originalText || state.currentAnalysis?.original_text) {
+                    console.log('🔍 Showing original text without highlights');
+                    updateFullTextView(null);
+                }
+                // Priority 4: Show empty state
+                else {
+                    console.log('🔍 No text available, showing empty state');
+                    updateFullTextView(null);
+                }
+            }
+        }
+        if (elements.fragmentsContent) {
+            elements.fragmentsContent.style.display = view === 'highlights' ? 'block' : 'none';
+            
+            // Update fragments view when switching to highlights view
+            if (view === 'highlights' && state.currentAnalysis?.highlights) {
+                console.log('🔍 Updating fragments view with highlights');
+                updateFragmentsView(state.currentAnalysis.highlights);
+            }
+        }
+        if (elements.filtersPanel) {
+            elements.filtersPanel.style.display = view === 'filter' ? 'block' : 'none';
+        }
+        
+        console.log('🔍 View switch completed, current view:', view);
+    }
+
+    function updateFragmentsView(highlights) {
+        if (!elements.fragmentsContent) return;
+        
+        if (!highlights || highlights.length === 0) {
+            elements.fragmentsContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-highlighter"></i></div>
+                    <p>Виділені маніпулятивні фрагменти з'являться тут після аналізу</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Apply filters if they exist
+        const filteredHighlights = filterHighlights(highlights);
+        
+        if (filteredHighlights.length === 0) {
+            elements.fragmentsContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-filter"></i></div>
+                    <p>Жодних фрагментів не знайдено за вашими фільтрами</p>
+                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort highlights by severity (high to low)
+        const sortedHighlights = [...filteredHighlights].sort((a, b) => 
+            (b.severity || 2) - (a.severity || 2)
+        );
+        
+        elements.fragmentsContent.innerHTML = sortedHighlights.map(highlight => {
+            const categoryClass = getCategoryClass(highlight.category);
+            const categoryLabel = getCategoryLabel(highlight.category);
+            const severityText = getSeverityText(highlight.severity);
+            
+            return `
+                <div class="fragment-item" data-category="${highlight.category}">
+                    <div class="fragment-header">
+                        <div class="fragment-category ${categoryClass}">
+                            <i class="fas ${getCategoryIcon(highlight.category)}"></i>
+                            ${categoryLabel}
+                        </div>
+                        <div class="highlight-severity">${severityText}</div>
+                    </div>
+                    <div class="fragment-text">
+                        "${escapeHtml(highlight.text)}"
+                    </div>
+                    <div class="fragment-explanation">
+                        <strong>${escapeHtml(highlight.label || highlight.title || 'Проблемний момент')}:</strong>
+                        ${escapeHtml(highlight.explanation || 'Пояснення недоступне')}
+                        ${highlight.suggestion ? `<br><br><strong>Рекомендація:</strong> ${escapeHtml(highlight.suggestion)}` : ''}
+                    </div>
+                    <div class="fragment-actions">
+                        <button class="btn-icon add-fragment-btn" data-fragment='${JSON.stringify(highlight).replace(/'/g, "&#39;")}' title="Додати до робочої області">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="btn-icon copy-fragment-btn" data-text="${escapeHtml(highlight.text)}" title="Скопіювати текст">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Add event listeners
+        elements.fragmentsContent.querySelectorAll('.add-fragment-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const fragment = JSON.parse(e.target.closest('.add-fragment-btn').dataset.fragment);
+                addToSelectedFragments(fragment);
+            });
+        });
+        
+        elements.fragmentsContent.querySelectorAll('.copy-fragment-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const text = e.target.closest('.copy-fragment-btn').dataset.text;
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showNotification('Фрагмент скопійовано в буфер обміну', 'success');
+                } catch (err) {
+                    showNotification('Помилка копіювання', 'error');
+                }
+            });
+        });
+    }
+    
+    function getCategoryLabel(category) {
+        const labels = {
+            'manipulation': 'Маніпуляція',
+            'cognitive_bias': 'Когнітивне викривлення',
+            'rhetological_fallacy': 'Софізм',
+            'logical_fallacy': 'Логічна помилка'
+        };
+        return labels[category] || 'Проблемний момент';
+    }
+    
+    function getCategoryIcon(category) {
+        const icons = {
+            'manipulation': 'fa-exclamation-triangle',
+            'cognitive_bias': 'fa-brain',
+            'rhetological_fallacy': 'fa-comments',
+            'logical_fallacy': 'fa-times-circle'
+        };
+        return icons[category] || 'fa-exclamation-triangle';
+    }
+    
+    function getSeverityText(severity) {
+        const severities = {
+            1: 'Легкий',
+            2: 'Помірний', 
+            3: 'Серйозний'
+        };
+        return severities[severity] || 'Помірний';
+    }
 
     function toggleFilters() {
         state.ui.filtersVisible = !state.ui.filtersVisible;
@@ -3767,9 +3830,7 @@
                 }
                 
                 if (adviceText) {
-                    // Save both locally and to database
                     saveRecommendation(state.currentClient.id, adviceText, state.selectedFragments.length);
-                    await saveRecommendationToAPI(state.currentClient.id, adviceText, state.selectedFragments.length);
                 }
             }
             
@@ -4058,178 +4119,6 @@
             showNotification('Не вдалося скопіювати', 'error');
         });
     }
-    
-    function showAnalysisHistory() {
-        try {
-            // Get all clients for the client switcher
-            const clients = state.clients || [];
-            const currentClient = state.currentClient;
-            
-            const modal = document.createElement('div');
-            modal.className = 'modal-overlay';
-            modal.innerHTML = `
-                <div class="modal-content analysis-history-modal" style="max-width: 900px;">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-history"></i> Історія аналізів</h3>
-                        <button class="close-modal" title="Закрити">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="client-switcher" style="margin-bottom: 20px;">
-                            <label for="client-select">Клієнт:</label>
-                            <select id="client-select" class="form-control">
-                                ${clients.map(client => `
-                                    <option value="${client.id}" ${currentClient && client.id === currentClient.id ? 'selected' : ''}>
-                                        ${client.company} ${client.negotiator ? `(${client.negotiator})` : ''}
-                                    </option>
-                                `).join('')}
-                            </select>
-                        </div>
-                        <div class="analysis-history-content" id="modal-analysis-history">
-                            <div class="loading-state">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                Завантаження історії аналізів...
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn-secondary close-modal">
-                            <i class="fas fa-times"></i> Закрити
-                        </button>
-                        <button class="btn-ghost clear-analysis-history-btn">
-                            <i class="fas fa-trash"></i> Очистити історію
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Event handlers
-            const clientSelect = modal.querySelector('#client-select');
-            const historyContent = modal.querySelector('#modal-analysis-history');
-            
-            // Close modal handlers
-            modal.addEventListener('click', (e) => {
-                if (e.target.matches('.close-modal') || e.target === modal) {
-                    modal.remove();
-                }
-            });
-            
-            // Clear history handler
-            modal.querySelector('.clear-analysis-history-btn').addEventListener('click', async () => {
-                const selectedClientId = clientSelect.value;
-                if (confirm('Ви впевнені, що хочете видалити всю історію аналізів для обраного клієнта?')) {
-                    try {
-                        const response = await fetch(`/api/clients/${selectedClientId}/analyses`, {
-                            method: 'DELETE'
-                        });
-                        
-                        if (response.ok) {
-                            showNotification('Історію аналізів очищено', 'success');
-                            loadAnalysisHistoryForModal(selectedClientId, historyContent);
-                            // Refresh sidebar history if same client
-                            if (state.currentClient && state.currentClient.id == selectedClientId) {
-                                loadAnalysisHistory(selectedClientId);
-                            }
-                        } else {
-                            showNotification('Помилка очищення історії', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Clear analysis history error:', error);
-                        showNotification('Помилка очищення історії', 'error');
-                    }
-                }
-            });
-            
-            // Client switcher handler
-            clientSelect.addEventListener('change', () => {
-                const selectedClientId = clientSelect.value;
-                loadAnalysisHistoryForModal(selectedClientId, historyContent);
-            });
-            
-            // Load initial analysis history
-            if (currentClient) {
-                loadAnalysisHistoryForModal(currentClient.id, historyContent);
-            } else if (clients.length > 0) {
-                loadAnalysisHistoryForModal(clients[0].id, historyContent);
-            }
-            
-        } catch (error) {
-            console.error('Analysis history modal error:', error);
-            showNotification('Помилка відображення історії аналізів', 'error');
-        }
-    }
-    
-    async function loadAnalysisHistoryForModal(clientId, containerElement) {
-        try {
-            containerElement.innerHTML = `
-                <div class="loading-state">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    Завантаження історії аналізів...
-                </div>
-            `;
-            
-            const response = await fetch(`/api/clients/${clientId}`);
-            const data = await response.json();
-            
-            if (data.success && data.analyses && data.analyses.length > 0) {
-                const analyses = data.analyses;
-                containerElement.innerHTML = `
-                    <div class="analysis-history-list">
-                        ${analyses.map((analysis, index) => {
-                            const highlights = analysis.highlights_json ? JSON.parse(analysis.highlights_json) : [];
-                            const issues = highlights.filter(h => h.category).length;
-                            const date = new Date(analysis.created_at);
-                            const formattedDate = date.toLocaleDateString('uk-UA', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            });
-                            
-                            return `
-                                <div class="analysis-history-item ${index === 0 ? 'latest' : ''}" 
-                                     onclick="window.loadAnalysis(${analysis.id})" 
-                                     style="cursor: pointer; padding: 15px; border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px; margin-bottom: 10px;">
-                                    <div class="analysis-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                        <div class="analysis-date">
-                                            ${index === 0 ? '<i class="fas fa-star" title="Останній"></i> ' : ''}
-                                            ${formattedDate}
-                                        </div>
-                                        <div class="analysis-stats">
-                                            <span class="issues-count">${issues} проблем</span>
-                                        </div>
-                                    </div>
-                                    <div class="analysis-preview" style="color: rgba(255, 255, 255, 0.8); font-size: 0.9em;">
-                                        ${analysis.title || 'Аналіз переговорів'}
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            } else {
-                containerElement.innerHTML = `
-                    <div class="empty-state" style="text-align: center; padding: 40px;">
-                        <i class="fas fa-chart-line" style="font-size: 3rem; color: rgba(255, 255, 255, 0.3); margin-bottom: 20px;"></i>
-                        <p>Історія аналізів для цього клієнта порожня</p>
-                    </div>
-                `;
-            }
-            
-        } catch (error) {
-            console.error('Load analysis history modal error:', error);
-            containerElement.innerHTML = `
-                <div class="error-state" style="text-align: center; padding: 40px;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 20px;"></i>
-                    <p>Помилка завантаження історії аналізів</p>
-                </div>
-            `;
-        }
-    }
 
     function exportSelectedFragments() {
         if (state.selectedFragments.length === 0) {
@@ -4412,7 +4301,6 @@
         }
         elements.startAnalysisBtn?.addEventListener('click', startAnalysis);
         elements.newAnalysisBtn?.addEventListener('click', createNewAnalysis);
-        elements.analysisHistoryBtn?.addEventListener('click', showAnalysisHistory);
         elements.clearTextBtn?.addEventListener('click', () => {
             if (elements.negotiationText) {
                 elements.negotiationText.value = '';
@@ -5253,31 +5141,6 @@
             }
             return;
         }
-        
-        // Обробка кліків по кнопкам рекомендацій
-        const expandRecBtn = e.target.closest('.expand-rec-btn');
-        if (expandRecBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            expandRecommendation(expandRecBtn);
-            return;
-        }
-        
-        const copyRecBtn = e.target.closest('.copy-rec-btn');
-        if (copyRecBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            copyRecommendation(copyRecBtn);
-            return;
-        }
-        
-        const removeRecBtn = e.target.closest('.remove-rec-btn');
-        if (removeRecBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            deleteRecommendation(removeRecBtn);
-            return;
-        }
     });
     window.addToWorkspace = addToWorkspace;
     window.removeFromWorkspace = removeFromWorkspace;
@@ -5730,166 +5593,6 @@
             modal.style.display = 'none';
             document.body.style.overflow = '';
             console.log('✅ Modal closed');
-        }
-    }
-
-    // ===== Event Binding =====
-    function bindEvents() {
-        console.log('🔧 Binding event handlers...');
-        
-        // Analysis buttons
-        if (elements.startAnalysisBtn) {
-            elements.startAnalysisBtn.addEventListener('click', startAnalysis);
-        }
-        if (elements.newAnalysisBtn) {
-            elements.newAnalysisBtn.addEventListener('click', createNewAnalysis);
-        }
-        if (elements.analysisHistoryBtn) {
-            elements.analysisHistoryBtn.addEventListener('click', showAnalysisHistory);
-        }
-        
-        // Client buttons
-        if (elements.saveClientBtn) {
-            elements.saveClientBtn.addEventListener('click', saveClient);
-        }
-        if (elements.cancelClientBtn) {
-            elements.cancelClientBtn.addEventListener('click', () => {
-                switchView('welcome');
-            });
-        }
-        
-        // Workspace buttons
-        if (elements.getAdviceBtn) {
-            elements.getAdviceBtn.addEventListener('click', getPersonalizedAdvice);
-        }
-        if (elements.exportSelectedBtn) {
-            elements.exportSelectedBtn.addEventListener('click', exportSelectedFragments);
-        }
-        if (elements.clearWorkspaceBtn) {
-            elements.clearWorkspaceBtn.addEventListener('click', clearWorkspace);
-        }
-        
-        // Global click handler for recommendations and other dynamic content
-        document.addEventListener('click', (e) => {
-            // New client buttons
-            if (e.target && (
-                e.target.id === 'new-client-btn' || 
-                e.target.id === 'welcome-new-client' ||
-                e.target.id === 'empty-new-client-btn' ||
-                e.target.classList.contains('new-client-trigger')
-            )) {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🎯 Global click handler for client creation button:', e.target.id);
-                showClientForm();
-                return;
-            }
-            
-            // Client management buttons
-            const editBtn = e.target.closest('.edit-client-btn');
-            if (editBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                const clientId = parseInt(editBtn.dataset.clientId);
-                console.log('🎯 Edit client button clicked for ID:', clientId);
-                if (clientId) {
-                    editClient(clientId, e);
-                }
-                return;
-            }
-            
-            const deleteBtn = e.target.closest('.delete-client-btn');
-            if (deleteBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                const clientId = parseInt(deleteBtn.dataset.clientId);
-                console.log('🎯 Delete client button clicked for ID:', clientId);
-                if (clientId) {
-                    deleteClient(clientId, e);
-                }
-                return;
-            }
-            
-            // Client selection
-            const clientItem = e.target.closest('.client-item:not(.active)');
-            if (clientItem && clientItem.dataset.clientId) {
-                e.preventDefault();
-                e.stopPropagation();
-                const clientId = clientItem.dataset.clientId;
-                console.log('🎯 Client selection clicked for ID:', clientId);
-                if (clientId) {
-                    selectClient(clientId);
-                }
-                return;
-            }
-            
-            // Recommendation buttons
-            const expandRecBtn = e.target.closest('.expand-rec-btn');
-            if (expandRecBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                expandRecommendation(expandRecBtn);
-                return;
-            }
-            
-            const copyRecBtn = e.target.closest('.copy-rec-btn');
-            if (copyRecBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                copyRecommendation(copyRecBtn);
-                return;
-            }
-            
-            const removeRecBtn = e.target.closest('.remove-rec-btn');
-            if (removeRecBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                deleteRecommendation(removeRecBtn);
-                return;
-            }
-            
-            // Highlight clicks
-            const highlightSpan = e.target.closest('.text-highlight');
-            if (highlightSpan) {
-                e.preventDefault();
-                e.stopPropagation();
-                const highlightId = highlightSpan.dataset.highlightId;
-                const tooltip = highlightSpan.dataset.tooltip;
-                if (highlightId && tooltip) {
-                    showHighlightDetails(highlightId, tooltip, e);
-                }
-                return;
-            }
-        });
-        
-        // Text input handlers
-        if (elements.negotiationText) {
-            elements.negotiationText.addEventListener('input', updateTextStats);
-        }
-        
-        console.log('✅ Event handlers bound successfully');
-    }
-    
-    async function deleteRecommendation(button) {
-        const recItem = button.closest('.recommendation-item');
-        const recId = recItem.dataset.recommendationId;
-        const clientId = recItem.dataset.clientId;
-        
-        if (!confirm('Видалити цю рекомендацію?')) {
-            return;
-        }
-        
-        // Delete from API
-        const success = await deleteRecommendationFromAPI(recId);
-        
-        if (success) {
-            // Remove from local state
-            const recommendations = state.recommendationsHistory[clientId] || [];
-            const index = recommendations.findIndex(r => r.id == recId);
-            if (index >= 0) {
-                recommendations.splice(index, 1);
-                updateRecommendationsHistory(clientId);
-            }
         }
     }
 
