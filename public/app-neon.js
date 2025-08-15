@@ -509,9 +509,13 @@
 
     // ===== Onboarding System =====
     function initOnboarding() {
+        console.log('🎓 Initializing onboarding...');
         const completed = localStorage.getItem('teampulse-onboarding-completed');
+        console.log('🎓 Onboarding completed:', completed);
+        
         if (completed === 'true') {
             state.onboardingCompleted = true;
+            console.log('🎓 Onboarding already completed, hiding modal');
             if (elements.onboardingModal) {
                 elements.onboardingModal.style.display = 'none';
             }
@@ -5867,6 +5871,31 @@
             elements.negotiationText.addEventListener('input', updateTextStats);
         }
         
+        // Onboarding buttons - Add event handlers for all onboarding buttons
+        const onboardingNextBtn = document.getElementById('onboarding-next');
+        if (onboardingNextBtn) {
+            console.log('🎓 Adding onboarding next button handler');
+            onboardingNextBtn.addEventListener('click', nextOnboardingStep);
+        }
+        
+        const onboardingPrevBtn = document.getElementById('onboarding-prev');
+        if (onboardingPrevBtn) {
+            console.log('🎓 Adding onboarding prev button handler');
+            onboardingPrevBtn.addEventListener('click', prevOnboardingStep);
+        }
+        
+        const onboardingCompleteBtn = document.getElementById('onboarding-complete');
+        if (onboardingCompleteBtn) {
+            console.log('🎓 Adding onboarding complete button handler');
+            onboardingCompleteBtn.addEventListener('click', completeOnboarding);
+        }
+        
+        const onboardingSkipBtn = document.getElementById('onboarding-skip');
+        if (onboardingSkipBtn) {
+            console.log('🎓 Adding onboarding skip button handler');
+            onboardingSkipBtn.addEventListener('click', completeOnboarding);
+        }
+        
         console.log('✅ Event handlers bound successfully');
     }
     
@@ -6060,9 +6089,12 @@
     }
 
     // Initialize immediately if already authenticated, or wait for auth-success event
+    console.log('🔐 Auth status:', sessionStorage.getItem('teampulse-auth'));
     if (sessionStorage.getItem('teampulse-auth') === 'true') {
+        console.log('🔐 Authenticated, initializing...');
         init();
     } else {
+        console.log('🔐 Not authenticated, waiting for auth-success event...');
         // Start when authenticated
         window.addEventListener('auth-success', init);
     }
