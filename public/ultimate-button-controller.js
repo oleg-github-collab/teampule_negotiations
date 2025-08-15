@@ -1163,19 +1163,21 @@ class UltimateButtonController {
         console.log('🎯 Attaching all buttons...');
         
         // Find all clickable elements
-        const clickableElements = document.querySelectorAll(`
-            button, 
-            [role="button"], 
-            .btn, 
-            .button, 
-            [onclick], 
-            [data-action],
-            .input-method,
-            .view-control,
-            .modal-close,
-            .nav-action,
-            .sidebar-toggle
-        `);
+        const selectorList = [
+            'button',
+            '[role="button"]',
+            '.btn',
+            '.button',
+            '[onclick]',
+            '[data-action]',
+            '.input-method',
+            '.view-control',
+            '.modal-close',
+            '.nav-action',
+            '.sidebar-toggle'
+        ].join(', ');
+
+        const clickableElements = document.querySelectorAll(selectorList);
         
         let attachedCount = 0;
         
