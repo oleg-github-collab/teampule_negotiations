@@ -22,7 +22,6 @@ import { validateSecurityHeaders } from './middleware/validators.js';
 import analyzeRoutes from './routes/analyze.js';
 import clientsRoutes from './routes/clients.js';
 import adviceRoutes from './routes/advice.js';
-import recommendationsRoutes from './routes/recommendations.js';
 
 // Validate required environment variables
 const requiredEnvVars = ['OPENAI_API_KEY', 'NODE_ENV'];
@@ -47,13 +46,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const isProduction = process.env.NODE_ENV === 'production';
-
-// Railway deployment check
-if (process.env.RAILWAY_ENVIRONMENT) {
-  console.log('🚂 Railway deployment detected');
-  console.log(`Environment: ${process.env.RAILWAY_ENVIRONMENT}`);
-  console.log(`Service ID: ${process.env.RAILWAY_SERVICE_ID}`);
-}
 
 // Trust proxy for production deployments
 if (isProduction) {
@@ -80,7 +72,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'"],
@@ -309,7 +301,6 @@ app.post('/api/admin/cleanup-database', authMiddleware, async (req, res) => {
 app.use('/api/analyze', authMiddleware, analysisLimiter, analyzeRoutes);
 app.use('/api/clients', authMiddleware, clientsRoutes);
 app.use('/api/advice', authMiddleware, adviceRoutes);
-app.use('/api/recommendations', authMiddleware, recommendationsRoutes);
 
 // Enhanced health check for Railway
 app.get('/health', async (req, res) => {
@@ -380,12 +371,15 @@ app.get('/health', async (req, res) => {
 app.get('/ping', (_req, res) => res.send('pong'));
 
 // Ready check for Kubernetes/Railway
-app.get('/ready', (_req, res) => {
-  res.status(200).json({ 
-    ready: true, 
-    timestamp: new Date().toISOString(),
-    service: 'teampulse-turbo'
-  });
+app.get('/ready', async (_req, res) => {
+  try {
+    // Basic functionality test
+    const { get } = await import('./utils/db.js');
+    get('SELECT 1');
+    res.status(200).json({ ready: true, timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(503).json({ ready: false, error: 'Database not ready' });
+  }
 });
 
 // App routes

@@ -4512,6 +4512,17 @@
         try {
             console.log('🔄 Loading analysis history for client:', clientId);
             const response = await fetch(`/api/clients/${clientId}`);
+            
+            if (response.status === 404) {
+                console.warn('⚠️ Client not found, clearing from state:', clientId);
+                // Client doesn't exist anymore, clear from state
+                state.currentClient = null;
+                state.analyses = [];
+                renderAnalysisHistory([]);
+                switchView('welcome');
+                return;
+            }
+            
             const data = await response.json();
             
             if (data.success && data.analyses) {
@@ -4540,6 +4551,16 @@
     async function loadAnalysisHistoryAndLatest(clientId) {
         try {
             const response = await fetch(`/api/clients/${clientId}`);
+            
+            if (response.status === 404) {
+                console.warn('⚠️ Client not found, clearing from state:', clientId);
+                state.currentClient = null;
+                state.analyses = [];
+                renderAnalysisHistory([]);
+                switchView('welcome');
+                return;
+            }
+            
             const data = await response.json();
             
             if (data.success && data.analyses) {
@@ -6099,6 +6120,1441 @@
         window.addEventListener('auth-success', init);
     }
 
+    // ===== Advanced Navigation System =====
+    
+    // State management for advanced features
+    let advancedState = {
+        currentView: 'list',
+        searchTerm: '',
+        filters: {
+            dateRange: 'all',
+            clientType: 'all',
+            analysisType: 'all',
+            results: 'all'
+        },
+        selectedItems: new Set(),
+        bookmarks: new Set(),
+        sortBy: 'date',
+        sortOrder: 'desc',
+        searchHistory: [],
+        analytics: null
+    };
+
+    // Advanced modal management
+    function openAdvancedModal() {
+        const modal = document.getElementById('advancedModal');
+        if (modal) {
+            modal.classList.add('show');
+            loadAdvancedData();
+            updateAdvancedView();
+        }
+    }
+
+    function closeAdvancedModal() {
+        const modal = document.getElementById('advancedModal');
+        if (modal) {
+            modal.classList.remove('show');
+        }
+    }
+
+    // Smart search with highlighting
+    function performAdvancedSearch(term) {
+        advancedState.searchTerm = term.toLowerCase();
+        const searchInput = document.getElementById('advancedSearch');
+        
+        if (searchInput) {
+            searchInput.value = term;
+        }
+        
+        // Add to search history
+        if (term && !advancedState.searchHistory.includes(term)) {
+            advancedState.searchHistory.unshift(term);
+            if (advancedState.searchHistory.length > 10) {
+                advancedState.searchHistory.pop();
+            }
+        }
+        
+        updateAdvancedView();
+        updateSearchSuggestions();
+    }
+
+    function updateSearchSuggestions() {
+        const container = document.querySelector('.search-suggestions');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (advancedState.searchHistory.length > 0) {
+            advancedState.searchHistory.forEach(term => {
+                const suggestion = document.createElement('div');
+                suggestion.className = 'search-suggestion';
+                suggestion.innerHTML = `
+                    <i class="fas fa-history"></i>
+                    <span>${term}</span>
+                `;
+                suggestion.addEventListener('click', () => {
+                    performAdvancedSearch(term);
+                });
+                container.appendChild(suggestion);
+            });
+        }
+    }
+
+    // View switching functionality
+    function switchView(viewType) {
+        advancedState.currentView = viewType;
+        
+        // Update active tab
+        document.querySelectorAll('.view-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        const activeTab = document.querySelector(`[data-view="${viewType}"]`);
+        if (activeTab) {
+            activeTab.classList.add('active');
+        }
+        
+        updateAdvancedView();
+    }
+
+    function updateAdvancedView() {
+        const container = document.getElementById('advancedContent');
+        if (!container) return;
+        
+        const filteredData = getFilteredData();
+        
+        switch (advancedState.currentView) {
+            case 'list':
+                renderListView(container, filteredData);
+                break;
+            case 'timeline':
+                renderTimelineView(container, filteredData);
+                break;
+            case 'grid':
+                renderGridView(container, filteredData);
+                break;
+            case 'analytics':
+                renderAnalyticsView(container, filteredData);
+                break;
+        }
+        
+        updateSelectionStatus();
+    }
+
+    // Data filtering and processing
+    function getFilteredData() {
+        let data = getAllAnalysesData();
+        
+        // Apply search filter
+        if (advancedState.searchTerm) {
+            data = data.filter(item => 
+                item.clientName?.toLowerCase().includes(advancedState.searchTerm) ||
+                item.analysisType?.toLowerCase().includes(advancedState.searchTerm) ||
+                item.content?.toLowerCase().includes(advancedState.searchTerm) ||
+                item.results?.some(r => r.text?.toLowerCase().includes(advancedState.searchTerm))
+            );
+        }
+        
+        // Apply filters
+        if (advancedState.filters.dateRange !== 'all') {
+            data = data.filter(item => matchesDateRange(item.date, advancedState.filters.dateRange));
+        }
+        
+        if (advancedState.filters.clientType !== 'all') {
+            data = data.filter(item => item.clientType === advancedState.filters.clientType);
+        }
+        
+        if (advancedState.filters.analysisType !== 'all') {
+            data = data.filter(item => item.analysisType === advancedState.filters.analysisType);
+        }
+        
+        // Sort data
+        data.sort((a, b) => {
+            let aVal = a[advancedState.sortBy];
+            let bVal = b[advancedState.sortBy];
+            
+            if (advancedState.sortBy === 'date') {
+                aVal = new Date(aVal);
+                bVal = new Date(bVal);
+            }
+            
+            const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+            return advancedState.sortOrder === 'desc' ? -comparison : comparison;
+        });
+        
+        return data;
+    }
+
+    function matchesDateRange(date, range) {
+        const itemDate = new Date(date);
+        const now = new Date();
+        
+        switch (range) {
+            case 'today':
+                return itemDate.toDateString() === now.toDateString();
+            case 'week':
+                return (now - itemDate) <= (7 * 24 * 60 * 60 * 1000);
+            case 'month':
+                return (now - itemDate) <= (30 * 24 * 60 * 60 * 1000);
+            case 'year':
+                return (now - itemDate) <= (365 * 24 * 60 * 60 * 1000);
+            default:
+                return true;
+        }
+    }
+
+    // View renderers
+    function renderListView(container, data) {
+        container.innerHTML = `
+            <div class="list-view">
+                <div class="list-header">
+                    <div class="bulk-actions">
+                        <input type="checkbox" id="selectAll" class="select-all-checkbox">
+                        <button class="bulk-btn" onclick="exportSelected()">
+                            <i class="fas fa-download"></i> Export Selected
+                        </button>
+                        <button class="bulk-btn" onclick="deleteSelected()">
+                            <i class="fas fa-trash"></i> Delete Selected
+                        </button>
+                    </div>
+                    <div class="sort-controls">
+                        <select id="sortBy" onchange="updateSort()">
+                            <option value="date">Date</option>
+                            <option value="clientName">Client</option>
+                            <option value="analysisType">Type</option>
+                            <option value="score">Score</option>
+                        </select>
+                        <button class="sort-order-btn" onclick="toggleSortOrder()">
+                            <i class="fas fa-sort-${advancedState.sortOrder === 'desc' ? 'down' : 'up'}"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="list-items">
+                    ${data.map(item => renderListItem(item)).join('')}
+                </div>
+            </div>
+        `;
+        
+        bindListEvents();
+    }
+
+    function renderListItem(item) {
+        const isSelected = advancedState.selectedItems.has(item.id);
+        const isBookmarked = advancedState.bookmarks.has(item.id);
+        const highlightedContent = highlightSearchTerm(item.content || '', advancedState.searchTerm);
+        
+        return `
+            <div class="list-item ${isSelected ? 'selected' : ''}" data-id="${item.id}">
+                <div class="item-header">
+                    <input type="checkbox" class="item-checkbox" ${isSelected ? 'checked' : ''}>
+                    <div class="item-meta">
+                        <h4>${item.clientName}</h4>
+                        <span class="item-date">${formatDate(item.date)}</span>
+                        <span class="item-type">${item.analysisType}</span>
+                    </div>
+                    <div class="item-actions">
+                        <button class="action-btn bookmark-btn ${isBookmarked ? 'active' : ''}" 
+                                onclick="toggleBookmark('${item.id}')">
+                            <i class="fas fa-bookmark"></i>
+                        </button>
+                        <button class="action-btn" onclick="viewAnalysis('${item.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="action-btn" onclick="exportAnalysis('${item.id}')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="item-content">
+                    <p>${highlightedContent}</p>
+                    <div class="item-stats">
+                        <span class="stat">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ${item.results?.length || 0} Issues
+                        </span>
+                        <span class="stat">
+                            <i class="fas fa-chart-line"></i>
+                            Score: ${item.score || 'N/A'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderTimelineView(container, data) {
+        const groupedData = groupDataByDate(data);
+        
+        container.innerHTML = `
+            <div class="timeline-view">
+                <div class="timeline-container">
+                    ${Object.entries(groupedData).map(([date, items]) => `
+                        <div class="timeline-group">
+                            <div class="timeline-date">
+                                <h3>${formatDateFull(date)}</h3>
+                                <span class="item-count">${items.length} analyses</span>
+                            </div>
+                            <div class="timeline-items">
+                                ${items.map(item => renderTimelineItem(item)).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderTimelineItem(item) {
+        const isBookmarked = advancedState.bookmarks.has(item.id);
+        
+        return `
+            <div class="timeline-item" data-id="${item.id}">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <h4>${item.clientName}</h4>
+                        <span class="timeline-time">${formatTime(item.date)}</span>
+                        <button class="bookmark-btn ${isBookmarked ? 'active' : ''}" 
+                                onclick="toggleBookmark('${item.id}')">
+                            <i class="fas fa-bookmark"></i>
+                        </button>
+                    </div>
+                    <p>${item.content || 'No content available'}</p>
+                    <div class="timeline-actions">
+                        <button class="timeline-btn" onclick="viewAnalysis('${item.id}')">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="timeline-btn" onclick="exportAnalysis('${item.id}')">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderGridView(container, data) {
+        container.innerHTML = `
+            <div class="grid-view">
+                <div class="grid-container">
+                    ${data.map(item => renderGridItem(item)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderGridItem(item) {
+        const isBookmarked = advancedState.bookmarks.has(item.id);
+        
+        return `
+            <div class="grid-item" data-id="${item.id}">
+                <div class="grid-header">
+                    <h4>${item.clientName}</h4>
+                    <button class="bookmark-btn ${isBookmarked ? 'active' : ''}" 
+                            onclick="toggleBookmark('${item.id}')">
+                        <i class="fas fa-bookmark"></i>
+                    </button>
+                </div>
+                <div class="grid-content">
+                    <div class="grid-meta">
+                        <span class="grid-date">${formatDate(item.date)}</span>
+                        <span class="grid-type">${item.analysisType}</span>
+                    </div>
+                    <p>${(item.content || 'No content available').substring(0, 150)}...</p>
+                    <div class="grid-stats">
+                        <span class="stat">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ${item.results?.length || 0}
+                        </span>
+                        <span class="stat">
+                            <i class="fas fa-chart-line"></i>
+                            ${item.score || 'N/A'}
+                        </span>
+                    </div>
+                </div>
+                <div class="grid-actions">
+                    <button class="grid-btn" onclick="viewAnalysis('${item.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="grid-btn" onclick="exportAnalysis('${item.id}')">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAnalyticsView(container, data) {
+        const analytics = generateAnalytics(data);
+        
+        container.innerHTML = `
+            <div class="analytics-view">
+                <div class="analytics-header">
+                    <h3>Analytics Dashboard</h3>
+                    <div class="analytics-filters">
+                        <select id="analyticsDateRange" onchange="updateAnalytics()">
+                            <option value="all">All Time</option>
+                            <option value="year">This Year</option>
+                            <option value="month">This Month</option>
+                            <option value="week">This Week</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <h4>Total Analyses</h4>
+                        <div class="analytics-number">${analytics.totalAnalyses}</div>
+                        <div class="analytics-trend ${analytics.analysesTrend >= 0 ? 'positive' : 'negative'}">
+                            <i class="fas fa-arrow-${analytics.analysesTrend >= 0 ? 'up' : 'down'}"></i>
+                            ${Math.abs(analytics.analysesTrend)}%
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h4>Active Clients</h4>
+                        <div class="analytics-number">${analytics.activeClients}</div>
+                        <div class="analytics-subtitle">Unique clients</div>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h4>Average Score</h4>
+                        <div class="analytics-number">${analytics.averageScore.toFixed(1)}</div>
+                        <div class="analytics-trend ${analytics.scoreTrend >= 0 ? 'positive' : 'negative'}">
+                            <i class="fas fa-arrow-${analytics.scoreTrend >= 0 ? 'up' : 'down'}"></i>
+                            ${Math.abs(analytics.scoreTrend).toFixed(1)}%
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h4>Issues Found</h4>
+                        <div class="analytics-number">${analytics.totalIssues}</div>
+                        <div class="analytics-subtitle">Across all analyses</div>
+                    </div>
+                </div>
+                
+                <div class="analytics-charts">
+                    <div class="chart-container">
+                        <canvas id="analysesChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="issuesChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="analytics-tables">
+                    <div class="analytics-table">
+                        <h4>Top Clients</h4>
+                        <div class="table-content">
+                            ${analytics.topClients.map(client => `
+                                <div class="table-row">
+                                    <span>${client.name}</span>
+                                    <span>${client.count} analyses</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-table">
+                        <h4>Common Issues</h4>
+                        <div class="table-content">
+                            ${analytics.commonIssues.map(issue => `
+                                <div class="table-row">
+                                    <span>${issue.type}</span>
+                                    <span>${issue.count} occurrences</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Initialize charts
+        setTimeout(() => {
+            initializeCharts(analytics);
+        }, 100);
+    }
+
+    // Analytics generation
+    function generateAnalytics(data) {
+        const now = new Date();
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        
+        const currentPeriodData = data.filter(item => new Date(item.date) >= lastMonth);
+        const previousPeriodData = data.filter(item => {
+            const itemDate = new Date(item.date);
+            return itemDate < lastMonth && itemDate >= new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+        });
+        
+        const analytics = {
+            totalAnalyses: data.length,
+            analysesTrend: calculateTrend(currentPeriodData.length, previousPeriodData.length),
+            activeClients: new Set(data.map(item => item.clientName)).size,
+            averageScore: data.reduce((sum, item) => sum + (item.score || 0), 0) / data.length || 0,
+            scoreTrend: calculateScoreTrend(currentPeriodData, previousPeriodData),
+            totalIssues: data.reduce((sum, item) => sum + (item.results?.length || 0), 0),
+            topClients: getTopClients(data),
+            commonIssues: getCommonIssues(data),
+            timeSeriesData: getTimeSeriesData(data),
+            issueDistribution: getIssueDistribution(data)
+        };
+        
+        return analytics;
+    }
+
+    function calculateTrend(current, previous) {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return ((current - previous) / previous) * 100;
+    }
+
+    function calculateScoreTrend(currentData, previousData) {
+        const currentAvg = currentData.reduce((sum, item) => sum + (item.score || 0), 0) / currentData.length || 0;
+        const previousAvg = previousData.reduce((sum, item) => sum + (item.score || 0), 0) / previousData.length || 0;
+        
+        if (previousAvg === 0) return currentAvg > 0 ? 100 : 0;
+        return ((currentAvg - previousAvg) / previousAvg) * 100;
+    }
+
+    function getTopClients(data) {
+        const clientCounts = {};
+        data.forEach(item => {
+            clientCounts[item.clientName] = (clientCounts[item.clientName] || 0) + 1;
+        });
+        
+        return Object.entries(clientCounts)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 5)
+            .map(([name, count]) => ({ name, count }));
+    }
+
+    function getCommonIssues(data) {
+        const issueCounts = {};
+        data.forEach(item => {
+            if (item.results) {
+                item.results.forEach(result => {
+                    const type = result.category || result.type || 'Unknown';
+                    issueCounts[type] = (issueCounts[type] || 0) + 1;
+                });
+            }
+        });
+        
+        return Object.entries(issueCounts)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 5)
+            .map(([type, count]) => ({ type, count }));
+    }
+
+    // Export functionality
+    function exportSelected() {
+        const selectedIds = Array.from(advancedState.selectedItems);
+        if (selectedIds.length === 0) {
+            alert('Please select items to export');
+            return;
+        }
+        
+        showExportModal(selectedIds);
+    }
+
+    function exportAnalysis(analysisId) {
+        showExportModal([analysisId]);
+    }
+
+    function showExportModal(analysisIds) {
+        const modal = document.createElement('div');
+        modal.className = 'export-modal';
+        modal.innerHTML = `
+            <div class="export-modal-content">
+                <div class="export-header">
+                    <h3>Export Analyses</h3>
+                    <button class="close-btn" onclick="this.closest('.export-modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="export-options">
+                    <div class="export-format">
+                        <h4>Format</h4>
+                        <div class="format-options">
+                            <label>
+                                <input type="radio" name="format" value="pdf" checked>
+                                <i class="fas fa-file-pdf"></i> PDF Report
+                            </label>
+                            <label>
+                                <input type="radio" name="format" value="json">
+                                <i class="fas fa-file-code"></i> JSON Data
+                            </label>
+                            <label>
+                                <input type="radio" name="format" value="csv">
+                                <i class="fas fa-file-csv"></i> CSV Spreadsheet
+                            </label>
+                        </div>
+                    </div>
+                    <div class="export-settings">
+                        <h4>Include</h4>
+                        <label>
+                            <input type="checkbox" checked> Analysis Results
+                        </label>
+                        <label>
+                            <input type="checkbox" checked> Client Information
+                        </label>
+                        <label>
+                            <input type="checkbox"> Raw Text
+                        </label>
+                        <label>
+                            <input type="checkbox"> Recommendations
+                        </label>
+                    </div>
+                </div>
+                <div class="export-actions">
+                    <button class="export-btn primary" onclick="performExport('${analysisIds.join(',')}')">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="export-btn" onclick="this.closest('.export-modal').remove()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    function performExport(analysisIdsStr) {
+        const analysisIds = analysisIdsStr.split(',');
+        const format = document.querySelector('input[name="format"]:checked').value;
+        
+        const data = getAllAnalysesData().filter(item => analysisIds.includes(item.id));
+        
+        switch (format) {
+            case 'pdf':
+                exportToPDF(data);
+                break;
+            case 'json':
+                exportToJSON(data);
+                break;
+            case 'csv':
+                exportToCSV(data);
+                break;
+        }
+        
+        // Close modal
+        document.querySelector('.export-modal').remove();
+    }
+
+    function exportToPDF(data) {
+        // Create a formatted HTML report
+        const reportHtml = generateHTMLReport(data);
+        
+        // Open in new window for printing/saving as PDF
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(reportHtml);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    function exportToJSON(data) {
+        const jsonData = JSON.stringify(data, null, 2);
+        downloadFile(jsonData, 'analyses-export.json', 'application/json');
+    }
+
+    function exportToCSV(data) {
+        const csvHeaders = ['Date', 'Client', 'Type', 'Content', 'Issues', 'Score'];
+        const csvRows = data.map(item => [
+            item.date,
+            item.clientName,
+            item.analysisType,
+            (item.content || '').replace(/"/g, '""'),
+            item.results?.length || 0,
+            item.score || ''
+        ]);
+        
+        const csvContent = [csvHeaders, ...csvRows]
+            .map(row => row.map(field => `"${field}"`).join(','))
+            .join('\n');
+        
+        downloadFile(csvContent, 'analyses-export.csv', 'text/csv');
+    }
+
+    function downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // Utility functions
+    function highlightSearchTerm(text, term) {
+        if (!term || !text) return text;
+        
+        const regex = new RegExp(`(${term})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
+    function formatDateFull(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+
+    function formatTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function groupDataByDate(data) {
+        const grouped = {};
+        data.forEach(item => {
+            const date = new Date(item.date).toDateString();
+            if (!grouped[date]) {
+                grouped[date] = [];
+            }
+            grouped[date].push(item);
+        });
+        return grouped;
+    }
+
+    // Bookmark management
+    function toggleBookmark(analysisId) {
+        if (advancedState.bookmarks.has(analysisId)) {
+            advancedState.bookmarks.delete(analysisId);
+        } else {
+            advancedState.bookmarks.add(analysisId);
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('analysisBookmarks', JSON.stringify(Array.from(advancedState.bookmarks)));
+        
+        updateAdvancedView();
+    }
+
+    function loadBookmarks() {
+        const saved = localStorage.getItem('analysisBookmarks');
+        if (saved) {
+            advancedState.bookmarks = new Set(JSON.parse(saved));
+        }
+    }
+
+    // Keyboard shortcuts
+    function setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Only handle shortcuts when advanced modal is open
+            if (!document.getElementById('advancedModal')?.classList.contains('show')) {
+                return;
+            }
+            
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 'f':
+                        e.preventDefault();
+                        document.getElementById('advancedSearch')?.focus();
+                        break;
+                    case 'a':
+                        e.preventDefault();
+                        selectAllItems();
+                        break;
+                    case 'e':
+                        e.preventDefault();
+                        exportSelected();
+                        break;
+                    case '1':
+                        e.preventDefault();
+                        switchView('list');
+                        break;
+                    case '2':
+                        e.preventDefault();
+                        switchView('timeline');
+                        break;
+                    case '3':
+                        e.preventDefault();
+                        switchView('grid');
+                        break;
+                    case '4':
+                        e.preventDefault();
+                        switchView('analytics');
+                        break;
+                }
+            }
+            
+            if (e.key === 'Escape') {
+                closeAdvancedModal();
+            }
+        });
+    }
+
+    // Event bindings
+    function bindListEvents() {
+        // Select all checkbox
+        const selectAllCheckbox = document.getElementById('selectAll');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const checkboxes = document.querySelectorAll('.item-checkbox');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = e.target.checked;
+                    const itemId = checkbox.closest('.list-item').dataset.id;
+                    if (e.target.checked) {
+                        advancedState.selectedItems.add(itemId);
+                    } else {
+                        advancedState.selectedItems.delete(itemId);
+                    }
+                });
+                updateSelectionStatus();
+            });
+        }
+        
+        // Individual checkboxes
+        document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const itemId = e.target.closest('.list-item').dataset.id;
+                if (e.target.checked) {
+                    advancedState.selectedItems.add(itemId);
+                } else {
+                    advancedState.selectedItems.delete(itemId);
+                }
+                updateSelectionStatus();
+            });
+        });
+    }
+
+    function updateSelectionStatus() {
+        const selectedCount = advancedState.selectedItems.size;
+        const statusElement = document.querySelector('.selection-status');
+        
+        if (statusElement) {
+            statusElement.textContent = selectedCount > 0 ? 
+                `${selectedCount} item${selectedCount > 1 ? 's' : ''} selected` : '';
+        }
+        
+        // Update bulk action buttons
+        const bulkButtons = document.querySelectorAll('.bulk-btn');
+        bulkButtons.forEach(btn => {
+            btn.disabled = selectedCount === 0;
+        });
+    }
+
+    // Missing utility functions
+    function selectAllItems() {
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAll');
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = true;
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                const itemId = checkbox.closest('.list-item').dataset.id;
+                advancedState.selectedItems.add(itemId);
+            });
+            updateSelectionStatus();
+        }
+    }
+
+    function updateSort() {
+        const sortSelect = document.getElementById('sortBy');
+        if (sortSelect) {
+            advancedState.sortBy = sortSelect.value;
+            updateAdvancedView();
+        }
+    }
+
+    function toggleSortOrder() {
+        advancedState.sortOrder = advancedState.sortOrder === 'desc' ? 'asc' : 'desc';
+        updateAdvancedView();
+    }
+
+    function deleteSelected() {
+        const selectedIds = Array.from(advancedState.selectedItems);
+        if (selectedIds.length === 0) {
+            alert('Please select items to delete');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to delete ${selectedIds.length} analyses? This action cannot be undone.`)) {
+            // Here you would make API calls to delete the analyses
+            // For now, we'll just clear the selection
+            selectedIds.forEach(id => {
+                advancedState.selectedItems.delete(id);
+                // Remove from bookmarks if bookmarked
+                advancedState.bookmarks.delete(id);
+            });
+            
+            updateAdvancedView();
+            alert(`${selectedIds.length} analyses deleted successfully.`);
+        }
+    }
+
+    function updateAnalytics() {
+        const dateRangeSelect = document.getElementById('analyticsDateRange');
+        if (dateRangeSelect) {
+            const range = dateRangeSelect.value;
+            advancedState.filters.dateRange = range;
+            updateAdvancedView();
+        }
+    }
+
+    function initializeCharts(analytics) {
+        // Initialize analyses chart
+        const analysesCtx = document.getElementById('analysesChart');
+        if (analysesCtx && analytics.timeSeriesData) {
+            try {
+                // Simple chart implementation using basic canvas
+                const canvas = analysesCtx.getContext('2d');
+                drawTimeSeriesChart(canvas, analytics.timeSeriesData, 'Analyses Over Time');
+            } catch (error) {
+                console.log('Chart initialization failed:', error);
+                analysesCtx.style.display = 'none';
+            }
+        }
+
+        // Initialize issues chart
+        const issuesCtx = document.getElementById('issuesChart');
+        if (issuesCtx && analytics.issueDistribution) {
+            try {
+                const canvas = issuesCtx.getContext('2d');
+                drawPieChart(canvas, analytics.issueDistribution, 'Issue Distribution');
+            } catch (error) {
+                console.log('Chart initialization failed:', error);
+                issuesCtx.style.display = 'none';
+            }
+        }
+    }
+
+    function drawTimeSeriesChart(ctx, data, title) {
+        const canvas = ctx.canvas;
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Draw simple line chart
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        const maxValue = Math.max(...data.map(d => d.value));
+        const stepX = width / (data.length - 1);
+        
+        data.forEach((point, index) => {
+            const x = index * stepX;
+            const y = height - (point.value / maxValue) * height * 0.8;
+            
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.stroke();
+    }
+
+    function drawPieChart(ctx, data, title) {
+        const canvas = ctx.canvas;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = Math.min(centerX, centerY) * 0.8;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const total = data.reduce((sum, item) => sum + item.value, 0);
+        let currentAngle = 0;
+        
+        const colors = ['#00ffff', '#ff00ff', '#ffff00', '#ff6600', '#00ff00'];
+        
+        data.forEach((slice, index) => {
+            const sliceAngle = (slice.value / total) * 2 * Math.PI;
+            
+            ctx.fillStyle = colors[index % colors.length];
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+            ctx.closePath();
+            ctx.fill();
+            
+            currentAngle += sliceAngle;
+        });
+    }
+
+    function getTimeSeriesData(data) {
+        // Group data by month for time series
+        const monthlyData = {};
+        
+        data.forEach(item => {
+            const date = new Date(item.date);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = 0;
+            }
+            monthlyData[monthKey]++;
+        });
+        
+        return Object.entries(monthlyData)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([month, count]) => ({ date: month, value: count }));
+    }
+
+    function getIssueDistribution(data) {
+        const distribution = {};
+        
+        data.forEach(item => {
+            if (item.results) {
+                item.results.forEach(result => {
+                    const category = result.category || 'Unknown';
+                    distribution[category] = (distribution[category] || 0) + 1;
+                });
+            }
+        });
+        
+        return Object.entries(distribution)
+            .map(([category, count]) => ({ label: category, value: count }))
+            .sort((a, b) => b.value - a.value);
+    }
+
+    function generateHTMLReport(data) {
+        const reportDate = new Date().toLocaleDateString();
+        
+        return `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis Report - ${reportDate}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; }
+        .analysis { border: 1px solid #ddd; margin: 20px 0; padding: 15px; }
+        .meta { background: #f5f5f5; padding: 10px; margin-bottom: 10px; }
+        .results { margin-top: 15px; }
+        .issue { background: #fff3cd; border: 1px solid #ffeaa7; padding: 8px; margin: 5px 0; }
+        .stats { text-align: center; margin: 20px 0; }
+        @media print { body { margin: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Analysis Report</h1>
+        <p>Generated on ${reportDate}</p>
+        <p>Total Analyses: ${data.length}</p>
+    </div>
+    
+    ${data.map(item => `
+        <div class="analysis">
+            <div class="meta">
+                <strong>Client:</strong> ${item.clientName} |
+                <strong>Type:</strong> ${item.analysisType} |
+                <strong>Date:</strong> ${formatDate(item.date)} |
+                <strong>Score:</strong> ${item.score || 'N/A'}
+            </div>
+            
+            <div class="content">
+                <h3>Analysis Content</h3>
+                <p>${item.content || 'No content available'}</p>
+            </div>
+            
+            ${item.results && item.results.length > 0 ? `
+                <div class="results">
+                    <h3>Issues Found (${item.results.length})</h3>
+                    ${item.results.map(result => `
+                        <div class="issue">
+                            <strong>${result.category || 'Unknown'}:</strong>
+                            ${result.text || 'No description'}
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<p>No issues found.</p>'}
+        </div>
+    `).join('')}
+    
+    <div class="stats">
+        <p>Report generated by Teampulse Negotiations Analysis System</p>
+    </div>
+</body>
+</html>
+        `;
+    }
+
+    function viewAnalysis(analysisId) {
+        // Find the analysis data
+        const allData = getAllAnalysesData();
+        const analysis = allData.find(item => item.id === analysisId);
+        
+        if (!analysis) {
+            alert('Analysis not found');
+            return;
+        }
+        
+        // Create a detailed view modal
+        const modal = document.createElement('div');
+        modal.className = 'view-analysis-modal';
+        modal.innerHTML = `
+            <div class="view-analysis-content">
+                <div class="view-header">
+                    <h3>Analysis Details</h3>
+                    <button class="close-btn" onclick="this.closest('.view-analysis-modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="analysis-details">
+                    <div class="detail-section">
+                        <h4>Client Information</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>Client Name:</label>
+                                <span>${analysis.clientName}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Analysis Type:</label>
+                                <span>${analysis.analysisType}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Date:</label>
+                                <span>${formatDateFull(analysis.date)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Score:</label>
+                                <span>${analysis.score || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>Analysis Content</h4>
+                        <div class="content-text">
+                            ${analysis.content || 'No content available'}
+                        </div>
+                    </div>
+                    
+                    ${analysis.results && analysis.results.length > 0 ? `
+                        <div class="detail-section">
+                            <h4>Issues Found (${analysis.results.length})</h4>
+                            <div class="issues-list">
+                                ${analysis.results.map((result, index) => `
+                                    <div class="issue-item">
+                                        <div class="issue-header">
+                                            <span class="issue-category">${result.category || 'Unknown'}</span>
+                                            <span class="issue-number">#${index + 1}</span>
+                                        </div>
+                                        <div class="issue-text">
+                                            ${result.text || 'No description available'}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : '<div class="detail-section"><p>No issues found in this analysis.</p></div>'}
+                </div>
+                
+                <div class="view-actions">
+                    <button class="view-btn primary" onclick="exportAnalysis('${analysisId}')">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="view-btn" onclick="toggleBookmark('${analysisId}'); this.querySelector('i').className = window.advancedState?.bookmarks.has('${analysisId}') ? 'fas fa-bookmark' : 'far fa-bookmark';">
+                        <i class="fas fa-bookmark"></i> ${advancedState.bookmarks.has(analysisId) ? 'Remove Bookmark' : 'Add Bookmark'}
+                    </button>
+                    <button class="view-btn" onclick="this.closest('.view-analysis-modal').remove()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    // Client comparison functionality
+    function openComparisonView() {
+        const modal = document.createElement('div');
+        modal.className = 'comparison-modal';
+        modal.innerHTML = `
+            <div class="comparison-modal-content">
+                <div class="comparison-header">
+                    <h3>Client Comparison</h3>
+                    <button class="close-btn" onclick="this.closest('.comparison-modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="comparison-setup">
+                    <div class="client-selector">
+                        <h4>Select Clients to Compare</h4>
+                        <div class="client-selection-grid">
+                            ${getUniqueClients().map(client => `
+                                <label class="client-option">
+                                    <input type="checkbox" class="client-checkbox" value="${client}" 
+                                           onchange="updateComparison()">
+                                    <span>${client}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="comparisonResults" class="comparison-results">
+                    <p class="comparison-placeholder">Select 2 or more clients to see comparison</p>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    function updateComparison() {
+        const selectedClients = Array.from(document.querySelectorAll('.client-checkbox:checked'))
+            .map(cb => cb.value);
+        
+        const resultsContainer = document.getElementById('comparisonResults');
+        
+        if (selectedClients.length < 2) {
+            resultsContainer.innerHTML = '<p class="comparison-placeholder">Select 2 or more clients to see comparison</p>';
+            return;
+        }
+        
+        const allData = getAllAnalysesData();
+        const comparisonData = selectedClients.map(clientName => {
+            const clientAnalyses = allData.filter(item => item.clientName === clientName);
+            
+            return {
+                clientName,
+                totalAnalyses: clientAnalyses.length,
+                averageScore: clientAnalyses.reduce((sum, item) => sum + (item.score || 0), 0) / clientAnalyses.length || 0,
+                totalIssues: clientAnalyses.reduce((sum, item) => sum + (item.results?.length || 0), 0),
+                issueTypes: getClientIssueBreakdown(clientAnalyses),
+                recentActivity: clientAnalyses.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 3),
+                analysisTypes: getClientAnalysisTypes(clientAnalyses)
+            };
+        });
+        
+        resultsContainer.innerHTML = `
+            <div class="comparison-grid">
+                ${comparisonData.map(client => `
+                    <div class="comparison-card">
+                        <h4>${client.clientName}</h4>
+                        
+                        <div class="comparison-stats">
+                            <div class="stat-item">
+                                <label>Total Analyses</label>
+                                <span class="stat-value">${client.totalAnalyses}</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Average Score</label>
+                                <span class="stat-value">${client.averageScore.toFixed(1)}</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Total Issues</label>
+                                <span class="stat-value">${client.totalIssues}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="comparison-section">
+                            <h5>Issue Breakdown</h5>
+                            <div class="issue-breakdown">
+                                ${Object.entries(client.issueTypes).map(([type, count]) => `
+                                    <div class="issue-type-row">
+                                        <span>${type}</span>
+                                        <span class="issue-count">${count}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="comparison-section">
+                            <h5>Analysis Types</h5>
+                            <div class="analysis-types">
+                                ${Object.entries(client.analysisTypes).map(([type, count]) => `
+                                    <div class="analysis-type-badge">
+                                        ${type} (${count})
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="comparison-section">
+                            <h5>Recent Activity</h5>
+                            <div class="recent-activity">
+                                ${client.recentActivity.map(activity => `
+                                    <div class="activity-item">
+                                        <span class="activity-type">${activity.analysisType}</span>
+                                        <span class="activity-date">${formatDate(activity.date)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div class="comparison-summary">
+                <h4>Comparison Summary</h4>
+                <div class="summary-insights">
+                    ${generateComparisonInsights(comparisonData)}
+                </div>
+            </div>
+        `;
+    }
+
+    function getUniqueClients() {
+        const allData = getAllAnalysesData();
+        return [...new Set(allData.map(item => item.clientName))];
+    }
+
+    function getClientIssueBreakdown(analyses) {
+        const breakdown = {};
+        analyses.forEach(analysis => {
+            if (analysis.results) {
+                analysis.results.forEach(result => {
+                    const category = result.category || 'Unknown';
+                    breakdown[category] = (breakdown[category] || 0) + 1;
+                });
+            }
+        });
+        return breakdown;
+    }
+
+    function getClientAnalysisTypes(analyses) {
+        const types = {};
+        analyses.forEach(analysis => {
+            const type = analysis.analysisType || 'Unknown';
+            types[type] = (types[type] || 0) + 1;
+        });
+        return types;
+    }
+
+    function generateComparisonInsights(comparisonData) {
+        if (comparisonData.length < 2) return '';
+        
+        const insights = [];
+        
+        // Find highest and lowest scoring clients
+        const sortedByScore = [...comparisonData].sort((a, b) => b.averageScore - a.averageScore);
+        insights.push(`<div class="insight">🏆 <strong>${sortedByScore[0].clientName}</strong> has the highest average score (${sortedByScore[0].averageScore.toFixed(1)})</div>`);
+        
+        if (sortedByScore.length > 1) {
+            insights.push(`<div class="insight">⚠️ <strong>${sortedByScore[sortedByScore.length - 1].clientName}</strong> has the lowest average score (${sortedByScore[sortedByScore.length - 1].averageScore.toFixed(1)})</div>`);
+        }
+        
+        // Find most active client
+        const sortedByActivity = [...comparisonData].sort((a, b) => b.totalAnalyses - a.totalAnalyses);
+        insights.push(`<div class="insight">📊 <strong>${sortedByActivity[0].clientName}</strong> is the most active with ${sortedByActivity[0].totalAnalyses} analyses</div>`);
+        
+        // Find client with most issues
+        const sortedByIssues = [...comparisonData].sort((a, b) => b.totalIssues - a.totalIssues);
+        insights.push(`<div class="insight">🚨 <strong>${sortedByIssues[0].clientName}</strong> has the most issues detected (${sortedByIssues[0].totalIssues})</div>`);
+        
+        return insights.join('');
+    }
+
+    // Mock data functions (replace with actual API calls)
+    function getAllAnalysesData() {
+        // This should be replaced with actual data from your API
+        return [
+            {
+                id: '1',
+                clientName: 'Tech Corp',
+                analysisType: 'Contract Review',
+                content: 'Sample contract analysis content with detailed examination of terms and conditions. This analysis covers various aspects including liability clauses, termination conditions, and payment terms.',
+                date: new Date().toISOString(),
+                score: 85,
+                results: [
+                    { category: 'manipulation', text: 'Potential manipulation tactic detected in payment terms section' },
+                    { category: 'cognitive_bias', text: 'Anchoring bias evident in pricing structure' }
+                ]
+            },
+            {
+                id: '2',
+                clientName: 'Global Industries',
+                analysisType: 'Negotiation Strategy',
+                content: 'Strategic analysis for upcoming merger negotiations. Focus on identifying potential leverage points and risk factors.',
+                date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+                score: 92,
+                results: [
+                    { category: 'rhetological_fallacy', text: 'False dichotomy in proposed deal structure' },
+                    { category: 'manipulation', text: 'Pressure tactics in timeline requirements' },
+                    { category: 'cognitive_bias', text: 'Confirmation bias in market analysis' }
+                ]
+            },
+            {
+                id: '3',
+                clientName: 'StartupX',
+                analysisType: 'Partnership Agreement',
+                content: 'Review of partnership agreement terms for equity distribution and decision-making processes.',
+                date: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+                score: 78,
+                results: [
+                    { category: 'manipulation', text: 'Unbalanced voting rights structure' }
+                ]
+            }
+        ];
+    }
+
+    function loadAdvancedData() {
+        // Load bookmarks from localStorage
+        loadBookmarks();
+        
+        // Initialize other data
+        advancedState.analytics = null;
+    }
+
+    // Initialize advanced features
+    function initAdvancedFeatures() {
+        setupKeyboardShortcuts();
+        loadAdvancedData();
+        
+        // Bind search input
+        const searchInput = document.getElementById('advancedSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                performAdvancedSearch(e.target.value);
+            });
+        }
+        
+        // Bind filter inputs
+        document.querySelectorAll('.filter-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const filterType = e.target.dataset.filter;
+                advancedState.filters[filterType] = e.target.value;
+                updateAdvancedView();
+            });
+        });
+        
+        // Bind view tabs
+        document.querySelectorAll('.view-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const viewType = e.target.dataset.view;
+                switchView(viewType);
+            });
+        });
+    }
+
+    // Call initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAdvancedFeatures);
+    } else {
+        initAdvancedFeatures();
+    }
+
     // ===== Global Functions Export =====
     window.showClientForm = showClientForm;
     window.selectClient = selectClient;
@@ -6106,5 +7562,23 @@
     window.deleteClient = deleteClient;
     window.startAnalysis = startAnalysis;
     window.createNewAnalysis = createNewAnalysis;
+    
+    // Advanced navigation functions
+    window.openAdvancedModal = openAdvancedModal;
+    window.closeAdvancedModal = closeAdvancedModal;
+    window.switchView = switchView;
+    window.performAdvancedSearch = performAdvancedSearch;
+    window.exportSelected = exportSelected;
+    window.exportAnalysis = exportAnalysis;
+    window.toggleBookmark = toggleBookmark;
+    window.viewAnalysis = viewAnalysis;
+    window.selectAllItems = selectAllItems;
+    window.updateSort = updateSort;
+    window.toggleSortOrder = toggleSortOrder;
+    window.deleteSelected = deleteSelected;
+    window.updateAnalytics = updateAnalytics;
+    window.performExport = performExport;
+    window.openComparisonView = openComparisonView;
+    window.updateComparison = updateComparison;
 
 })();

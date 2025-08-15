@@ -133,24 +133,7 @@
 
     async function initAuth() {
         console.log('🔐 Initializing authentication...');
-        
-        // CRITICAL FIX: Always enable the app on localhost for development
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log('🔐 Development mode detected - auto-authenticating');
-            sessionStorage.setItem('teampulse-auth', 'true');
-            
-            const loginScreen = $('#login-screen');
-            const appContainer = $('#app-container');
-            
-            if (loginScreen) loginScreen.style.display = 'none';
-            if (appContainer) appContainer.style.display = 'block';
-            
-            // Fire auth success immediately for localhost
-            window.dispatchEvent(new CustomEvent('auth-success'));
-            return;
-        }
-        
-        // Check authentication status for production
+        // Check authentication status
         const isAuthenticated = await checkAuth();
         if (!isAuthenticated) {
             // Bind login form if not authenticated

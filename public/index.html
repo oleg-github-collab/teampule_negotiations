@@ -957,6 +957,345 @@
         </div>
     </div>
 
+    <!-- Advanced Analysis History Modal -->
+    <div id="analysis-history-modal" class="modal modal-large" style="display: none;">
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-history"></i>
+                    Розширена історія аналізів
+                </h3>
+                <div class="modal-header-actions">
+                    <button class="btn-secondary btn-sm" id="export-history-btn" title="Експорт даних">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn-secondary btn-sm" id="history-settings-btn" title="Налаштування">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <button class="modal-close" id="analysis-history-close">&times;</button>
+                </div>
+            </div>
+            
+            <!-- Advanced Navigation Toolbar -->
+            <div class="history-toolbar">
+                <div class="toolbar-section">
+                    <!-- View Mode Toggle -->
+                    <div class="view-toggle-group">
+                        <button class="btn-toggle active" id="list-view-btn" data-view="list" title="Список">
+                            <i class="fas fa-list"></i>
+                        </button>
+                        <button class="btn-toggle" id="timeline-view-btn" data-view="timeline" title="Таймлайн">
+                            <i class="fas fa-stream"></i>
+                        </button>
+                        <button class="btn-toggle" id="grid-view-btn" data-view="grid" title="Сітка">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button class="btn-toggle" id="analytics-view-btn" data-view="analytics" title="Аналітика">
+                            <i class="fas fa-chart-bar"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="toolbar-section">
+                    <!-- Smart Search -->
+                    <div class="smart-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="history-smart-search" placeholder="Пошук по всьому контенту..." autocomplete="off">
+                        <button class="btn-ghost btn-sm" id="clear-search-btn" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="toolbar-section">
+                    <!-- Advanced Filters -->
+                    <button class="btn-secondary btn-sm" id="advanced-filters-btn">
+                        <i class="fas fa-filter"></i>
+                        Фільтри
+                        <span class="filter-badge" id="active-filters-count" style="display: none;">0</span>
+                    </button>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="bulk-actions" id="bulk-actions" style="display: none;">
+                        <span class="bulk-selection-count">0 обрано</span>
+                        <button class="btn-secondary btn-sm" id="bulk-export-btn">
+                            <i class="fas fa-download"></i>
+                            Експорт
+                        </button>
+                        <button class="btn-secondary btn-sm" id="bulk-compare-btn">
+                            <i class="fas fa-balance-scale"></i>
+                            Порівняти
+                        </button>
+                        <button class="btn-danger btn-sm" id="bulk-delete-btn">
+                            <i class="fas fa-trash"></i>
+                            Видалити
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advanced Filter Panel -->
+            <div class="filter-panel" id="filter-panel" style="display: none;">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Клієнт:</label>
+                        <select id="filter-client" multiple>
+                            <!-- Dynamic options -->
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Дата створення:</label>
+                        <div class="date-range">
+                            <input type="date" id="filter-date-from" placeholder="Від">
+                            <span>до</span>
+                            <input type="date" id="filter-date-to" placeholder="До">
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Тип проблем:</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" id="filter-manipulation" checked> Маніпуляції</label>
+                            <label><input type="checkbox" id="filter-cognitive" checked> Викривлення</label>
+                            <label><input type="checkbox" id="filter-fallacies" checked> Софізми</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Кількість проблем:</label>
+                        <div class="range-input">
+                            <input type="range" id="filter-problems-min" min="0" max="50" value="0">
+                            <span id="filter-problems-min-value">0</span>
+                            <span>-</span>
+                            <input type="range" id="filter-problems-max" min="0" max="50" value="50">
+                            <span id="filter-problems-max-value">50</span>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Складність:</label>
+                        <select id="filter-complexity">
+                            <option value="">Всі рівні</option>
+                            <option value="low">Низька</option>
+                            <option value="medium">Середня</option>
+                            <option value="high">Висока</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Статус:</label>
+                        <select id="filter-status">
+                            <option value="">Всі</option>
+                            <option value="bookmarked">Збережені</option>
+                            <option value="exported">Експортовані</option>
+                            <option value="shared">Відправлені</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn-primary btn-sm" id="apply-filters-btn">
+                        <i class="fas fa-check"></i>
+                        Застосувати
+                    </button>
+                    <button class="btn-secondary btn-sm" id="reset-filters-btn">
+                        <i class="fas fa-undo"></i>
+                        Скинути
+                    </button>
+                    <button class="btn-ghost btn-sm" id="save-filter-preset-btn">
+                        <i class="fas fa-save"></i>
+                        Зберегти шаблон
+                    </button>
+                </div>
+            </div>
+            
+            <div class="modal-body modal-body-flex">
+                <!-- Client Switcher Sidebar -->
+                <div class="history-sidebar">
+                    <div class="sidebar-header">
+                        <h4>
+                            <i class="fas fa-users"></i>
+                            Клієнти
+                        </h4>
+                        <button class="btn-ghost btn-sm" id="select-all-clients-btn">
+                            Всі
+                        </button>
+                    </div>
+                    <div class="client-switcher" id="history-client-switcher">
+                        <!-- Dynamic client list -->
+                    </div>
+                    
+                    <!-- Quick Stats -->
+                    <div class="quick-stats">
+                        <h5>Швидка статистика</h5>
+                        <div class="stat-item">
+                            <span class="stat-label">Всього аналізів:</span>
+                            <span class="stat-value" id="total-analyses-stat">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Цього місяця:</span>
+                            <span class="stat-value" id="monthly-analyses-stat">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Середня складність:</span>
+                            <span class="stat-value" id="avg-complexity-stat">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Content Area -->
+                <div class="history-content">
+                    <!-- List View -->
+                    <div class="history-view" id="history-list-view">
+                        <div class="history-list-header">
+                            <div class="list-controls">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="select-all-analyses">
+                                    <span class="checkmark"></span>
+                                </label>
+                                <span class="sort-label">Сортування:</span>
+                                <select id="sort-analyses">
+                                    <option value="date-desc">Дата ↓</option>
+                                    <option value="date-asc">Дата ↑</option>
+                                    <option value="problems-desc">Проблеми ↓</option>
+                                    <option value="problems-asc">Проблеми ↑</option>
+                                    <option value="complexity-desc">Складність ↓</option>
+                                    <option value="complexity-asc">Складність ↑</option>
+                                    <option value="client-asc">Клієнт A-Z</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="analyses-list" id="analyses-list">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                    
+                    <!-- Timeline View -->
+                    <div class="history-view" id="history-timeline-view" style="display: none;">
+                        <div class="timeline-container" id="timeline-container">
+                            <!-- Dynamic timeline -->
+                        </div>
+                    </div>
+                    
+                    <!-- Grid View -->
+                    <div class="history-view" id="history-grid-view" style="display: none;">
+                        <div class="analyses-grid" id="analyses-grid">
+                            <!-- Dynamic grid -->
+                        </div>
+                    </div>
+                    
+                    <!-- Analytics View -->
+                    <div class="history-view" id="history-analytics-view" style="display: none;">
+                        <div class="analytics-dashboard">
+                            <div class="analytics-cards">
+                                <div class="analytics-card">
+                                    <div class="card-header">
+                                        <h4>Тренди по часу</h4>
+                                        <i class="fas fa-chart-line"></i>
+                                    </div>
+                                    <div class="chart-container" id="time-trends-chart">
+                                        <!-- Chart will be rendered here -->
+                                    </div>
+                                </div>
+                                <div class="analytics-card">
+                                    <div class="card-header">
+                                        <h4>Розподіл проблем</h4>
+                                        <i class="fas fa-pie-chart"></i>
+                                    </div>
+                                    <div class="chart-container" id="problems-distribution-chart">
+                                        <!-- Chart will be rendered here -->
+                                    </div>
+                                </div>
+                                <div class="analytics-card">
+                                    <div class="card-header">
+                                        <h4>Ефективність клієнтів</h4>
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                    <div class="chart-container" id="client-effectiveness-chart">
+                                        <!-- Chart will be rendered here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <div class="footer-stats">
+                    <span id="displayed-count">Показано: 0 з 0</span>
+                    <span class="separator">|</span>
+                    <span id="selection-count">Обрано: 0</span>
+                </div>
+                <div class="footer-actions">
+                    <button class="btn-secondary" id="history-help-btn">
+                        <i class="fas fa-question-circle"></i>
+                        Довідка
+                    </button>
+                    <button class="btn-primary" id="close-history-modal-btn">Закрити</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Comparison Modal -->
+    <div id="comparison-modal" class="modal modal-xlarge" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-balance-scale"></i>
+                    Порівняння аналізів
+                </h3>
+                <button class="modal-close" id="comparison-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="comparison-container" id="comparison-container">
+                    <!-- Dynamic comparison content -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options Modal -->
+    <div id="export-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-download"></i>
+                    Експорт даних
+                </h3>
+                <button class="modal-close" id="export-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-options">
+                    <div class="export-format">
+                        <h4>Формат експорту:</h4>
+                        <div class="format-options">
+                            <label><input type="radio" name="export-format" value="pdf" checked> PDF звіт</label>
+                            <label><input type="radio" name="export-format" value="json"> JSON дані</label>
+                            <label><input type="radio" name="export-format" value="csv"> CSV таблиця</label>
+                            <label><input type="radio" name="export-format" value="excel"> Excel файл</label>
+                        </div>
+                    </div>
+                    <div class="export-content">
+                        <h4>Що включити:</h4>
+                        <div class="content-options">
+                            <label><input type="checkbox" id="include-analyses" checked> Аналізи</label>
+                            <label><input type="checkbox" id="include-recommendations" checked> Рекомендації</label>
+                            <label><input type="checkbox" id="include-clients"> Інформація про клієнтів</label>
+                            <label><input type="checkbox" id="include-statistics"> Статистика</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancel-export-btn">Скасувати</button>
+                <button class="btn-primary" id="confirm-export-btn">
+                    <i class="fas fa-download"></i>
+                    Експортувати
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/auth.js"></script>
     
