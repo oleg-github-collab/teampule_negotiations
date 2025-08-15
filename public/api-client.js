@@ -13,11 +13,16 @@ class APIClient {
         this.defaultHeaders = {
             'Content-Type': 'application/json',
         };
-        this.timeout = 30000; // 30 seconds
+        this.timeout = 60000; // 60 seconds for analysis
         this.retryAttempts = 3;
         this.retryDelay = 1000; // 1 second
+        this.connectionStatus = 'online';
+        this.queuedRequests = new Map();
+        this.failedRequestsCache = [];
         
-        console.log('🌐 APIClient initialized');
+        this.setupErrorRecovery();
+        this.setupConnectionMonitoring();
+        console.log('🌐 APIClient initialized with enhanced error handling');
     }
     
     // Single Responsibility: Make HTTP request with retry logic
@@ -85,6 +90,54 @@ class APIClient {
     // Single Responsibility: Delay utility
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    // Setup error recovery mechanisms
+    setupErrorRecovery() {
+        this.errorRecovery = {
+            maxCacheSize: 100,
+            retryFailedRequests: async () => {
+                if (this.failedRequestsCache.length === 0 || this.connectionStatus !== 'online') {
+                    return;
+                }
+                
+                console.log(`🔄 Retrying ${this.failedRequestsCache.length} cached failed requests`);
+                const requests = [...this.failedRequestsCache];
+                this.failedRequestsCache = [];
+                
+                for (const request of requests) {
+                    try {
+                        const result = await this.makeRequest(request.url, request.options);
+                        if (request.resolve) request.resolve(result);
+                    } catch (error) {
+                        if (request.reject) request.reject(error);
+                    }
+                }
+            },
+            
+            cacheFailedRequest: (url, options, resolve, reject) => {
+                if (this.failedRequestsCache.length >= this.errorRecovery.maxCacheSize) {
+                    this.failedRequestsCache.shift(); // Remove oldest
+                }
+                this.failedRequestsCache.push({ url, options, resolve, reject, timestamp: Date.now() });
+            }
+        };
+    }
+    
+    // Setup connection monitoring
+    setupConnectionMonitoring() {
+        if (typeof window !== 'undefined') {
+            window.addEventListener('online', () => {
+                console.log('🌐 Connection restored');
+                this.connectionStatus = 'online';
+                this.errorRecovery.retryFailedRequests();
+            });
+            
+            window.addEventListener('offline', () => {
+                console.log('🌐 Connection lost');
+                this.connectionStatus = 'offline';
+            });
+        }
     }
     
     // Interface Segregation: Client operations

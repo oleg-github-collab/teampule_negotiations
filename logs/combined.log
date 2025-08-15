@@ -12170,3 +12170,114 @@
   level: 'info',
   message: 'AI Usage'
 }
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 2,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 19:08:36'
+}
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 19:57:53'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 19:57:53'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 19:57:53'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 19:57:53'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 19:57:53'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:17:58:51 +0000] "GET /health HTTP/1.1" 200 400 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 19:58:51'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:17:58:51 +0000] "GET /login HTTP/1.1" 200 3551 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 19:58:51'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:18:04:27 +0000] "GET /health HTTP/1.1" 200 401 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 20:04:27'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'POST',
+  url: '/api/login',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 18,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 20:04:27'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:18:04:27 +0000] "POST /api/login HTTP/1.1" 200 16 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 20:04:27'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:18:04:28 +0000] "GET /api/clients HTTP/1.1" 200 660 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 20:04:28'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage',
+  userAgent: 'curl/8.7.1',
+  ip: '127.0.0.1',
+  responseTime: 1,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-15 20:04:38'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:18:04:38 +0000] "GET /api/usage HTTP/1.1" 200 135 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 20:04:38'
+}
+{
+  message: '127.0.0.1 - - [15/Aug/2025:18:04:38 +0000] "GET / HTTP/1.1" 302 28 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-15 20:04:38'
+}

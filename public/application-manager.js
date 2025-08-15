@@ -162,9 +162,14 @@ class ApplicationManager {
             this.handleLogout();
         }, { description: 'Logout Button' });
         
-        // Help button
+        // Help button - force show onboarding
         buttonManager.register('#help-toggle', () => {
-            window.onboardingManager?.forceShow();
+            console.log('🚀 Help button clicked - showing onboarding');
+            if (window.onboardingManager) {
+                window.onboardingManager.forceShow();
+            } else {
+                console.error('OnboardingManager not available');
+            }
         }, { description: 'Help Button' });
         
         // Product dropdown
@@ -205,6 +210,12 @@ class ApplicationManager {
         // Global error handler
         window.addEventListener('error', (event) => {
             console.error('🚀 Global error:', event.error);
+            
+            // Show user-friendly error message for critical errors
+            if (event.error?.message?.includes('Cannot read')) {
+                this.showCriticalErrorFallback('Помилка завантаження компонентів. Перезавантажте сторінку.');
+            }
+            
             this.logClientError({
                 error: event.error?.message || 'Unknown error',
                 filename: event.filename,
@@ -217,9 +228,25 @@ class ApplicationManager {
         // Unhandled promise rejection handler
         window.addEventListener('unhandledrejection', (event) => {
             console.error('🚀 Unhandled promise rejection:', event.reason);
+            
+            // Handle specific promise rejections gracefully
+            if (event.reason?.message?.includes('AbortError')) {
+                console.log('🚀 Request was aborted - handling gracefully');
+                event.preventDefault();
+                return;
+            }
+            
+            if (event.reason?.message?.includes('NetworkError')) {
+                this.showNetworkErrorFallback();
+                event.preventDefault();
+                return;
+            }
+            
             this.logClientError({
                 error: 'Unhandled promise rejection: ' + event.reason,
-                type: 'unhandledrejection'
+                type: 'unhandledrejection',
+                reason: event.reason?.toString(),
+                stack: event.reason?.stack
             });
         });
         

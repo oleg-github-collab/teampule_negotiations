@@ -14,8 +14,14 @@ class AnalysisManager {
         this.currentAnalysis = null;
         this.isAnalyzing = false;
         this.inputMethod = 'text';
+        this.retryAttempts = 3;
+        this.lastAnalysisData = null; // For retry functionality
+        this.analysisTimeout = null;
+        this.heartbeatInterval = null;
+        this.failedAnalysisCount = 0;
+        this.analysisHistory = [];
         
-        console.log('📊 AnalysisManager initialized');
+        console.log('📊 AnalysisManager initialized with enhanced reliability');
         this.init();
     }
     
@@ -305,6 +311,11 @@ class AnalysisManager {
         const highlightsList = document.getElementById('highlights-list');
         if (!highlightsList) return;
         
+        // Clear empty state on first highlight
+        if (highlightsList.querySelector('.empty-state')) {
+            highlightsList.innerHTML = '';
+        }
+        
         const highlightElement = this.createHighlightElement(highlight);
         
         // Add with animation
@@ -321,24 +332,39 @@ class AnalysisManager {
         
         // Scroll to show new highlight
         highlightElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        // Update counter
+        this.updateHighlightCounter();
+    }
+    
+    // Single Responsibility: Update highlight counter
+    updateHighlightCounter() {
+        const counter = document.querySelector('.highlights-counter');
+        if (counter) {
+            const count = document.querySelectorAll('#highlights-list .highlight-item').length;
+            counter.textContent = `Знайдено проблем: ${count}`;
+        }
     }
     
     // Single Responsibility: Update text highlighting in real-time
     updateTextHighlighting(highlight) {
-        const highlightedTextContainer = document.getElementById('highlighted-text');
-        if (!highlightedTextContainer) return;
-        
-        // Get current text or original if first highlight
-        let currentHTML = highlightedTextContainer.innerHTML;
-        if (!currentHTML) {
-            const analysisData = this.getAnalysisData();
-            currentHTML = this.escapeHtml(analysisData.text || '');
-            highlightedTextContainer.innerHTML = currentHTML;
+        // Update fulltext content
+        let highlightedTextContainer = document.getElementById('fulltext-content');
+        if (highlightedTextContainer) {
+            // Get current text or original if first highlight
+            let currentHTML = highlightedTextContainer.innerHTML;
+            if (!currentHTML || currentHTML.includes('empty-state')) {
+                const analysisData = this.getAnalysisData();
+                currentHTML = `<div class="fulltext-display">${this.escapeHtml(analysisData.text || '')}</div>`;
+                highlightedTextContainer.innerHTML = currentHTML;
+            }
+            
+            // Apply new highlight
+            const highlightedHTML = this.applyHighlightToText(currentHTML, highlight);
+            highlightedTextContainer.innerHTML = highlightedHTML;
         }
         
-        // Apply new highlight
-        const highlightedHTML = this.applyHighlightToText(currentHTML, highlight);
-        highlightedTextContainer.innerHTML = highlightedHTML;
+        console.log('📊 Text highlighting updated for:', highlight.text);
     }
     
     // Single Responsibility: Create HTML element for a highlight
@@ -425,24 +451,52 @@ class AnalysisManager {
     
     // Single Responsibility: Update progress bar
     updateProgressBar(progress) {
-        const progressBar = document.getElementById('analysis-progress');
-        const progressText = document.getElementById('analysis-progress-text');
-        
-        if (progressBar) {
-            progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+        // Update main progress indicator
+        const stepText = document.getElementById('step-text');
+        if (stepText) {
+            stepText.textContent = `Прогрес: ${Math.round(progress)}%`;
         }
         
-        if (progressText) {
-            progressText.textContent = `${Math.round(progress)}%`;
-        }
+        // Update progress steps visually
+        this.updateProgressSteps(progress);
     }
     
     // Single Responsibility: Update progress message
     updateProgressMessage(message) {
-        const messageElement = document.getElementById('analysis-status-message');
-        if (messageElement) {
-            messageElement.textContent = message;
+        const stepText = document.getElementById('step-text');
+        if (stepText) {
+            stepText.textContent = message;
         }
+        
+        // Also update console for debugging
+        console.log('📊 Progress:', message);
+    }
+    
+    // Single Responsibility: Update visual progress steps
+    updateProgressSteps(progress) {
+        const steps = {
+            'step-text-processing': 0,
+            'step-ai-analysis': 25,
+            'step-problem-detection': 50,
+            'step-complexity-assessment': 75
+        };
+        
+        Object.entries(steps).forEach(([stepId, threshold]) => {
+            const stepElement = document.getElementById(stepId);
+            if (stepElement) {
+                if (progress >= threshold) {
+                    stepElement.classList.add('completed');
+                    stepElement.classList.remove('active');
+                    const statusEl = stepElement.querySelector('.step-status');
+                    if (statusEl) statusEl.textContent = 'Завершено';
+                } else if (progress >= threshold - 25) {
+                    stepElement.classList.add('active');
+                    stepElement.classList.remove('completed');
+                    const statusEl = stepElement.querySelector('.step-status');
+                    if (statusEl) statusEl.textContent = 'В процесі...';
+                }
+            }
+        });
     }
     
     // Single Responsibility: Finalize analysis results
@@ -969,10 +1023,31 @@ class AnalysisManager {
     }
     
     showResultsSection() {
-        const resultsSection = document.getElementById('analysis-results');
-        if (resultsSection) {
-            resultsSection.style.display = 'block';
+        // Show the main results section which contains highlights and barometer
+        const analysisResults = document.querySelector('.analysis-results');
+        if (analysisResults) {
+            analysisResults.style.display = 'block';
         }
+        
+        // Ensure highlights section is visible
+        const highlightsSection = document.querySelector('.highlights-section');
+        if (highlightsSection) {
+            highlightsSection.style.display = 'block';
+        }
+        
+        // Show progress section
+        const progressSection = document.querySelector('.analysis-progress');
+        if (progressSection) {
+            progressSection.style.display = 'block';
+        }
+        
+        // Show barometer section
+        const barometerCard = document.querySelector('.barometer-card');
+        if (barometerCard) {
+            barometerCard.style.display = 'block';
+        }
+        
+        console.log('📊 Results sections made visible');
     }
     
     hideResultsSection() {
@@ -1139,24 +1214,33 @@ class AnalysisManager {
     }
     
     displayBarometer(barometer) {
-        const barometerElement = document.getElementById('analysis-barometer');
-        if (barometerElement && barometer) {
-            barometerElement.innerHTML = `
-                <div class="barometer-content">
-                    <h3>Барометр складності</h3>
-                    <div class="barometer-score">
-                        <div class="score-circle">
-                            <span class="score-value">${barometer.score || 0}</span>
-                            <span class="score-max">/100</span>
-                        </div>
-                        <div class="score-label">${barometer.label || 'Невідомо'}</div>
-                    </div>
-                    <div class="barometer-rationale">
-                        <p>${barometer.rationale || 'Оцінка недоступна'}</p>
-                    </div>
-                </div>
-            `;
+        if (!barometer) return;
+        
+        const scoreElement = document.getElementById('barometer-score');
+        const labelElement = document.getElementById('barometer-label');
+        const commentElement = document.getElementById('barometer-comment');
+        const gaugeCircle = document.getElementById('gauge-circle');
+        
+        if (scoreElement) {
+            scoreElement.textContent = barometer.score || 0;
         }
+        
+        if (labelElement) {
+            labelElement.textContent = barometer.label || 'Невідомо';
+        }
+        
+        if (commentElement) {
+            commentElement.textContent = barometer.rationale || 'Оцінка недоступна';
+        }
+        
+        // Update gauge visual
+        if (gaugeCircle && barometer.score) {
+            const score = Math.max(0, Math.min(100, barometer.score));
+            const dashArray = (score / 100) * 283; // 283 = 2π × 45 (radius)
+            gaugeCircle.setAttribute('stroke-dasharray', `${dashArray} 283`);
+        }
+        
+        console.log('📊 Barometer updated:', barometer);
     }
     
     updateFinalStatistics(analysis) {

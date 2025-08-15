@@ -2737,6 +2737,148 @@ button {
     min-width: auto;
 }
 
+/* Real-time analysis styles */
+.highlight-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    animation: fadeInUp 0.3s ease;
+}
+
+.highlight-item.manipulation {
+    border-left: 4px solid #ff0080;
+}
+
+.highlight-item.cognitive_bias, .highlight-item.bias {
+    border-left: 4px solid #00d4ff;
+}
+
+.highlight-item.rhetological_fallacy, .highlight-item.fallacy {
+    border-left: 4px solid #ffea00;
+}
+
+.highlight-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.highlight-icon {
+    font-size: 1.2rem;
+    margin-right: var(--spacing-xs);
+}
+
+.highlight-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.highlight-severity {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.highlight-severity.severity-1 {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+.highlight-severity.severity-2 {
+    background: rgba(255, 234, 0, 0.2);
+    color: #ffea00;
+}
+
+.highlight-severity.severity-3 {
+    background: rgba(255, 0, 128, 0.2);
+    color: #ff0080;
+}
+
+.highlight-text {
+    font-style: italic;
+    color: var(--text-secondary);
+    margin: var(--spacing-xs) 0;
+    border-left: 2px solid var(--text-accent);
+    padding-left: var(--spacing-sm);
+}
+
+.highlight-explanation {
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin-bottom: var(--spacing-sm);
+}
+
+.highlight-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+/* Text highlighting in full text display */
+.text-highlight {
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-weight: 600;
+    position: relative;
+    cursor: help;
+}
+
+.text-highlight.manipulation {
+    background: rgba(255, 0, 128, 0.3);
+    color: #ff0080;
+}
+
+.text-highlight.bias {
+    background: rgba(0, 212, 255, 0.3);
+    color: #00d4ff;
+}
+
+.text-highlight.fallacy {
+    background: rgba(255, 234, 0, 0.3);
+    color: #ffea00;
+}
+
+.fulltext-display {
+    line-height: 1.8;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    padding: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Animation for new highlights */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Progress steps styling */
+.progress-step.active .step-icon {
+    color: var(--neon-blue);
+    animation: pulse 2s infinite;
+}
+
+.progress-step.completed .step-icon {
+    color: var(--neon-green);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
 .btn-duplicate,
 .btn-delete {
     width: 24px;

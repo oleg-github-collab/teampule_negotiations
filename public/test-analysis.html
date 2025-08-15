@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #0a0a0a; color: white; }
+        .test-container { max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #333; border-radius: 8px; }
+        .highlight-item { margin: 10px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .barometer { padding: 20px; background: rgba(0,255,136,0.1); border-radius: 8px; margin: 20px 0; }
+        .progress { margin: 10px 0; padding: 10px; background: rgba(255,234,0,0.1); }
+        button { background: #a855f7; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #9333ea; }
+        #highlights-list, #fulltext-content { min-height: 200px; border: 1px solid #444; padding: 10px; margin: 10px 0; }
+        #step-text, #barometer-score, #barometer-label, #barometer-comment { display: block; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Analysis Test Page</h1>
+        
+        <!-- Progress Section -->
+        <div class="test-section">
+            <h3>📊 Progress</h3>
+            <div id="step-text">Готово до тестування</div>
+            <div id="step-text-processing" class="progress">Text Processing: Ready</div>
+            <div id="step-ai-analysis" class="progress">AI Analysis: Ready</div>
+            <div id="step-problem-detection" class="progress">Problem Detection: Ready</div>
+            <div id="step-complexity-assessment" class="progress">Complexity Assessment: Ready</div>
+        </div>
+        
+        <!-- Barometer Section -->
+        <div class="test-section">
+            <h3>🎯 Barometer</h3>
+            <div class="barometer">
+                <div id="barometer-score">—</div>
+                <div id="barometer-label">Waiting...</div>
+                <div id="barometer-comment">No data</div>
+                <svg width="100" height="100">
+                    <circle id="gauge-circle" cx="50" cy="50" r="45" fill="none" stroke="#00ff88" stroke-width="8" stroke-dasharray="0 283"/>
+                </svg>
+            </div>
+        </div>
+        
+        <!-- Highlights Section -->
+        <div class="test-section">
+            <h3>🔍 Real-time Highlights</h3>
+            <div id="highlights-list">
+                <div class="empty-state">No highlights yet...</div>
+            </div>
+        </div>
+        
+        <!-- Full Text Section -->
+        <div class="test-section">
+            <h3>📄 Highlighted Text</h3>
+            <div id="fulltext-content">
+                <div class="empty-state">Full text will appear here...</div>
+            </div>
+        </div>
+        
+        <!-- Input Section -->
+        <div class="test-section">
+            <h3>⚡ Test Controls</h3>
+            <textarea id="negotiation-text" placeholder="Enter test text here..." style="width: 100%; height: 100px; background: #1a1a1a; color: white; border: 1px solid #444; padding: 10px; border-radius: 4px;">Це терміновий проект, і вам потрібно прийняти рішення зараз, або ми втратимо унікальну можливість. Всі наші клієнти завжди згоджуються на такі умови.</textarea>
+            <br>
+            <button onclick="testAnalysis()">🚀 Start Analysis Test</button>
+            <button onclick="testOnboarding()">🎓 Test Onboarding</button>
+            <button onclick="clearResults()">🧹 Clear Results</button>
+        </div>
+        
+        <!-- Debug Section -->
+        <div class="test-section">
+            <h3>🐛 Debug Info</h3>
+            <div id="debug-info">
+                <div>App Status: <span id="app-status">Loading...</span></div>
+                <div>Managers: <span id="managers-status">Loading...</span></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load SOLID System -->
+    <script src="/api-client.js"></script>
+    <script src="/button-manager.js"></script>
+    <script src="/modal-manager.js"></script>
+    <script src="/client-manager.js"></script>
+    <script src="/analysis-manager.js"></script>
+    <script src="/onboarding-manager.js"></script>
+    <script src="/application-manager.js"></script>
+    
+    <script>
+        // Test functions
+        function updateDebugInfo() {
+            document.getElementById('app-status').textContent = window.app ? 'Ready' : 'Not Ready';
+            
+            const managers = [];
+            if (window.buttonManager) managers.push('ButtonManager');
+            if (window.modalManager) managers.push('ModalManager'); 
+            if (window.clientManager) managers.push('ClientManager');
+            if (window.analysisManager) managers.push('AnalysisManager');
+            if (window.onboardingManager) managers.push('OnboardingManager');
+            if (window.apiClient) managers.push('APIClient');
+            
+            document.getElementById('managers-status').textContent = managers.join(', ') || 'None';
+        }
+        
+        async function testAnalysis() {
+            if (!window.analysisManager) {
+                alert('AnalysisManager not ready!');
+                return;
+            }
+            
+            console.log('🧪 Starting analysis test...');
+            
+            // Create fake client for testing
+            if (!window.clientManager || !window.clientManager.getCurrentClient()) {
+                const fakeClient = {
+                    id: 28,
+                    company: 'Test Company',
+                    negotiator: 'Test User',
+                    sector: 'Technology'
+                };
+                
+                if (window.clientManager) {
+                    window.clientManager.currentClient = fakeClient;
+                }
+            }
+            
+            // Start analysis
+            await window.analysisManager.startAnalysis();
+        }
+        
+        function testOnboarding() {
+            if (window.onboardingManager) {
+                window.onboardingManager.forceShow();
+            } else {
+                alert('OnboardingManager not ready!');
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('highlights-list').innerHTML = '<div class="empty-state">No highlights yet...</div>';
+            document.getElementById('fulltext-content').innerHTML = '<div class="empty-state">Full text will appear here...</div>';
+            document.getElementById('barometer-score').textContent = '—';
+            document.getElementById('barometer-label').textContent = 'Waiting...';
+            document.getElementById('barometer-comment').textContent = 'No data';
+            document.getElementById('step-text').textContent = 'Ready for test';
+        }
+        
+        // Update debug info periodically
+        setInterval(updateDebugInfo, 1000);
+        updateDebugInfo();
+        
+        console.log('🧪 Test page loaded');
+    </script>
+</body>
+</html>
