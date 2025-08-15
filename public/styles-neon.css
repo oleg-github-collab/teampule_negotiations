@@ -103,6 +103,7 @@ body::before {
     background-size: 200px 100px;
     opacity: 0.03;
     z-index: 0;
+    pointer-events: none;
     animation: drift 20s ease-in-out infinite alternate;
 }
 
