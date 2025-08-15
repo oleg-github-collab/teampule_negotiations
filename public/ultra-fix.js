@@ -146,18 +146,62 @@ class UltraButtonSystem {
     }
     
     async saveClient() {
-        const form = document.getElementById('client-form');
-        if (!form) return;
+        console.log('🚀 ULTRA SAVE CLIENT - Starting...');
         
-        const formData = new FormData(form);
-        const clientData = Object.fromEntries(formData);
+        // Get form fields manually instead of using FormData constructor
+        const clientData = {
+            company: '',
+            negotiator: '',
+            sector: '',
+            goal: '',
+            decision_criteria: '',
+            constraints: '',
+            user_goals: '',
+            client_goals: '',
+            weekly_hours: 0,
+            offered_services: '',
+            deadlines: '',
+            notes: ''
+        };
         
-        if (!clientData.company?.trim()) {
+        // Get values from form fields
+        const companyField = document.getElementById('company') || document.querySelector('input[name="company"]');
+        const negotiatorField = document.getElementById('negotiator') || document.querySelector('input[name="negotiator"]');
+        const sectorField = document.getElementById('sector') || document.querySelector('input[name="sector"]');
+        const goalField = document.getElementById('goal') || document.querySelector('textarea[name="goal"]');
+        const criteriaField = document.getElementById('decision_criteria') || document.querySelector('textarea[name="decision_criteria"]');
+        const constraintsField = document.getElementById('constraints') || document.querySelector('textarea[name="constraints"]');
+        const userGoalsField = document.getElementById('user_goals') || document.querySelector('textarea[name="user_goals"]');
+        const clientGoalsField = document.getElementById('client_goals') || document.querySelector('textarea[name="client_goals"]');
+        const hoursField = document.getElementById('weekly_hours') || document.querySelector('input[name="weekly_hours"]');
+        const servicesField = document.getElementById('offered_services') || document.querySelector('textarea[name="offered_services"]');
+        const deadlinesField = document.getElementById('deadlines') || document.querySelector('textarea[name="deadlines"]');
+        const notesField = document.getElementById('notes') || document.querySelector('textarea[name="notes"]');
+        
+        // Populate data object
+        if (companyField) clientData.company = companyField.value.trim();
+        if (negotiatorField) clientData.negotiator = negotiatorField.value.trim();
+        if (sectorField) clientData.sector = sectorField.value.trim();
+        if (goalField) clientData.goal = goalField.value.trim();
+        if (criteriaField) clientData.decision_criteria = criteriaField.value.trim();
+        if (constraintsField) clientData.constraints = constraintsField.value.trim();
+        if (userGoalsField) clientData.user_goals = userGoalsField.value.trim();
+        if (clientGoalsField) clientData.client_goals = clientGoalsField.value.trim();
+        if (hoursField) clientData.weekly_hours = parseInt(hoursField.value) || 0;
+        if (servicesField) clientData.offered_services = servicesField.value.trim();
+        if (deadlinesField) clientData.deadlines = deadlinesField.value.trim();
+        if (notesField) clientData.notes = notesField.value.trim();
+        
+        console.log('🚀 Client data collected:', clientData);
+        
+        if (!clientData.company) {
             alert('Введіть назву компанії');
+            if (companyField) companyField.focus();
             return;
         }
         
         try {
+            console.log('🚀 Sending save request...');
             const response = await fetch('/api/clients', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -166,14 +210,16 @@ class UltraButtonSystem {
             });
             
             const result = await response.json();
+            console.log('🚀 Save response:', result);
             
             if (result.success) {
-                alert('Клієнт збережений');
+                alert('Клієнт збережений успішно!');
                 window.location.reload();
             } else {
-                alert('Помилка: ' + (result.error || 'Unknown error'));
+                alert('Помилка збереження: ' + (result.error || 'Невідома помилка'));
             }
         } catch (error) {
+            console.error('🚀 Save error:', error);
             alert('Помилка мережі: ' + error.message);
         }
     }
@@ -242,9 +288,9 @@ class UltraButtonSystem {
         if (progressText) progressText.textContent = 'Починаю аналіз...';
         
         try {
-            // Prepare form data
+            // Prepare form data - fix the FormData issue
             const formData = new FormData();
-            formData.append('client_id', clientId);
+            formData.append('client_id', clientId.toString());
             formData.append('text', text);
             formData.append('method', 'text');
             

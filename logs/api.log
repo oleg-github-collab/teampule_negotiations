@@ -1486,3 +1486,8 @@
 {"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-15 20:42:12"}
 {"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-15 20:42:12"}
 {"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-15 20:42:12"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)","service":"teampulse-turbo","timestamp":"2025-08-15 22:03:09"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-15 22:03:09"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-15 22:03:09"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-15 22:03:09"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-15 22:03:09"}
