@@ -524,13 +524,19 @@
                 // Default options
                 const defaultOptions = {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: {}
                 };
+                
+                // Only set Content-Type for JSON if body is not FormData
+                if (options.body && !(options.body instanceof FormData)) {
+                    defaultOptions.headers['Content-Type'] = 'application/json';
+                }
                 
                 // Merge options
                 const finalOptions = { ...defaultOptions, ...options };
+                
+                // Merge headers properly
+                finalOptions.headers = { ...defaultOptions.headers, ...options.headers };
                 
                 // Add timeout
                 const controller = new AbortController();
@@ -1025,13 +1031,15 @@
             // Reset counters and displays
             resetAnalysisDisplay();
             
-            // Make the analysis request using reliable API function
+            // Make the analysis request using FormData for multipart/form-data
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('client_id', state.currentClient.id);
+            
             const data = await makeReliableApiRequest('/api/analyze', {
                 method: 'POST',
-                body: JSON.stringify({
-                    text: text,
-                    client_id: state.currentClient.id
-                })
+                body: formData,
+                headers: {} // Remove Content-Type header to let browser set it automatically for FormData
             });
             
             // Process analysis results
@@ -2672,7 +2680,7 @@
                 const tooltip = escapeHtml(segment.highlight.explanation || segment.highlight.label || segment.highlight.description || '');
                 const highlightId = segment.highlight.id || index;
                 
-                result += `<span class="text-highlight ${categoryClass}" title="${tooltip}" data-highlight-id="${highlightId}">${escapeHtml(segment.content)}</span>`;
+                result += `<span class="text-highlight ${categoryClass} interactive-highlight" title="${tooltip}" data-highlight-id="${highlightId}" data-tooltip="${tooltip}">${escapeHtml(segment.content)}</span>`;
                 
                 console.log('🎨 ✅ Highlight added:', {
                     category: segment.highlight.category,
@@ -4655,6 +4663,90 @@
         }
     }
 
+    function showHighlightDetails(highlightId, tooltip, event) {
+        console.log('💬 Showing highlight details for:', highlightId);
+        
+        // Знайти повну інформацію про хайлайт
+        let highlight = null;
+        if (state.currentAnalysis && state.currentAnalysis.highlights) {
+            highlight = state.currentAnalysis.highlights.find(h => h.id === highlightId);
+        }
+        
+        const modal = document.createElement('div');
+        modal.className = 'advice-modal highlight-detail-modal';
+        modal.innerHTML = `
+            <div class="advice-content" style="max-width: 600px;">
+                <div class="advice-header">
+                    <h3><i class="fas fa-exclamation-triangle" style="color: var(--neon-pink);"></i> Деталі проблемного фрагменту</h3>
+                    <button class="close-advice" aria-label="Закрити">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="advice-body">
+                    ${highlight ? `
+                        <div class="highlight-detail">
+                            <div class="highlight-category">
+                                <span class="category-badge ${getCategoryClass(highlight.category)}">${highlight.label || highlight.category}</span>
+                                <span class="severity-badge severity-${highlight.severity || 1}">Рівень ${highlight.severity || 1}</span>
+                            </div>
+                            <div class="highlight-text-preview">
+                                <strong>Фрагмент:</strong><br>
+                                <em>"${escapeHtml(highlight.text)}"</em>
+                            </div>
+                            <div class="highlight-explanation">
+                                <strong>Пояснення:</strong><br>
+                                ${escapeHtml(highlight.explanation || tooltip)}
+                            </div>
+                            ${highlight.suggestion ? `
+                                <div class="highlight-suggestion">
+                                    <strong>Рекомендація:</strong><br>
+                                    ${escapeHtml(highlight.suggestion)}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : `
+                        <div class="highlight-basic">
+                            <p><strong>Опис:</strong><br>${escapeHtml(tooltip)}</p>
+                        </div>
+                    `}
+                    <div class="highlight-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                        <button class="btn-secondary add-to-workspace-detail-btn" data-highlight='${JSON.stringify(highlight || {text: "Невідомий фрагмент", explanation: tooltip}).replace(/'/g, "&#39;")}'>
+                            <i class="fas fa-plus"></i> Додати до робочої області
+                        </button>
+                        <button class="btn-secondary copy-text-btn" data-text="${escapeHtml((highlight && highlight.text) || '')}">
+                            <i class="fas fa-copy"></i> Скопіювати текст
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.style.display = 'flex';
+        
+        // Event listeners
+        modal.querySelector('.close-advice').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        
+        // Add to workspace button
+        modal.querySelector('.add-to-workspace-detail-btn')?.addEventListener('click', (e) => {
+            const highlightData = JSON.parse(e.target.dataset.highlight);
+            addToSelectedFragments(highlightData);
+            modal.remove();
+            showNotification('Фрагмент додано до робочої області', 'success');
+        });
+        
+        // Copy text button
+        modal.querySelector('.copy-text-btn')?.addEventListener('click', (e) => {
+            const text = e.target.dataset.text;
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('Текст скопійовано', 'success');
+            });
+        });
+    }
+
     function showDeleteClientModal(clientId) {
         console.log('🗑️ showDeleteClientModal called with ID:', clientId);
         
@@ -4827,6 +4919,19 @@
             console.log('🎯 Client selection clicked for ID:', clientId);
             if (clientId) {
                 selectClient(clientId);
+            }
+            return;
+        }
+
+        // Обробка кліків по хайлайтам
+        const highlightSpan = e.target.closest('.text-highlight');
+        if (highlightSpan) {
+            e.preventDefault();
+            e.stopPropagation();
+            const highlightId = highlightSpan.dataset.highlightId;
+            const tooltip = highlightSpan.dataset.tooltip;
+            if (highlightId && tooltip) {
+                showHighlightDetails(highlightId, tooltip, e);
             }
             return;
         }

@@ -55,6 +55,7 @@ function createSmartChunks(text, maxChunkSize = 6000) {
   let chunkIndex = 0;
 
   console.log(`📦 Processing ${paragraphs.length} paragraphs`);
+  console.log(`📦 Paragraph lengths:`, paragraphs.map((p, i) => `P${i}: ${p.length} chars`));
 
   for (let i = 0; i < paragraphs.length; i++) {
     const paragraph = paragraphs[i];
