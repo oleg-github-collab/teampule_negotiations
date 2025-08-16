@@ -453,6 +453,375 @@ function buildUserPayload(paragraphs, clientCtx, limiter) {
   };
 }
 
+// Enhanced analysis results processing with deduplication and quality improvement
+function enhanceAnalysisResults(highlights, originalText) {
+  console.log('🧠 Starting enhanced analysis processing...');
+  
+  if (!highlights || highlights.length === 0) return [];
+  
+  // Step 1: Remove duplicates and near-duplicates
+  const deduplicatedHighlights = removeDuplicateHighlights(highlights);
+  console.log(`🔍 Deduplication: ${highlights.length} → ${deduplicatedHighlights.length}`);
+  
+  // Step 2: Enhance and validate text positions
+  const positionValidatedHighlights = validateAndFixPositions(deduplicatedHighlights, originalText);
+  console.log(`📍 Position validation: ${deduplicatedHighlights.length} → ${positionValidatedHighlights.length}`);
+  
+  // Step 3: Improve explanations and categorization
+  const enhancedHighlights = improveExplanations(positionValidatedHighlights);
+  console.log(`✨ Enhancement complete: ${enhancedHighlights.length} final highlights`);
+  
+  // Step 4: Sort by severity and position
+  return enhancedHighlights.sort((a, b) => {
+    if (a.severity !== b.severity) return b.severity - a.severity; // Higher severity first
+    return (a.char_start || 0) - (b.char_start || 0); // Then by position
+  });
+}
+
+function removeDuplicateHighlights(highlights) {
+  const seen = new Set();
+  const uniqueHighlights = [];
+  
+  for (const highlight of highlights) {
+    if (!highlight.text) continue;
+    
+    // Create deduplication key based on normalized text and category
+    const normalizedText = highlight.text.toLowerCase().replace(/[^\w\s]/g, '').trim();
+    const key = `${normalizedText}:${highlight.category || 'manipulation'}`;
+    
+    if (!seen.has(key)) {
+      seen.add(key);
+      
+      // Find all similar highlights to merge their explanations
+      const similarHighlights = highlights.filter(h => {
+        if (!h.text) return false;
+        const hNormalized = h.text.toLowerCase().replace(/[^\w\s]/g, '').trim();
+        return hNormalized === normalizedText && (h.category || 'manipulation') === (highlight.category || 'manipulation');
+      });
+      
+      // Merge explanations from similar highlights
+      if (similarHighlights.length > 1) {
+        const allExplanations = similarHighlights
+          .map(h => h.explanation)
+          .filter(exp => exp && exp.trim())
+          .slice(0, 3); // Max 3 explanations
+        
+        highlight.explanation = allExplanations.length > 1 
+          ? allExplanations.join(' ') 
+          : highlight.explanation;
+      }
+      
+      uniqueHighlights.push(highlight);
+    }
+  }
+  
+  return uniqueHighlights;
+}
+
+function validateAndFixPositions(highlights, originalText) {
+  const validHighlights = [];
+  
+  for (const highlight of highlights) {
+    if (!highlight.text || !originalText) {
+      validHighlights.push(highlight);
+      continue;
+    }
+    
+    // Try to find the text in the original
+    const textIndex = originalText.indexOf(highlight.text);
+    if (textIndex !== -1) {
+      highlight.char_start = textIndex;
+      highlight.char_end = textIndex + highlight.text.length;
+      validHighlights.push(highlight);
+    } else {
+      // Try fuzzy matching for small differences
+      const fuzzyMatch = findFuzzyMatch(highlight.text, originalText);
+      if (fuzzyMatch) {
+        highlight.text = fuzzyMatch.text;
+        highlight.char_start = fuzzyMatch.start;
+        highlight.char_end = fuzzyMatch.end;
+        validHighlights.push(highlight);
+      } else {
+        // Keep highlight but mark as position-unknown
+        highlight.char_start = 0;
+        highlight.char_end = highlight.text.length;
+        validHighlights.push(highlight);
+      }
+    }
+  }
+  
+  return validHighlights;
+}
+
+function findFuzzyMatch(needle, haystack, threshold = 0.8) {
+  const needleLength = needle.length;
+  const maxDistance = Math.floor(needleLength * (1 - threshold));
+  
+  for (let i = 0; i <= haystack.length - needleLength + maxDistance; i++) {
+    for (let len = needleLength - maxDistance; len <= needleLength + maxDistance && i + len <= haystack.length; len++) {
+      const candidate = haystack.substring(i, i + len);
+      const distance = levenshteinDistance(needle, candidate);
+      
+      if (distance <= maxDistance) {
+        return { text: candidate, start: i, end: i + len };
+      }
+    }
+  }
+  
+  return null;
+}
+
+function levenshteinDistance(str1, str2) {
+  const matrix = [];
+  const len1 = str1.length;
+  const len2 = str2.length;
+  
+  for (let i = 0; i <= len2; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= len1; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= len2; i++) {
+    for (let j = 1; j <= len1; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[len2][len1];
+}
+
+function improveExplanations(highlights) {
+  return highlights.map(highlight => {
+    // Ensure minimum explanation quality
+    if (!highlight.explanation || highlight.explanation.length < 50) {
+      highlight.explanation = generateFallbackExplanation(highlight);
+    }
+    
+    // Enhance labels
+    if (!highlight.label || highlight.label === 'Проблема') {
+      highlight.label = generateBetterLabel(highlight);
+    }
+    
+    // Validate and improve severity
+    if (!highlight.severity || highlight.severity < 1 || highlight.severity > 3) {
+      highlight.severity = calculateBetterSeverity(highlight);
+    }
+    
+    return highlight;
+  });
+}
+
+function generateFallbackExplanation(highlight) {
+  const category = highlight.category || 'manipulation';
+  const text = highlight.text || 'текст';
+  
+  const explanations = {
+    manipulation: `Фрагмент "${text}" містить ознаки маніпулятивної техніки. Використовується для впливу на рішення співрозмовника через емоційний тиск або приховані мотиви. Може призвести до невигідних умов та погіршення довіри в переговорах.`,
+    cognitive_bias: `У фразі "${text}" виявлено когнітивне викривлення. Спотворює об'єктивне сприйняття ситуації та може призвести до помилкових висновків. Важливо розпізнавати такі паттерни для прийняття більш обґрунтованих рішень.`,
+    rhetological_fallacy: `Фрагмент "${text}" демонструє логічну помилку в аргументації. Порушує принципи коректного логічного обґрунтування та може ввести в оману щодо справжніх причин або наслідків. Потребує критичного аналізу.`
+  };
+  
+  return explanations[category] || explanations.manipulation;
+}
+
+function generateBetterLabel(highlight) {
+  const category = highlight.category || 'manipulation';
+  const text = (highlight.text || '').toLowerCase();
+  
+  // Pattern-based label generation
+  if (text.includes('терміново') || text.includes('швидко') || text.includes('сьогодні')) {
+    return 'Штучна терміновість';
+  }
+  if (text.includes('всі') || text.includes('завжди') || text.includes('прийнято')) {
+    return 'Соціальний тиск';
+  }
+  if (text.includes('професіонал') || text.includes('досвід') || text.includes('експерт')) {
+    return 'Апеляція до статусу';
+  }
+  if (text.includes('втрата') || text.includes('втратити') || text.includes('пропустити')) {
+    return 'Страх втрат';
+  }
+  
+  // Category-based fallbacks
+  const fallbackLabels = {
+    manipulation: 'Маніпулятивна техніка',
+    cognitive_bias: 'Когнітивне викривлення',
+    rhetological_fallacy: 'Логічна помилка'
+  };
+  
+  return fallbackLabels[category] || 'Проблемний фрагмент';
+}
+
+function calculateBetterSeverity(highlight) {
+  const text = (highlight.text || '').toLowerCase();
+  const explanation = (highlight.explanation || '').toLowerCase();
+  
+  // High severity triggers
+  const highSeverityWords = ['ультиматум', 'погроза', 'останній', 'негайно', 'примус', 'шантаж'];
+  const mediumSeverityWords = ['терміново', 'обов\'язково', 'мусите', 'необхідно', 'тиск'];
+  
+  if (highSeverityWords.some(word => text.includes(word) || explanation.includes(word))) {
+    return 3;
+  }
+  if (mediumSeverityWords.some(word => text.includes(word) || explanation.includes(word))) {
+    return 2;
+  }
+  
+  return 1;
+}
+
+// Advanced complexity scoring algorithm with multiple factors
+function calculateAdvancedComplexityScore(highlights, text, counts) {
+  if (!highlights || highlights.length === 0) return 0;
+  
+  const textLength = text.length;
+  const wordCount = text.trim().split(/\s+/).length;
+  
+  // Factor 1: Density of issues (highlights per 1000 characters)
+  const densityScore = Math.min(30, (highlights.length / (textLength / 1000)) * 5);
+  
+  // Factor 2: Category distribution weight
+  const categoryWeight = (counts.manipulationCount * 1.8) + 
+                        (counts.biasCount * 1.5) + 
+                        (counts.fallacyCount * 2.0);
+  const categoryScore = Math.min(25, categoryWeight);
+  
+  // Factor 3: Severity distribution
+  const severityScore = calculateSeverityScore(highlights);
+  
+  // Factor 4: Sophistication factor (based on explanation complexity)
+  const sophisticationScore = calculateSophisticationScore(highlights);
+  
+  // Factor 5: Pattern diversity (how many different techniques)
+  const diversityScore = calculatePatternDiversity(highlights);
+  
+  // Factor 6: Text complexity factor
+  const textComplexityScore = calculateTextComplexity(text, wordCount);
+  
+  // Combine all factors with weights
+  const totalScore = Math.round(
+    densityScore * 0.25 +        // 25% - density
+    categoryScore * 0.20 +       // 20% - category distribution  
+    severityScore * 0.20 +       // 20% - severity
+    sophisticationScore * 0.15 + // 15% - sophistication
+    diversityScore * 0.10 +      // 10% - diversity
+    textComplexityScore * 0.10   // 10% - text complexity
+  );
+  
+  const finalScore = Math.min(100, Math.max(0, totalScore));
+  
+  console.log(`🎯 Complexity calculation:`, {
+    density: densityScore,
+    category: categoryScore,
+    severity: severityScore,
+    sophistication: sophisticationScore,
+    diversity: diversityScore,
+    textComplexity: textComplexityScore,
+    final: finalScore
+  });
+  
+  return finalScore;
+}
+
+function calculateSeverityScore(highlights) {
+  const severityCounts = { 1: 0, 2: 0, 3: 0 };
+  highlights.forEach(h => {
+    const severity = h.severity || 1;
+    severityCounts[severity]++;
+  });
+  
+  // Weight higher severities more heavily
+  const weightedScore = (severityCounts[1] * 1) + 
+                       (severityCounts[2] * 3) + 
+                       (severityCounts[3] * 6);
+  
+  return Math.min(25, weightedScore * 0.5);
+}
+
+function calculateSophisticationScore(highlights) {
+  let sophisticationSum = 0;
+  
+  highlights.forEach(h => {
+    const explanation = h.explanation || '';
+    const label = h.label || '';
+    
+    // Score based on explanation depth and specificity
+    let score = 0;
+    
+    // Longer, more detailed explanations = higher sophistication
+    if (explanation.length > 200) score += 2;
+    else if (explanation.length > 100) score += 1;
+    
+    // Specific technique names indicate sophistication
+    const sophisticatedTerms = [
+      'когнітивне викривлення', 'газлайтинг', 'анкорінг', 'фрейминг',
+      'логічна помилка', 'софізм', 'маніпуляція', 'psychological'
+    ];
+    
+    if (sophisticatedTerms.some(term => explanation.toLowerCase().includes(term))) {
+      score += 2;
+    }
+    
+    sophisticationSum += score;
+  });
+  
+  return Math.min(20, sophisticationSum * 0.3);
+}
+
+function calculatePatternDiversity(highlights) {
+  const uniqueLabels = new Set();
+  const uniqueCategories = new Set();
+  
+  highlights.forEach(h => {
+    if (h.label) uniqueLabels.add(h.label);
+    if (h.category) uniqueCategories.add(h.category);
+  });
+  
+  // More diverse patterns = higher complexity
+  const labelDiversity = Math.min(10, uniqueLabels.size * 0.8);
+  const categoryDiversity = Math.min(5, uniqueCategories.size * 2);
+  
+  return labelDiversity + categoryDiversity;
+}
+
+function calculateTextComplexity(text, wordCount) {
+  // Factor in text length and structure
+  let complexity = 0;
+  
+  // Longer texts can hide more sophisticated techniques
+  if (wordCount > 1000) complexity += 3;
+  else if (wordCount > 500) complexity += 2;
+  else if (wordCount > 200) complexity += 1;
+  
+  // Complex sentence structures
+  const sentences = text.split(/[.!?]+/).length;
+  const avgWordsPerSentence = wordCount / sentences;
+  
+  if (avgWordsPerSentence > 25) complexity += 2; // Very long sentences
+  else if (avgWordsPerSentence > 15) complexity += 1; // Long sentences
+  
+  // Technical or formal language indicators
+  const formalIndicators = ['відповідно', 'згідно з', 'у зв\'язку з', 'таким чином', 'отже'];
+  const formalCount = formalIndicators.filter(indicator => 
+    text.toLowerCase().includes(indicator)
+  ).length;
+  
+  complexity += Math.min(2, formalCount * 0.5);
+  
+  return Math.min(10, complexity);
+}
+
 // Функція для обробки одного чанка тексту
 async function processTextChunk(chunk, system, clientCtx, chunkNumber, totalChunks, res) {
   console.log(`🔍 Processing chunk ${chunkNumber}/${totalChunks}: ${chunk.text.length} chars`);
@@ -759,19 +1128,28 @@ r.post('/', validateFileUpload, async (req, res) => {
       console.log(`📊 Total highlights so far: ${allHighlights.length}`);
     }
 
-    // Об'єднуємо та відправляємо фінальні результати
+    // Об'єднуємо та відправляємо фінальні результати з покращеною обробкою
     console.log(`🔥 Final analysis: ${allHighlights.length} total highlights found`);
+
+    // Enhanced highlight processing and deduplication
+    const processedHighlights = enhanceAnalysisResults(allHighlights, text);
+    console.log(`🧠 Enhanced analysis: ${processedHighlights.length} highlights after processing`);
 
     res.write(`data: ${JSON.stringify({
       type: 'merged_highlights',
-      items: allHighlights,
-      total_count: allHighlights.length,
+      items: processedHighlights,
+      total_count: processedHighlights.length,
+      processing_improvements: {
+        original_count: allHighlights.length,
+        processed_count: processedHighlights.length,
+        deduplication_rate: Math.round(((allHighlights.length - processedHighlights.length) / allHighlights.length) * 100) || 0
+      }
     })}\n\n`);
 
-    // Створюємо підсумок та барометр
-    const manipulationCount = allHighlights.filter((h) => h.category === 'manipulation').length;
-    const biasCount = allHighlights.filter((h) => h.category === 'cognitive_bias').length;
-    const fallacyCount = allHighlights.filter((h) => h.category === 'rhetological_fallacy').length;
+    // Створюємо підсумок та барометр на основі покращених результатів
+    const manipulationCount = processedHighlights.filter((h) => h.category === 'manipulation').length;
+    const biasCount = processedHighlights.filter((h) => h.category === 'cognitive_bias').length;
+    const fallacyCount = processedHighlights.filter((h) => h.category === 'rhetological_fallacy').length;
 
     const summary = {
       type: 'summary',
@@ -781,22 +1159,18 @@ r.post('/', validateFileUpload, async (req, res) => {
         rhetological_fallacy: fallacyCount,
       },
       top_patterns: ['Емоційний тиск', 'Штучна терміновість', 'Соціальні маніпуляції'],
-      overall_observations: `Виявлено ${allHighlights.length} проблемних моментів. Переважають техніки емоційного впливу та тиску.`,
+      overall_observations: `Виявлено ${processedHighlights.length} проблемних моментів після ретельної обробки. Переважають техніки емоційного впливу та тиску.`,
       strategic_assessment: 'Високий рівень маніпулятивності в переговорах',
     };
 
     res.write(`data: ${JSON.stringify(summary)}\n\n`);
 
-    // Розрахунок складності
-    const complexityScore = Math.min(
-      100,
-      Math.round(
-        (allHighlights.length / (text.length / 1000)) * 10 +
-        manipulationCount * 1.5 +
-        biasCount * 1.2 +
-        fallacyCount * 1.8
-      )
-    );
+    // Покращений розрахунок складності з урахуванням декількох факторів
+    const complexityScore = calculateAdvancedComplexityScore(processedHighlights, text, {
+      manipulationCount,
+      biasCount, 
+      fallacyCount
+    });
 
     let complexityLabel = 'Easy mode';
     if (complexityScore > 80) complexityLabel = 'Mission impossible';
@@ -809,10 +1183,10 @@ r.post('/', validateFileUpload, async (req, res) => {
       type: 'barometer',
       score: complexityScore,
       label: complexityLabel,
-      rationale: `Знайдено ${allHighlights.length} проблем. Висока концентрація маніпулятивних технік.`,
+      rationale: `Знайдено ${processedHighlights.length} проблем після ретельної обробки. Висока концентрація маніпулятивних технік.`,
       factors: {
         goal_alignment: 0.3,
-        manipulation_density: Math.min(1.0, allHighlights.length / 100),
+        manipulation_density: Math.min(1.0, processedHighlights.length / 100),
         scope_clarity: 0.4,
         time_pressure: 0.7,
         resource_demand: 0.6,
@@ -827,11 +1201,11 @@ r.post('/', validateFileUpload, async (req, res) => {
     // Збереження в базу даних
     try {
       const analysisData = {
-        highlights: allHighlights,
+        highlights: processedHighlights,
         summary: summary,
         barometer: barometer,
         original_text: text,
-        highlighted_text: generateHighlightedText(text, allHighlights),
+        highlighted_text: generateHighlightedText(text, processedHighlights),
       };
 
       const dbResult = await dbRun(
@@ -855,7 +1229,7 @@ r.post('/', validateFileUpload, async (req, res) => {
         type: 'analysis_saved',
         id: dbResult.lastInsertRowid,
         message: 'Аналіз збережено успішно',
-        total_highlights: allHighlights.length,
+        total_highlights: processedHighlights.length,
       })}\n\n`);
     } catch (dbError) {
       console.error('Database save error:', dbError);
@@ -871,7 +1245,7 @@ r.post('/', validateFileUpload, async (req, res) => {
     const analysisDuration = performance.now() - analysisStartTime;
     logPerformance('analysis_duration', analysisDuration, { textLength: text.length, chunks: textChunks.length });
     logAIUsage(MODEL, totalTokensUsed, { route: '/analyze' });
-    console.log(`🎉 Analysis completed in ${Math.round(analysisDuration)}ms: ${allHighlights.length} highlights, ${totalTokensUsed} tokens`);
+    console.log(`🎉 Analysis completed in ${Math.round(analysisDuration)}ms: ${processedHighlights.length} highlights (${allHighlights.length} raw), ${totalTokensUsed} tokens`);
   } catch (err) {
     console.error('❌ Analysis error:', err);
 

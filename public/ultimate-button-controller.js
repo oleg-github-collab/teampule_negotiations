@@ -309,7 +309,18 @@ class ClientButtonHandler extends IButtonHandler {
             
             if (result.success) {
                 alert('✅ Клієнт збережений успішно!');
-                window.location.reload();
+                
+                // Update client counter instead of full reload
+                if (window.updateClientCounter) {
+                    window.updateClientCounter();
+                }
+                
+                // Refresh client select options
+                if (window.refreshClientSelect) {
+                    window.refreshClientSelect();
+                }
+                
+                this.showWelcomeScreen();
             } else {
                 throw new Error(result.error || 'Невідома помилка збереження');
             }
@@ -371,7 +382,20 @@ class ClientButtonHandler extends IButtonHandler {
             
             if (result.success) {
                 alert('✅ Клієнт видалений успішно');
-                window.location.reload();
+                
+                // Update client counter instead of full reload
+                if (window.updateClientCounter) {
+                    window.updateClientCounter();
+                }
+                
+                // Refresh client select options
+                if (window.refreshClientSelect) {
+                    window.refreshClientSelect();
+                }
+                
+                // Close modal and return to main view
+                this.closeAllModals();
+                this.showWelcomeScreen();
             } else {
                 throw new Error(result.error || 'Помилка видалення');
             }
@@ -984,6 +1008,87 @@ class ModalButtonHandler extends IButtonHandler {
     }
 }
 
+class NavigationButtonHandler extends IButtonHandler {
+    canHandle(element) {
+        const navSelectors = [
+            'product-dropdown-btn', 'mobile-menu-toggle'
+        ];
+        return navSelectors.includes(element.id) || 
+               element.classList.contains('product-dropdown-btn') ||
+               element.classList.contains('mobile-menu-toggle');
+    }
+    
+    async handle(element, event) {
+        console.log('🎯 NAVIGATION HANDLER');
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const action = this.getNavigationAction(element);
+        
+        switch (action) {
+            case 'toggle-dropdown':
+                this.toggleProductDropdown();
+                break;
+            case 'toggle-mobile-menu':
+                this.toggleMobileMenu();
+                break;
+        }
+    }
+    
+    getNavigationAction(element) {
+        if (element.id === 'product-dropdown-btn') return 'toggle-dropdown';
+        if (element.id === 'mobile-menu-toggle') return 'toggle-mobile-menu';
+        return 'toggle-dropdown';
+    }
+    
+    toggleProductDropdown() {
+        console.log('🎯 Toggle product dropdown');
+        const dropdown = document.getElementById('product-dropdown');
+        const button = document.getElementById('product-dropdown-btn');
+        
+        if (dropdown) {
+            const isVisible = dropdown.style.display !== 'none';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+            
+            if (button) {
+                button.classList.toggle('active', !isVisible);
+            }
+            
+            // Close on click outside
+            if (!isVisible) {
+                setTimeout(() => {
+                    document.addEventListener('click', this.closeDropdownOnClickOutside.bind(this), { once: true });
+                }, 10);
+            }
+        }
+    }
+    
+    closeDropdownOnClickOutside(event) {
+        const dropdown = document.getElementById('product-dropdown');
+        const button = document.getElementById('product-dropdown-btn');
+        
+        if (dropdown && !dropdown.contains(event.target) && !button.contains(event.target)) {
+            dropdown.style.display = 'none';
+            if (button) button.classList.remove('active');
+        }
+    }
+    
+    toggleMobileMenu() {
+        console.log('🎯 Toggle mobile menu');
+        const sidebar = document.getElementById('sidebar-left');
+        const button = document.getElementById('mobile-menu-toggle');
+        
+        if (sidebar) {
+            const isVisible = sidebar.classList.contains('mobile-visible');
+            sidebar.classList.toggle('mobile-visible', !isVisible);
+            
+            if (button) {
+                button.classList.toggle('active', !isVisible);
+            }
+        }
+    }
+}
+
 class InputMethodButtonHandler extends IButtonHandler {
     canHandle(element) {
         const inputSelectors = [
@@ -1131,6 +1236,7 @@ class UltimateButtonController {
             new AnalysisButtonHandler(),
             new WorkspaceButtonHandler(),
             new ModalButtonHandler(),
+            new NavigationButtonHandler(),
             new InputMethodButtonHandler()
         ];
         

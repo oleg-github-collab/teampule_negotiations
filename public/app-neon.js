@@ -13,7 +13,6 @@
         originalText: null,
         onboardingCompleted: false,
         onboardingStep: 1,
-        isAnalyzing: false,
         tokenUsage: {
             used: 0,
             total: 512000,
@@ -51,13 +50,13 @@
         workspaceToggle: $('#workspace-toggle'),
         
         // Onboarding
-        onboardingModal: document.getElementById('onboarding-modal'),
-        onboardingClose: document.getElementById('onboarding-close'),
-        onboardingProgress: document.getElementById('onboarding-progress'),
-        progressText: document.getElementById('progress-text'),
-        nextStep: document.getElementById('next-step'),
-        prevStep: document.getElementById('prev-step'),
-        skipOnboarding: document.getElementById('skip-onboarding'),
+        onboardingModal: $('#onboarding-modal'),
+        onboardingClose: $('#onboarding-close'),
+        onboardingProgress: $('#onboarding-progress'),
+        progressText: $('#progress-text'),
+        nextStep: $('#next-step'),
+        prevStep: $('#prev-step'),
+        skipOnboarding: $('#skip-onboarding'),
 
         // Client Management
         clientList: $('#client-list'),
@@ -159,7 +158,6 @@
         analysisHistory: $('#analysis-history'),
         analysisCount: $('#analysis-count'),
         newAnalysisBtn: $('#new-analysis-btn'),
-        analysisHistoryBtn: $('#analysis-history-btn'),
         
         // Notifications
         notifications: $('#notifications'),
@@ -211,85 +209,6 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
-    }
-
-    // Handle analysis SSE stream
-    async function handleAnalysisStream(response) {
-        return new Promise((resolve, reject) => {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let allHighlights = [];
-            let analysisData = {};
-
-            function processChunk() {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        // Stream finished
-                        if (analysisData.analysis) {
-                            resolve(analysisData);
-                        } else {
-                            reject(new Error('Аналіз не завершився правильно'));
-                        }
-                        return;
-                    }
-
-                    // Decode and process chunk
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const dataLine = line.slice(6); // Remove 'data: '
-                            
-                            if (dataLine === '{"type":"complete"}') {
-                                // Analysis complete - prepare final data
-                                analysisData.analysis = {
-                                    highlights: allHighlights,
-                                    summary: analysisData.summary,
-                                    barometer: analysisData.barometer,
-                                    issues_count: allHighlights.length
-                                };
-                                continue;
-                            }
-
-                            try {
-                                const eventData = JSON.parse(dataLine);
-                                console.log('📡 SSE Event:', eventData.type);
-
-                                switch (eventData.type) {
-                                    case 'highlight':
-                                        allHighlights.push(eventData);
-                                        break;
-                                    case 'merged_highlights':
-                                        allHighlights = eventData.items || [];
-                                        break;
-                                    case 'summary':
-                                        analysisData.summary = eventData;
-                                        break;
-                                    case 'barometer':
-                                        analysisData.barometer = eventData;
-                                        break;
-                                    case 'progress':
-                                    case 'analysis_started':
-                                    case 'analysis_saved':
-                                        // Just log progress events
-                                        break;
-                                }
-                            } catch (e) {
-                                console.warn('Failed to parse SSE data:', dataLine, e);
-                            }
-                        }
-                    }
-
-                    // Continue reading
-                    processChunk();
-                }).catch(reject);
-            }
-
-            processChunk();
-        });
     }
 
     function estimateTokens(text) {
@@ -450,18 +369,11 @@
     }
 
     function showSection(sectionId) {
-        console.log('🔧 showSection called with:', sectionId);
-        
         // Hide all sections
         const sections = ['welcome-screen', 'client-form', 'analysis-dashboard'];
         sections.forEach(id => {
             const el = $(`#${id}`);
-            if (el) {
-                el.style.display = 'none';
-                console.log('🔧 Hidden section:', id);
-            } else {
-                console.warn('⚠️ Section element not found:', id);
-            }
+            if (el) el.style.display = 'none';
         });
         
         // Show target section
@@ -469,9 +381,6 @@
         if (target) {
             target.style.display = 'block';
             state.ui.currentView = sectionId;
-            console.log('✅ Showed section:', sectionId, 'currentView:', state.ui.currentView);
-        } else {
-            console.error('❌ Target section not found:', sectionId);
         }
     }
 
@@ -509,22 +418,23 @@
 
     // ===== Onboarding System =====
     function initOnboarding() {
-        console.log('🎓 Initializing NEW OnboardingManager...');
-        
-        // Use new SOLID-compliant OnboardingManager
-        if (window.OnboardingManager) {
-            window.onboardingManager = new window.OnboardingManager();
-        } else {
-            console.error('🎓 OnboardingManager not loaded!');
+        const completed = localStorage.getItem('teampulse-onboarding-completed');
+        if (completed === 'true') {
+            state.onboardingCompleted = true;
+            if (elements.onboardingModal) {
+                elements.onboardingModal.style.display = 'none';
+            }
+            return;
         }
+
+        // Show onboarding
+        showOnboarding();
     }
 
     function showOnboarding() {
-        console.log('🎓 showOnboarding called - using NEW manager');
-        if (window.onboardingManager) {
-            window.onboardingManager.forceShow();
-        } else {
-            console.error('🎓 OnboardingManager not initialized!');
+        if (elements.onboardingModal) {
+            elements.onboardingModal.style.display = 'flex';
+            updateOnboardingStep();
         }
     }
 
@@ -561,118 +471,35 @@
         }
     }
 
-    // Old onboarding functions replaced by OnboardingManager
+    function nextOnboardingStep() {
+        if (state.onboardingStep < 4) {
+            state.onboardingStep++;
+            updateOnboardingStep();
+        } else {
+            completeOnboarding();
+        }
+    }
 
-    // ===== Reliable API Functions =====
-    async function makeReliableApiRequest(url, options = {}, maxRetries = 3) {
-        console.log(`📡 Making reliable API request to: ${url}`);
+    function prevOnboardingStep() {
+        if (state.onboardingStep > 1) {
+            state.onboardingStep--;
+            updateOnboardingStep();
+        }
+    }
+
+    function completeOnboarding() {
+        state.onboardingCompleted = true;
+        localStorage.setItem('teampulse-onboarding-completed', 'true');
         
-        const makeRequest = async (attempt = 1) => {
-            try {
-                console.log(`📡 API request attempt ${attempt}/${maxRetries} to ${url}`);
-                
-                // Default options
-                const defaultOptions = {
-                    method: 'GET',
-                    headers: {}
-                };
-                
-                // Only set Content-Type for JSON if body is not FormData
-                if (options.body && !(options.body instanceof FormData)) {
-                    defaultOptions.headers['Content-Type'] = 'application/json';
-                }
-                
-                // Merge options
-                const finalOptions = { ...defaultOptions, ...options };
-                
-                // Merge headers properly
-                finalOptions.headers = { ...defaultOptions.headers, ...options.headers };
-                
-                // Add timeout
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-                finalOptions.signal = controller.signal;
-                
-                const response = await fetch(url, finalOptions);
-                clearTimeout(timeout);
-                
-                console.log(`📡 API response status: ${response.status} for ${url}`);
-                
-                // Handle auth errors
-                if (response.status === 401) {
-                    console.log('❌ Unauthorized, redirecting to login');
-                    window.location.href = '/login';
-                    return null;
-                }
-                
-                // Retry on server errors
-                if (!response.ok) {
-                    if ((response.status === 500 || response.status === 503) && attempt < maxRetries) {
-                        console.log(`⚠️ Server error ${response.status}, retrying in ${1000 * attempt}ms...`);
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                        return makeRequest(attempt + 1);
-                    }
-                    
-                    // Try to get error message
-                    let errorMessage = `HTTP Error: ${response.status}`;
-                    try {
-                        const contentType = response.headers.get('content-type');
-                        if (contentType && contentType.includes('application/json')) {
-                            const errorData = await response.json();
-                            if (errorData.error) {
-                                errorMessage = errorData.error;
-                            } else if (errorData.message) {
-                                errorMessage = errorData.message;
-                            }
-                        }
-                    } catch (e) {
-                        console.log('Could not parse error response');
-                    }
-                    
-                    throw new Error(errorMessage);
-                }
-                
-                // Validate content type for successful responses
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    console.warn(`Server returned non-JSON response for ${url}, content-type:`, contentType);
-                    if (attempt < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                        return makeRequest(attempt + 1);
-                    }
-                    throw new Error('Сервер повернув некоректний формат даних (не JSON)');
-                }
-                
-                // Parse JSON
-                const data = await response.json();
-                
-                // Validate response structure
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                return data;
-                
-            } catch (error) {
-                console.log(`📡 API request error for ${url}:`, error.message);
-                
-                if (error.name === 'AbortError' && attempt < maxRetries) {
-                    console.log(`⚠️ Request timeout for ${url}, retrying in ${1000 * attempt}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                    return makeRequest(attempt + 1);
-                }
-                
-                if (error.message.includes('Failed to fetch') && attempt < maxRetries) {
-                    console.log(`⚠️ Network error for ${url}, retrying in ${1000 * attempt}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                    return makeRequest(attempt + 1);
-                }
-                
-                throw error;
-            }
-        };
+        if (elements.onboardingModal) {
+            elements.onboardingModal.style.display = 'none';
+        }
         
-        return makeRequest();
+        showNotification('Ласкаво просимо до TeamPulse Turbo! 🚀', 'success');
+        
+        // Load initial data
+        loadClients();
+        loadTokenUsage();
     }
 
     // ===== Client Management =====
@@ -720,20 +547,6 @@
 
     async function validateDataIntegrity() {
         try {
-            // Check if currentClient still exists in the loaded clients
-            if (state.currentClient && state.currentClient.id) {
-                const clientExists = state.clients.find(c => c.id === state.currentClient.id);
-                if (!clientExists) {
-                    console.log('🔄 Current client no longer exists, clearing state');
-                    state.currentClient = null;
-                    state.currentAnalysis = null;
-                    state.originalText = '';
-                    state.selectedFragments = [];
-                    clearAnalysisDisplay();
-                    showNotification('Попередній клієнт більше не існує', 'warning');
-                }
-            }
-            
             // Check if there's a current analysis without a current client
             if (state.currentAnalysis && !state.currentClient) {
                 console.log('🔄 Clearing orphaned analysis data');
@@ -741,6 +554,19 @@
                 state.originalText = '';
                 state.selectedFragments = [];
                 clearAnalysisDisplay();
+            }
+            
+            // Check if current client still exists in clients array
+            if (state.currentClient && !state.clients.find(c => c.id === state.currentClient.id)) {
+                console.log('🔄 Current client no longer exists, clearing state');
+                state.currentClient = null;
+                state.currentAnalysis = null;
+                state.originalText = '';
+                state.selectedFragments = [];
+                updateNavClientInfo(null);
+                updateWorkspaceClientInfo(null);
+                clearAnalysisDisplay();
+                showNotification('Поточний клієнт більше не існує', 'warning');
             }
             
             // If we have clients but none is selected, but there's analysis data visible
@@ -843,70 +669,70 @@
             `;
         }).join('');
         
+        // Add event listeners to all client items
+        const clientItems = elements.clientList.querySelectorAll('.client-item');
+        clientItems.forEach(item => {
+            const clientId = parseInt(item.dataset.clientId);
+            
+            // Client selection - click on main area (not buttons)
+            item.addEventListener('click', (e) => {
+                // Only handle clicks that are not on buttons
+                if (!e.target.closest('.client-actions')) {
+                    console.log('🎯 Client item clicked:', clientId);
+                    selectClient(clientId);
+                }
+            });
+            
+            // Edit button
+            const editBtn = item.querySelector('.edit-client-btn');
+            if (editBtn) {
+                editBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('✏️ Edit button clicked for client:', clientId);
+                    editClient(clientId, e);
+                });
+            }
+            
+            // Delete button
+            const deleteBtn = item.querySelector('.delete-client-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🗑️ Delete button clicked for client:', clientId);
+                    deleteClient(clientId, e);
+                });
+            }
+        });
+        
         console.log('🎨 Client list rendered successfully with event listeners');
     }
 
     function updateClientCount() {
-        const count = state.clients ? state.clients.length : 0;
-        console.log('📊 Updating client count:', count);
-        
-        // Force find element every time to ensure it exists
-        const clientCountElement = document.getElementById('client-count');
-        if (clientCountElement) {
-            clientCountElement.textContent = count;
-            console.log('📊 ✅ Client count updated to:', count);
-            elements.clientCount = clientCountElement; // Cache it
-        } else {
-            console.error('📊 ❌ Client count element #client-count not found in DOM');
-            // Try alternative selector
-            const altElement = document.querySelector('.fragment-counter');
-            if (altElement) {
-                altElement.textContent = count;
-                console.log('📊 ✅ Updated via alternative selector');
-            }
+        const count = state.clients.length;
+        if (elements.clientCount) {
+            elements.clientCount.textContent = count;
         }
     }
 
     function showClientForm(clientId = null) {
-        console.log('🎯 showClientForm called with clientId:', clientId);
         const isEdit = clientId !== null;
         
-        // Переконуємося що елементи доступні
-        if (!elements.clientForm) {
-            console.error('❌ Client form element not found!');
-            const formElement = document.getElementById('client-form');
-            if (!formElement) {
-                console.error('❌ #client-form not found in DOM!');
-                return;
-            }
-            elements.clientForm = formElement;
-        }
-        
-        console.log('🔧 Setting form title...');
         if (elements.clientFormTitle) {
             elements.clientFormTitle.textContent = isEdit ? 'Редагувати клієнта' : 'Новий клієнт';
-            console.log('✅ Form title set:', elements.clientFormTitle.textContent);
-        } else {
-            console.warn('⚠️ clientFormTitle element not found');
         }
         
         if (isEdit) {
-            console.log('🔧 Loading client for edit...');
             const client = state.clients.find(c => c.id === clientId);
             if (client) {
                 populateClientForm(client);
             }
         } else {
-            console.log('🔧 Clearing form for new client...');
             clearClientForm();
         }
         
-        console.log('🔧 Showing client-form section...');
         showSection('client-form');
-        
-        // Зміна стану UI
-        state.ui.currentView = 'client-form';
-        console.log('✅ showClientForm completed, currentView:', state.ui.currentView);
     }
 
     function clearClientForm() {
@@ -918,13 +744,6 @@
                 input.value = '';
             }
         });
-        
-        // Remove hidden client-id input if it exists
-        const clientForm = document.getElementById('client-form');
-        const idInput = clientForm ? clientForm.querySelector('#client-id') : null;
-        if (idInput) {
-            idInput.remove();
-        }
     }
 
     function populateClientForm(client) {
@@ -934,12 +753,6 @@
                 input.value = client[key];
             }
         });
-        // Store the ID for updates
-        const idInput = document.createElement('input');
-        idInput.type = 'hidden';
-        idInput.id = 'client-id';
-        idInput.value = client.id;
-        elements.clientForm.appendChild(idInput);
     }
 
     async function selectClient(clientId) {
@@ -1033,300 +846,10 @@
         // Show and update recommendations history
         if (elements.recommendationsHistorySection) {
             elements.recommendationsHistorySection.style.display = 'block';
-            // Load recommendations from API first, then update display
-            loadRecommendationsFromAPI(client.id);
-        }
-    }
-
-    // ===== Analysis Functions =====
-    async function startAnalysis() {
-        console.log('🚀 Starting analysis...');
-        
-        if (!state.currentClient) {
-            showNotification('Спочатку оберіть клієнта', 'warning');
-            return;
-        }
-        
-        const text = elements.negotiationText?.value;
-        if (!text || text.trim().length < 20) {
-            showNotification('Введіть текст для аналізу (мінімум 20 символів)', 'warning');
-            return;
-        }
-        
-        // Prevent multiple simultaneous analyses
-        if (state.isAnalyzing) {
-            console.log('⚠️ Analysis already in progress, ignoring request');
-            return;
-        }
-        
-        state.isAnalyzing = true;
-        
-        try {
-            // Show loading state
-            if (elements.startAnalysisBtn) {
-                elements.startAnalysisBtn.classList.add('btn-loading');
-                elements.startAnalysisBtn.disabled = true;
-                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Аналіз...</span>';
-            }
-            
-            // Store original text
-            state.originalText = text;
-            
-            // Update analysis steps
-            updateAnalysisSteps('analyzing');
-            
-            // Show results section
-            if (elements.resultsSection) {
-                elements.resultsSection.style.display = 'block';
-            }
-            
-            // Reset counters and displays
-            resetAnalysisDisplay();
-            
-            // Make the analysis request using FormData for multipart/form-data
-            const formData = new FormData();
-            formData.append('text', text);
-            formData.append('client_id', state.currentClient.id);
-            
-            // Use direct fetch for SSE stream analysis (not makeReliableApiRequest)
-            const response = await fetch('/api/analyze', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                // Try to get error as JSON
-                let errorMessage = 'Помилка аналізу';
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error || errorMessage;
-                } catch {
-                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                }
-                throw new Error(errorMessage);
-            }
-            
-            // Handle SSE stream
-            const data = await handleAnalysisStream(response);
-            
-            // Process analysis results
-            if (data.analysis) {
-                console.log('✅ Analysis completed successfully');
-                state.currentAnalysis = data.analysis;
-                displayAnalysisResults(data.analysis);
-                
-                // Update client analysis count in real-time
-                updateClientAnalysisCountRealTime(state.currentClient.id);
-                
-                // Generate highlighted text
-                if (data.analysis.highlights && data.analysis.highlights.length > 0) {
-                    const highlightedText = generateHighlightedText(text, data.analysis.highlights);
-                    state.currentAnalysis.highlighted_text = highlightedText;
-                    updateFullTextView(highlightedText);
-                }
-                
-                // Update analysis steps
-                updateAnalysisSteps('completed');
-                
-                showNotification('Аналіз завершено успішно! ✨', 'success');
-                
-            } else if (data.message) {
-                // Handle case where server returns message but no analysis
-                showNotification(data.message, 'info');
-                updateAnalysisSteps('completed');
-            } else {
-                throw new Error('Сервер повернув порожню відповідь');
-            }
-            
-        } catch (error) {
-            console.error('Analysis error:', error);
-            
-            // More specific error messages
-            let errorMessage = error.message || 'Невідома помилка';
-            let notificationType = 'error';
-            
-            if (error.message.includes('тайм-аут')) {
-                errorMessage = 'Аналіз перервано через тайм-аут. Спробуйте з меншим текстом або пізніше.';
-            } else if (error.message.includes('500')) {
-                errorMessage = 'Внутрішня помилка сервера. Спробуйте пізніше або зверніться до підтримки.';
-            } else if (error.message.includes('503')) {
-                errorMessage = 'Сервер тимчасово недоступний. Спробуйте через кілька хвилин.';
-            } else if (error.message.includes('Failed to fetch')) {
-                errorMessage = 'Проблема з мережею. Перевірте інтернет-з\'єднання та спробуйте знову.';
-                notificationType = 'warning';
-            }
-            
-            showNotification(errorMessage, notificationType);
-            updateAnalysisSteps('error');
-            
-            // Log detailed error info for debugging
-            console.error('Detailed error info:', {
-                message: error.message,
-                stack: error.stack,
-                clientId: state.currentClient?.id,
-                textLength: text.length
-            });
-            
-        } finally {
-            state.isAnalyzing = false;
-            
-            // Remove loading state
-            if (elements.startAnalysisBtn) {
-                elements.startAnalysisBtn.classList.remove('btn-loading');
-                elements.startAnalysisBtn.disabled = false;
-                updateTextStats(); // Restore button text
-            }
-            
-            console.log('🏁 Analysis process completed');
+            updateRecommendationsHistory(client.id);
         }
     }
     
-    function createNewAnalysis() {
-        console.log('🆕 Creating new analysis...');
-        
-        // Clear current analysis
-        state.currentAnalysis = null;
-        state.originalText = '';
-        
-        // Clear text input
-        if (elements.negotiationText) {
-            elements.negotiationText.value = '';
-        }
-        
-        // Reset displays
-        resetAnalysisDisplay();
-        
-        // Hide results section
-        if (elements.resultsSection) {
-            elements.resultsSection.style.display = 'none';
-        }
-        
-        // Update text stats
-        updateTextStats();
-        
-        // Focus on text area
-        if (elements.negotiationText) {
-            elements.negotiationText.focus();
-        }
-        
-        showNotification('Готово до нового аналізу', 'info');
-    }
-    
-    function resetAnalysisDisplay() {
-        console.log('🔄 Resetting analysis display...');
-        
-        // Reset counters
-        const counters = ['manipulations-count', 'biases-count', 'fallacies-count', 'recommendations-count'];
-        counters.forEach(counterId => {
-            const element = document.getElementById(counterId);
-            if (element) element.textContent = '0';
-        });
-        
-        // Clear highlights list
-        if (elements.highlightsList) {
-            elements.highlightsList.innerHTML = '';
-        }
-        
-        // Clear full text view
-        if (elements.fulltextContent) {
-            elements.fulltextContent.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon"><i class="fas fa-file-text"></i></div>
-                    <h4>Повний текст недоступний</h4>
-                    <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
-                </div>
-            `;
-        }
-        
-        // Clear workspace
-        state.selectedFragments = [];
-        updateWorkspaceFragments();
-    }
-    
-    function updateClientAnalysisCountRealTime(clientId) {
-        if (!state.currentClient || state.currentClient.id !== clientId) return;
-        
-        // Increment the analysis count in current client data
-        if (state.currentClient.analyses_count !== undefined) {
-            state.currentClient.analyses_count++;
-        } else {
-            state.currentClient.analyses_count = 1;
-        }
-        
-        // Update the workspace client info display immediately
-        updateWorkspaceClientInfo(state.currentClient);
-        
-        // Update main clients list if visible
-        if (state.clients) {
-            const clientInList = state.clients.find(c => c.id === clientId);
-            if (clientInList) {
-                if (clientInList.analyses_count !== undefined) {
-                    clientInList.analyses_count++;
-                } else {
-                    clientInList.analyses_count = 1;
-                }
-                // Re-render clients list
-                renderClientsList();
-            }
-        }
-        
-        console.log('📊 Real-time updated analysis count for client:', clientId, 'new count:', state.currentClient.analyses_count);
-    }
-
-    function updateAnalysisResultsRealTime(newHighlight) {
-        console.log('📊 Real-time updating results with new highlight:', newHighlight);
-        
-        if (!newHighlight || !newHighlight.category) return;
-        
-        // Get current counters
-        let currentManipulations = parseInt(elements.manipulationsCount?.textContent || '0');
-        let currentBiases = parseInt(elements.biasesCount?.textContent || '0');
-        let currentFallacies = parseInt(elements.fallaciesCount?.textContent || '0');
-        
-        // Update appropriate counter based on category
-        switch (newHighlight.category) {
-            case 'manipulation':
-            case 'social_manipulation':
-                currentManipulations++;
-                if (elements.manipulationsCount) {
-                    animateNumber(elements.manipulationsCount, currentManipulations);
-                }
-                break;
-            case 'cognitive_bias':
-                currentBiases++;
-                if (elements.biasesCount) {
-                    animateNumber(elements.biasesCount, currentBiases);
-                }
-                break;
-            case 'rhetological_fallacy':
-            case 'logical_fallacy':
-                currentFallacies++;
-                if (elements.fallaciesCount) {
-                    animateNumber(elements.fallaciesCount, currentFallacies);
-                }
-                break;
-        }
-        
-        // Update total recommendations count
-        const totalCount = currentManipulations + currentBiases + currentFallacies;
-        if (elements.recommendationsCount) {
-            animateNumber(elements.recommendationsCount, totalCount);
-        }
-        
-        // Add to highlights list immediately
-        if (state.currentAnalysis && state.currentAnalysis.highlights) {
-            state.currentAnalysis.highlights.push(newHighlight);
-            updateHighlightsDisplay(state.currentAnalysis.highlights);
-        }
-        
-        console.log('📊 Real-time counts updated:', {
-            manipulations: currentManipulations,
-            biases: currentBiases,
-            fallacies: currentFallacies,
-            total: totalCount
-        });
-    }
-
     function updateRecommendationsHistory(clientId) {
         if (!elements.recommendationsHistory) return;
         
@@ -1362,25 +885,25 @@
                 : rec.advice;
             
             return `
-            <div class="recommendation-item" data-recommendation-id="${rec.id}" data-client-id="${clientId}" data-index="${index}">
+            <div class="recommendation-item" data-recommendation-id="${rec.id}">
                 <div class="recommendation-header">
                     <div class="recommendation-date">
                         <i class="fas fa-clock"></i>
                         ${getTimeAgo(new Date(rec.created_at))}
                     </div>
                     <div class="recommendation-actions">
-                        <button class="btn-micro expand-rec-btn" title="Переглянути повністю">
+                        <button class="btn-micro" onclick="expandRecommendation('${clientId}', ${index})" title="Переглянути повністю">
                             <i class="fas fa-expand-alt"></i>
                         </button>
-                        <button class="btn-micro copy-rec-btn" title="Копіювати">
+                        <button class="btn-micro" onclick="copyRecommendation('${clientId}', ${index})" title="Копіювати">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button class="btn-micro btn-danger remove-rec-btn" title="Видалити рекомендацію">
+                        <button class="btn-micro btn-danger" onclick="removeRecommendation('${clientId}', ${index})" title="Видалити рекомендацію">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
-                <div class="recommendation-content expand-content" style="cursor: pointer;">
+                <div class="recommendation-content" onclick="expandRecommendation('${clientId}', ${index})" style="cursor: pointer;">
                     ${escapeHtml(shortContent)}
                 </div>
                 ${rec.fragments_count ? `
@@ -1426,187 +949,6 @@
         }
     }
     
-    // API-based recommendations functions
-    async function saveRecommendationToAPI(clientId, advice, fragmentsCount = 0) {
-        try {
-            const response = await fetch('/api/recommendations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ clientId, advice, fragmentsCount })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to save recommendation');
-            }
-            
-            const result = await response.json();
-            showNotification('Рекомендацію збережено', 'success');
-            return result.recommendation;
-        } catch (error) {
-            console.error('Save recommendation error:', error);
-            showNotification('Помилка збереження рекомендації', 'error');
-            return null;
-        }
-    }
-    
-    async function loadRecommendationsFromAPI(clientId) {
-        try {
-            const response = await fetch(`/api/recommendations/${clientId}`);
-            
-            if (!response.ok) {
-                throw new Error('Failed to load recommendations');
-            }
-            
-            const result = await response.json();
-            state.recommendationsHistory[clientId] = result.recommendations || [];
-            updateRecommendationsHistory(clientId);
-            return result.recommendations;
-        } catch (error) {
-            console.error('Load recommendations error:', error);
-            showNotification('Помилка завантаження рекомендацій', 'error');
-            return [];
-        }
-    }
-    
-    async function deleteRecommendationFromAPI(recommendationId) {
-        try {
-            const response = await fetch(`/api/recommendations/${recommendationId}`, {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to delete recommendation');
-            }
-            
-            showNotification('Рекомендацію видалено', 'success');
-            return true;
-        } catch (error) {
-            console.error('Delete recommendation error:', error);
-            showNotification('Помилка видалення рекомендації', 'error');
-            return false;
-        }
-    }
-    
-    // Button handler functions
-    function expandRecommendation(button) {
-        const recItem = button.closest('.recommendation-item');
-        const content = recItem.querySelector('.recommendation-content');
-        const recId = recItem.dataset.recommendationId;
-        const clientId = recItem.dataset.clientId;
-        
-        // Find the full recommendation data
-        const recommendations = state.recommendationsHistory[clientId] || [];
-        const recommendation = recommendations.find(r => r.id == recId);
-        
-        if (!recommendation) {
-            showNotification('Рекомендацію не знайдено', 'error');
-            return;
-        }
-        
-        // Show full content in modal
-        showRecommendationModal(recommendation);
-    }
-    
-    function copyRecommendation(button) {
-        const recItem = button.closest('.recommendation-item');
-        const recId = recItem.dataset.recommendationId;
-        const clientId = recItem.dataset.clientId;
-        
-        // Find the full recommendation data
-        const recommendations = state.recommendationsHistory[clientId] || [];
-        const recommendation = recommendations.find(r => r.id == recId);
-        
-        if (!recommendation) {
-            showNotification('Рекомендацію не знайдено', 'error');
-            return;
-        }
-        
-        // Copy to clipboard
-        navigator.clipboard.writeText(recommendation.advice).then(() => {
-            showNotification('Рекомендацію скопійовано', 'success');
-        }).catch(error => {
-            console.error('Copy error:', error);
-            showNotification('Помилка копіювання', 'error');
-        });
-    }
-    
-    async function deleteRecommendation(button) {
-        const recItem = button.closest('.recommendation-item');
-        const recId = recItem.dataset.recommendationId;
-        const clientId = recItem.dataset.clientId;
-        
-        if (!confirm('Видалити цю рекомендацію?')) {
-            return;
-        }
-        
-        // Delete from API
-        const success = await deleteRecommendationFromAPI(recId);
-        
-        if (success) {
-            // Remove from local state
-            const recommendations = state.recommendationsHistory[clientId] || [];
-            const index = recommendations.findIndex(r => r.id == recId);
-            if (index >= 0) {
-                recommendations.splice(index, 1);
-                updateRecommendationsHistory(clientId);
-            }
-        }
-    }
-    
-    function showRecommendationModal(recommendation) {
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content recommendation-modal">
-                <div class="modal-header">
-                    <h3>Персональна рекомендація</h3>
-                    <button class="close-modal" title="Закрити">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="recommendation-full-content">
-                        ${escapeHtml(recommendation.advice)}
-                    </div>
-                    ${recommendation.fragments_count ? `
-                        <div class="recommendation-meta">
-                            <i class="fas fa-bookmark"></i>
-                            Базується на ${recommendation.fragments_count} фрагментах
-                        </div>
-                    ` : ''}
-                    <div class="recommendation-date">
-                        <i class="fas fa-clock"></i>
-                        Створено: ${getTimeAgo(new Date(recommendation.created_at))}
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-secondary close-modal">
-                        <i class="fas fa-times"></i> Закрити
-                    </button>
-                    <button class="btn-primary copy-full-rec-btn">
-                        <i class="fas fa-copy"></i> Копіювати
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Event handlers
-        modal.addEventListener('click', (e) => {
-            if (e.target.matches('.close-modal') || e.target === modal) {
-                modal.remove();
-            } else if (e.target.matches('.copy-full-rec-btn')) {
-                navigator.clipboard.writeText(recommendation.advice).then(() => {
-                    showNotification('Рекомендацію скопійовано', 'success');
-                }).catch(error => {
-                    console.error('Copy error:', error);
-                    showNotification('Помилка копіювання', 'error');
-                });
-            }
-        });
-    }
-    
     function expandRecommendation(clientId, index) {
         const recommendations = state.recommendationsHistory[clientId];
         if (!recommendations || !recommendations[index]) return;
@@ -1627,7 +969,7 @@
                         <span><i class="fas fa-clock"></i> ${getTimeAgo(new Date(rec.created_at))}</span>
                         ${rec.fragments_count ? `<span><i class="fas fa-bookmark"></i> ${rec.fragments_count} фрагментів</span>` : ''}
                     </div>
-                    <button class="btn-icon close-advice">
+                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1637,10 +979,10 @@
                     </div>
                 </div>
                 <div class="advice-footer">
-                    <button class="btn-secondary copy-modal-btn" data-client-id="${clientId}" data-index="${index}">
+                    <button class="btn-secondary" onclick="copyRecommendation('${clientId}', ${index})">
                         <i class="fas fa-copy"></i> Копіювати
                     </button>
-                    <button class="btn-danger remove-modal-btn" data-client-id="${clientId}" data-index="${index}">
+                    <button class="btn-danger" onclick="removeRecommendation('${clientId}', ${index}); this.closest('.advice-modal').remove();">
                         <i class="fas fa-trash"></i> Видалити
                     </button>
                 </div>
@@ -1649,37 +991,9 @@
         
         document.body.appendChild(modal);
         
-        // Add event listeners for modal buttons
-        modal.querySelector('.close-advice').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('.copy-modal-btn').addEventListener('click', (e) => {
-            const clientId = e.target.dataset.clientId;
-            const index = parseInt(e.target.dataset.index);
-            copyRecommendation(clientId, index);
-        });
-        
-        modal.querySelector('.remove-modal-btn').addEventListener('click', (e) => {
-            const clientId = e.target.dataset.clientId;
-            const index = parseInt(e.target.dataset.index);
-            removeRecommendation(clientId, index);
-            modal.remove();
-        });
-        
         // Close on click outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
-        });
-
-        // Add delegated event listeners
-        modal.addEventListener('click', (e) => {
-            if (e.target.closest('.close-advice') || e.target.closest('.close-advice-btn')) {
-                modal.remove();
-            } else if (e.target.closest('.confirm-clear-recommendations-btn')) {
-                confirmClearRecommendations(clientId);
-                modal.remove();
-            }
         });
     }
     
@@ -1740,7 +1054,7 @@
                         <i class="fas fa-exclamation-triangle" style="color: var(--neon-pink);"></i> 
                         Підтвердження
                     </h3>
-                    <button class="btn-icon close-advice">
+                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1749,10 +1063,10 @@
                     <p>Буде видалено <strong>${recommendations.length}</strong> рекомендацій. Цю дію неможливо скасувати.</p>
                 </div>
                 <div class="advice-footer">
-                    <button class="btn-secondary close-advice-btn">
+                    <button class="btn-secondary" onclick="this.closest('.advice-modal').remove()">
                         <i class="fas fa-times"></i> Скасувати
                     </button>
-                    <button class="btn-danger confirm-clear-recommendations-btn" data-client-id="${clientId}">
+                    <button class="btn-danger" onclick="confirmClearRecommendations('${clientId}'); this.closest('.advice-modal').remove();">
                         <i class="fas fa-trash"></i> Видалити все
                     </button>
                 </div>
@@ -1764,16 +1078,6 @@
         // Close on click outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
-        });
-
-        // Add delegated event listeners
-        modal.addEventListener('click', (e) => {
-            if (e.target.closest('.close-advice') || e.target.closest('.close-advice-btn')) {
-                modal.remove();
-            } else if (e.target.closest('.confirm-clear-recommendations-btn')) {
-                confirmClearRecommendations(clientId);
-                modal.remove();
-            }
         });
     }
     
@@ -1788,25 +1092,6 @@
     }
 
     async function saveClient() {
-        const form = elements.clientForm;
-        if (!form) return;
-
-        const idInput = form.querySelector('#client-id');
-        const clientId = idInput ? idInput.value : null;
-        const isEdit = !!clientId;
-
-        const clientData = {};
-        const inputs = $$('#client-form input, #client-form select, #client-form textarea');
-        
-        let hasRequired = false;
-        inputs.forEach(input => {
-            if (input.id && input.value.trim()) {
-                clientData[input.id] = input.value.trim();
-                if (input.id === 'company') hasRequired = true;
-            }
-        });
-
-        
         try {
             const clientData = {};
             const inputs = $$('#client-form input, #client-form select, #client-form textarea');
@@ -1830,11 +1115,8 @@
                 elements.saveClientBtn.disabled = true;
             }
 
-            const url = isEdit ? `/api/clients/${clientId}` : '/api/clients';
-            const method = isEdit ? 'PUT' : 'POST';
-
-            const response = await fetch(url, {
-                method: method,
+            const response = await fetch('/api/clients', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -1847,32 +1129,24 @@
                 throw new Error(data.error || 'Помилка збереження');
             }
 
-            showNotification(`Клієнта ${isEdit ? 'оновлено' : 'збережено'} успішно! 🎉`, 'success');
+            showNotification('Клієнта збережено успішно! 🎉', 'success');
             
-            if (isEdit) {
-                // Update client in state
-                const index = state.clients.findIndex(c => c.id === parseInt(clientId));
-                if (index !== -1) {
-                    state.clients[index] = data.client;
-                }
-                if (state.currentClient?.id === parseInt(clientId)) {
-                    state.currentClient = data.client;
-                }
-            } else {
-                // Add new client to state
-                state.clients.unshift(data.client);
-                state.currentClient = data.client;
-            }
+            // Set the new client as current and show analysis dashboard
+            state.currentClient = data.client;
             
-            // Update UI
-            renderClientsList();
-            updateClientCount();
+            // Force refresh the clients list to ensure it appears
+            await loadClients(true); // Force refresh with cache busting
+            
+            // Make sure the client appears in UI with delay for better UX
+            setTimeout(() => {
+                renderClientsList();
+                updateClientCount();
+            }, 200);
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
             
-            // Show analysis dashboard for the client
+            // Show analysis dashboard
             showSection('analysis-dashboard');
-            clearAnalysisDisplay(); // Ensure a clean slate for analysis
             
             // Save state
             scheduleStateSave();
@@ -1900,52 +1174,322 @@
         if (elements.wordCount) elements.wordCount.textContent = `${formatNumber(words)} слів`;
         if (elements.estimatedTokens) elements.estimatedTokens.textContent = `≈ ${formatNumber(tokens)} токенів`;
         
-        // Update text input state
-        state.originalText = text;
-        
-        // Enable/disable analysis button with enhanced validation
+        // Enable/disable analysis button
         const hasText = chars > 0;
         const hasClient = state.currentClient !== null;
-        const isTextTooLarge = chars > 10000000; // 10M character limit - без обмежень
-        const isTextTooSmall = chars > 0 && chars < 20; // Minimum 20 characters
         
         if (elements.startAnalysisBtn) {
-            const canAnalyze = hasText && hasClient && !isTextTooLarge && !isTextTooSmall;
-            elements.startAnalysisBtn.disabled = !canAnalyze;
+            elements.startAnalysisBtn.disabled = !hasText || !hasClient;
             
             if (!hasClient) {
                 elements.startAnalysisBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Спочатку оберіть клієнта</span>';
-            } else if (isTextTooLarge) {
-                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>Текст занадто великий (макс. 10М символів)</span>';
-            } else if (isTextTooSmall) {
-                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-edit"></i> <span>Текст занадто короткий (мін. 20 символів)</span>';
             } else if (!hasText) {
                 elements.startAnalysisBtn.innerHTML = '<i class="fas fa-edit"></i> <span>Введіть текст для аналізу</span>';
             } else {
-                // Show appropriate message for large texts
-                if (chars > 100000) {
-                    const estimatedTime = Math.ceil(chars / 10000); // Rough estimation: 1 minute per 10k characters
-                    elements.startAnalysisBtn.innerHTML = `<i class="fas fa-brain"></i> <span>Розпочати аналіз (≈${estimatedTime} хв)</span>`;
-                } else {
-                    elements.startAnalysisBtn.innerHTML = '<i class="fas fa-brain"></i> <span>Розпочати аналіз</span>';
-                }
+                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-brain"></i> <span>Розпочати аналіз</span>';
             }
         }
-        
-        // Add warning for very large texts
-        if (chars > 500000 && !document.querySelector('.large-text-warning')) {
-            const warningDiv = document.createElement('div');
-            warningDiv.className = 'large-text-warning';
-            warningDiv.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 14px;';
-            warningDiv.innerHTML = `
-                <i class="fas fa-info-circle" style="color: #856404; margin-right: 8px;"></i>
-                <strong>Великий текст:</strong> Аналіз може зайняти кілька хвилин. Система обробить весь текст повністю.
-            `;
-            elements.negotiationText?.parentNode?.insertBefore(warningDiv, elements.negotiationText.nextSibling);
-        } else if (chars <= 500000) {
-            // Remove warning if text is smaller
-            const warning = document.querySelector('.large-text-warning');
-            if (warning) warning.remove();
+    }
+
+    // Debounced version for performance
+    const debouncedUpdateTextStats = debounce(updateTextStats, 300);
+
+    async function startAnalysis() {
+        if (!state.currentClient) {
+            showNotification('Спочатку оберіть клієнта', 'warning');
+            return;
+        }
+
+        const text = elements.negotiationText?.value?.trim();
+        if (!text) {
+            showNotification('Введіть текст для аналізу', 'warning');
+            return;
+        }
+
+        // Store original text for highlighting
+        state.originalText = text;
+
+        try {
+            // Show analysis has started with clear visual feedback
+            showNotification('🚀 Аналіз розпочато! Слідкуйте за прогресом...', 'info', 3000);
+            
+            // Show results section and update steps
+            if (elements.resultsSection) {
+                elements.resultsSection.style.display = 'block';
+                
+                // Progressive auto-scroll: Stage 1 - Scroll to counters
+                setTimeout(() => {
+                    const statsGrid = document.querySelector('.stats-grid');
+                    if (statsGrid) {
+                        statsGrid.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center',
+                            inline: 'nearest'
+                        });
+                        showNotification('📊 Підраховуємо проблеми...', 'info', 2000);
+                    }
+                }, 1000);
+            }
+            
+            updateAnalysisSteps('analysis');
+            
+            // Add loading state with more descriptive text
+            if (elements.startAnalysisBtn) {
+                elements.startAnalysisBtn.classList.add('btn-loading');
+                elements.startAnalysisBtn.disabled = true;
+                elements.startAnalysisBtn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Аналізую текст...</span>
+                `;
+            }
+            
+            // Show progress in step 2
+            if (elements.stepAnalysis) {
+                const stepContent = elements.stepAnalysis.querySelector('.step-content p');
+                if (stepContent) {
+                    let dots = 0;
+                    const progressInterval = setInterval(() => {
+                        dots = (dots + 1) % 4;
+                        stepContent.textContent = `Аналіз в процесі${'.'.repeat(dots)}`;
+                    }, 500);
+                    
+                    // Store interval to clear it later
+                    state.progressInterval = progressInterval;
+                }
+            }
+
+            // Prepare form data for streaming analysis
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('client_id', state.currentClient.id);
+
+            // Start streaming analysis
+            const response = await fetch('/api/analyze', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Помилка аналізу');
+            }
+
+            // Process streaming response
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let analysisData = {
+                highlights: [],
+                summary: {},
+                barometer: {}
+            };
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            
+                            if (data.type === 'highlight') {
+                                analysisData.highlights.push(data);
+                                updateHighlightsDisplay(analysisData.highlights);
+                                updateCountersFromHighlights(analysisData.highlights);
+                            } else if (data.type === 'merged_highlights') {
+                                analysisData.highlights = data.items;
+                                updateHighlightsDisplay(analysisData.highlights);
+                                updateCountersFromHighlights(analysisData.highlights);
+                                
+                                // Progressive auto-scroll: Stage 2 - Scroll to problems
+                                setTimeout(() => {
+                                    const highlightsSection = document.querySelector('.highlights-section');
+                                    if (highlightsSection) {
+                                        highlightsSection.scrollIntoView({ 
+                                            behavior: 'smooth', 
+                                            block: 'start',
+                                            inline: 'nearest'
+                                        });
+                                        showNotification(`🔍 Знайдено ${data.items.length} проблемних моментів`, 'success', 2500);
+                                    }
+                                }, 1000);
+                            } else if (data.type === 'summary') {
+                                analysisData.summary = data;
+                                updateSummaryDisplay(data);
+                            } else if (data.type === 'barometer') {
+                                console.log('📊 Received barometer data:', data);
+                                analysisData.barometer = data;
+                                updateBarometerDisplay(data);
+                            } else if (data.type === 'analysis_saved') {
+                                state.currentAnalysis = { id: data.id, ...analysisData };
+                                
+                                // Increment client analysis count
+                                if (state.currentClient) {
+                                    // Update in state.clients array
+                                    const clientIndex = state.clients.findIndex(c => c.id === state.currentClient.id);
+                                    if (clientIndex !== -1) {
+                                        state.clients[clientIndex].analyses_count = (state.clients[clientIndex].analyses_count || 0) + 1;
+                                    }
+                                    
+                                    // Update current client object
+                                    state.currentClient.analyses_count = (state.currentClient.analyses_count || 0) + 1;
+                                    
+                                    // Update UI displays
+                                    updateWorkspaceClientInfo(state.currentClient);
+                                    updateClientsList();
+                                }
+                                
+                                // Create proper analysis object with all needed data for history
+                                const analysisForHistory = {
+                                    id: data.id,
+                                    created_at: new Date().toISOString(),
+                                    text_preview: state.originalText ? state.originalText.substring(0, 100) : 'Аналіз переговорів',
+                                    highlights: analysisData.highlights || [],
+                                    issues_count: analysisData.highlights ? analysisData.highlights.length : 0,
+                                    complexity_score: analysisData.barometer ? analysisData.barometer.score : 0,
+                                    barometer: analysisData.barometer
+                                };
+                                
+                                console.log('💾 Saving analysis with data:', {
+                                    id: data.id,
+                                    issues_count: analysisForHistory.issues_count,
+                                    complexity_score: analysisForHistory.complexity_score,
+                                    barometer: analysisForHistory.barometer
+                                });
+                                
+                                // Update currentAnalysis with complete data
+                                state.currentAnalysis = {
+                                    id: data.id,
+                                    ...analysisData,
+                                    created_at: analysisForHistory.created_at,
+                                    text_preview: analysisForHistory.text_preview,
+                                    issues_count: analysisForHistory.issues_count,
+                                    complexity_score: analysisForHistory.complexity_score
+                                };
+                                
+                                // Update analysis history immediately with current data
+                                if (!state.analyses) state.analyses = [];
+                                state.analyses.unshift(analysisForHistory);
+                                renderAnalysisHistory(state.analyses);
+                                
+                                // Also load from server to sync
+                                await loadAnalysisHistory(state.currentClient.id);
+                                
+                                // Update client analysis count by refreshing client data
+                                await loadClients(true);
+                                
+                                // Update current client data with refreshed info
+                                if (state.currentClient) {
+                                    const updatedClient = state.clients.find(c => c.id === state.currentClient.id);
+                                    if (updatedClient) {
+                                        state.currentClient = updatedClient;
+                                    }
+                                }
+                                
+                                renderClientsList();
+                                updateWorkspaceClientInfo(state.currentClient);
+                                
+                                // Calculate and display custom barometer if none was provided
+                                if (!analysisData.barometer) {
+                                    const customBarometer = calculateComplexityBarometer(state.currentClient, analysisData);
+                                    updateBarometerDisplay(customBarometer);
+                                }
+                            } else if (data.type === 'complete') {
+                                console.log('📋 Analysis complete signal received');
+                                
+                                // Ensure barometer is displayed and stored
+                                if (analysisData.barometer) {
+                                    console.log('📊 Triggering barometer display on complete');
+                                    updateBarometerDisplay(analysisData.barometer);
+                                } else {
+                                    console.log('📊 No barometer from AI, calculating custom barometer');
+                                    const customBarometer = calculateComplexityBarometer(state.currentClient, analysisData);
+                                    analysisData.barometer = customBarometer; // Store it in analysisData
+                                    updateBarometerDisplay(customBarometer);
+                                }
+                                
+                                // Ensure barometer is saved in currentAnalysis
+                                if (!state.currentAnalysis) state.currentAnalysis = {};
+                                state.currentAnalysis.barometer = analysisData.barometer;
+                                
+                                // Progressive auto-scroll: Stage 3 - Scroll to barometer (final)
+                                setTimeout(() => {
+                                    const barometerCard = document.querySelector('.barometer-card');
+                                    if (barometerCard) {
+                                        barometerCard.scrollIntoView({ 
+                                            behavior: 'smooth', 
+                                            block: 'center',
+                                            inline: 'nearest'
+                                        });
+                                        const score = analysisData.barometer?.score || 0;
+                                        const label = analysisData.barometer?.label || 'Невизначено';
+                                        showNotification(`🎯 Аналіз завершено! Складність: ${score}/100 (${label})`, 'success', 4000);
+                                    }
+                                }, 2000);
+                                
+                                // Generate and display highlighted text
+                                if (state.originalText && analysisData.highlights?.length > 0) {
+                                    console.log('🔍 Generating highlighted text from highlights');
+                                    const highlightedText = generateHighlightedText(state.originalText, analysisData.highlights);
+                                    
+                                    // Ensure state.currentAnalysis exists
+                                    if (!state.currentAnalysis) state.currentAnalysis = {};
+                                    state.currentAnalysis.highlighted_text = highlightedText;
+                                    state.currentAnalysis.highlights = analysisData.highlights;
+                                    
+                                    console.log('🎨 Generated highlighted text, length:', highlightedText.length);
+                                    
+                                    // Always update full text view so it's ready when user switches to text view
+                                    updateFullTextView(highlightedText);
+                                    
+                                    // Also update fragments view so it's ready
+                                    updateFragmentsView(analysisData.highlights);
+                                    
+                                    console.log('🔍 Full text view and fragments view updated and ready');
+                                }
+                            }
+                        } catch (e) {
+                            // Skip invalid JSON lines
+                        }
+                    }
+                }
+            }
+
+            // Update token usage
+            await loadTokenUsage();
+            updateAnalysisSteps('completed');
+            
+            // Update analysis history in sidebar if we have all the data
+            if (state.currentClient && analysisData.highlights) {
+                console.log('🔄 Updating analysis history after completion');
+                await loadAnalysisHistory(state.currentClient.id);
+            }
+            
+            showNotification('Аналіз завершено успішно! ✨', 'success');
+            
+            // Save state
+            scheduleStateSave();
+
+        } catch (error) {
+            console.error('Analysis error:', error);
+            showNotification(error.message || 'Помилка при аналізі', 'error');
+            updateAnalysisSteps('error');
+        } finally {
+            // Clear progress interval
+            if (state.progressInterval) {
+                clearInterval(state.progressInterval);
+                state.progressInterval = null;
+            }
+            
+            // Remove loading state
+            if (elements.startAnalysisBtn) {
+                elements.startAnalysisBtn.classList.remove('btn-loading');
+                elements.startAnalysisBtn.disabled = false;
+            }
+            updateTextStats(); // Restore button text
         }
     }
 
@@ -2101,75 +1645,33 @@
     }
 
     function updateCountersFromHighlights(highlights) {
-        // Count by category - handle empty highlights
-        const counts = {
-            manipulation: 0,
-            cognitive_bias: 0,
-            rhetological_fallacy: 0
-        };
+        if (!highlights || highlights.length === 0) return;
         
-        if (highlights && highlights.length > 0) {
-            highlights.forEach(highlight => {
-                const category = highlight.category || 'manipulation';
-                console.log('📊 Processing highlight category in updateCounts:', category, 'for highlight:', highlight.text?.substring(0, 50));
-                
-                // Map different category names to standardized ones
-                if (category === 'manipulation' || category === 'social_manipulation') {
-                    counts.manipulation++;
-                } else if (category === 'cognitive_bias' || category === 'bias') {
-                    counts.cognitive_bias++;
-                } else if (category === 'rhetological_fallacy' || category === 'rhetorical_fallacy' || category === 'logical_fallacy') {
-                    counts.rhetological_fallacy++;
-                } else {
-                    // Default unknown categories to manipulation
-                    console.log('📊 Unknown category in updateCounts:', category, 'defaulting to manipulation');
-                    counts.manipulation++;
-                }
-            });
+        // Count by category
+        const counts = highlights.reduce((acc, highlight) => {
+            const category = highlight.category || 'manipulation';
+            acc[category] = (acc[category] || 0) + 1;
+            return acc;
+        }, {});
+        
+        // Update counters
+        if (elements.manipulationsCount) {
+            animateNumber(elements.manipulationsCount, counts.manipulation || 0);
+        }
+        if (elements.biasesCount) {
+            animateNumber(elements.biasesCount, counts.cognitive_bias || 0);
+        }
+        if (elements.fallaciesCount) {
+            animateNumber(elements.fallaciesCount, counts.rhetological_fallacy || 0);
         }
         
-        const totalCount = highlights ? highlights.length : 0;
-        console.log('📊 Updating problem counters:', counts, 'Total:', totalCount);
-        
-        // Force find and update all counters
-        const manipulationsElement = document.getElementById('manipulations-count');
-        const biasesElement = document.getElementById('biases-count');
-        const fallaciesElement = document.getElementById('fallacies-count');
-        const recommendationsElement = document.getElementById('recommendations-count');
-        
-        if (manipulationsElement) {
-            animateNumber(manipulationsElement, counts.manipulation);
-            elements.manipulationsCount = manipulationsElement;
-            console.log('📊 ✅ Manipulations count updated:', counts.manipulation);
-        } else {
-            console.error('📊 ❌ #manipulations-count not found');
+        // Calculate total recommendations
+        const totalCount = highlights.length;
+        if (elements.recommendationsCount) {
+            animateNumber(elements.recommendationsCount, totalCount);
         }
         
-        if (biasesElement) {
-            animateNumber(biasesElement, counts.cognitive_bias);
-            elements.biasesCount = biasesElement;
-            console.log('📊 ✅ Biases count updated:', counts.cognitive_bias);
-        } else {
-            console.error('📊 ❌ #biases-count not found');
-        }
-        
-        if (fallaciesElement) {
-            animateNumber(fallaciesElement, counts.rhetological_fallacy);
-            elements.fallaciesCount = fallaciesElement;
-            console.log('📊 ✅ Fallacies count updated:', counts.rhetological_fallacy);
-        } else {
-            console.error('📊 ❌ #fallacies-count not found');
-        }
-        
-        if (recommendationsElement) {
-            animateNumber(recommendationsElement, totalCount);
-            elements.recommendationsCount = recommendationsElement;
-            console.log('📊 ✅ Total recommendations updated:', totalCount);
-        } else {
-            console.error('📊 ❌ #recommendations-count not found');
-        }
-        
-        console.log('📊 All counters update completed');
+        console.log('Updated counters:', counts, 'Total:', totalCount);
     }
 
     // ===== Enhanced Custom Barometer Logic =====
@@ -2604,20 +2106,9 @@
         
         if (analysis.highlights && Array.isArray(analysis.highlights)) {
             analysis.highlights.forEach(highlight => {
-                const category = highlight.category || 'manipulation';
-                console.log('🔍 Processing highlight category:', category, 'for highlight:', highlight.text?.substring(0, 50));
-                
-                // Map different category names to standardized ones
-                if (category === 'manipulation' || category === 'social_manipulation') {
-                    categoryCounts.manipulation++;
-                } else if (category === 'cognitive_bias' || category === 'bias') {
-                    categoryCounts.cognitive_bias++;
-                } else if (category === 'rhetological_fallacy' || category === 'rhetorical_fallacy' || category === 'logical_fallacy') {
-                    categoryCounts.rhetological_fallacy++;
-                } else {
-                    // Default unknown categories to manipulation
-                    console.log('🔍 Unknown category:', category, 'defaulting to manipulation');
-                    categoryCounts.manipulation++;
+                const category = highlight.category;
+                if (categoryCounts.hasOwnProperty(category)) {
+                    categoryCounts[category]++;
                 }
             });
         }
@@ -2727,7 +2218,7 @@
         }
 
         elements.highlightsList.innerHTML = highlights.map((highlight, index) => `
-            <div class="highlight-item ${highlight.category || 'general'}" data-highlight-id="${index}" draggable="true">
+            <div class="highlight-item ${highlight.category || 'general'}" data-highlight-id="${index}">
                 <div class="highlight-header">
                     <div class="highlight-type ${highlight.category}">${highlight.category_label || 'Проблема'}</div>
                     <div class="highlight-actions">
@@ -2744,415 +2235,401 @@
                 ${highlight.suggestion ? `<div class="highlight-suggestion"><strong>Рекомендація:</strong> ${escapeHtml(highlight.suggestion)}</div>` : ''}
             </div>
         `).join('');
-        
-        // Enable drag functionality after rendering
-        enableHighlightDrag();
     }
 
     function updateFullTextView(highlightedText) {
-        console.log('🔍 updateFullTextView called with:', {
-            highlightedTextLength: highlightedText ? highlightedText.length : 0,
-            hasCurrentAnalysis: !!state.currentAnalysis,
-            hasHighlights: state.currentAnalysis?.highlights?.length || 0,
-            hasOriginalText: !!(state.originalText || state.currentAnalysis?.original_text)
-        });
-        
-        if (!elements.fulltextContent) {
-            console.warn('🔍 fulltext content element not found');
-            return;
-        }
-        
-        if (highlightedText && highlightedText.trim() !== '') {
-            console.log('🔍 Displaying provided highlighted text');
-            elements.fulltextContent.innerHTML = `
-                <div class="fulltext-container">
-                    <div class="fulltext-header">
-                        <h4><i class="fas fa-file-text"></i> Повний текст з підсвічуванням проблем</h4>
-                    </div>
-                    <div class="fulltext-body">
+        if (elements.fulltextContent) {
+            if (highlightedText && highlightedText.trim() !== '') {
+                console.log('🔍 Updating full text view with highlighted content, length:', highlightedText.length);
+                elements.fulltextContent.innerHTML = `
+                    <div class="fulltext-container">
                         ${highlightedText}
                     </div>
-                </div>
-            `;
-        } else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
-            // Generate highlighted text from highlights and original text
-            console.log('🔍 Generating highlighted text from highlights and original');
-            const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
-            const highlighted = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
-            elements.fulltextContent.innerHTML = `
-                <div class="fulltext-container">
-                    <div class="fulltext-header">
-                        <h4><i class="fas fa-file-text"></i> Повний текст з підсвічуванням проблем</h4>
-                        <span class="highlights-count">${state.currentAnalysis.highlights.length} проблем знайдено</span>
-                    </div>
-                    <div class="fulltext-body">
+                `;
+            } else if (state.currentAnalysis?.highlights && state.originalText) {
+                // Generate highlighted text from highlights and original text
+                console.log('🔍 Generating highlighted text in updateFullTextView');
+                const highlighted = generateHighlightedText(state.originalText, state.currentAnalysis.highlights);
+                elements.fulltextContent.innerHTML = `
+                    <div class="fulltext-container">
                         ${highlighted}
                     </div>
-                </div>
-            `;
-        } else if ((state.originalText || state.currentAnalysis?.original_text) && (state.originalText || state.currentAnalysis?.original_text).trim() !== '') {
-            // Show original text without highlighting if no highlights available
-            console.log('🔍 Showing original text without highlighting');
-            const originalTextToUse = state.originalText || state.currentAnalysis?.original_text;
-            elements.fulltextContent.innerHTML = `
-                <div class="fulltext-container">
-                    <div class="fulltext-header">
-                        <h4><i class="fas fa-file-text"></i> Повний текст</h4>
-                        <span class="text-info">Без підсвічування (аналіз не виконано)</span>
+                `;
+            } else if (state.originalText && state.originalText.trim() !== '') {
+                // Show original text without highlighting if no highlights available
+                console.log('🔍 Showing original text without highlighting');
+                elements.fulltextContent.innerHTML = `
+                    <div class="fulltext-container">
+                        ${escapeHtml(state.originalText)}
                     </div>
-                    <div class="fulltext-body">
-                        <div class="text-content">
-                            ${escapeHtml(originalTextToUse)}
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            // Show empty state if no text available
-            console.log('🔍 Showing empty state for full text view');
-            elements.fulltextContent.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon"><i class="fas fa-file-text"></i></div>
-                    <h4>Повний текст недоступний</h4>
-                    <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
-                </div>
-            `;
-        }
-        
-        // Add scrollable class for proper styling
-        const fulltextBody = elements.fulltextContent.querySelector('.fulltext-body');
-        if (fulltextBody) {
-            fulltextBody.classList.add('scrollable-content');
-        }
-    }
-
-    /**
-     * Ultra-reliable text highlighting function built from scratch
-     * Implements SOLID principles for maximum reliability
-     */
-    function generateHighlightedText(originalText, highlights) {
-        console.log('🎨 === ROBUST HIGHLIGHTING ENGINE v2.0 ===');
-        console.log('🎨 Input validation:', {
-            textLength: originalText?.length || 0,
-            highlightsCount: highlights?.length || 0
-        });
-        
-        // Early validation
-        if (!originalText) {
-            console.warn('🎨 No original text provided');
-            return '<div class="text-content">Немає тексту для відображення</div>';
-        }
-        
-        if (!highlights || !Array.isArray(highlights) || highlights.length === 0) {
-            console.log('🎨 No highlights - returning clean text');
-            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
-        }
-
-        // Step 1: Sanitize and validate highlights
-        const validHighlights = highlights
-            .filter(h => h && typeof h === 'object')
-            .map((h, index) => ({
-                id: h.id || `h${index + 1}`,
-                category: h.category || 'manipulation', 
-                label: h.label || 'Проблема',
-                text: h.text || '',
-                explanation: h.explanation || '',
-                severity: h.severity || 1,
-                char_start: parseInt(h.char_start) || 0,
-                char_end: parseInt(h.char_end) || 0
-            }))
-            .filter(h => {
-                // Validate position bounds
-                if (h.char_start < 0 || h.char_end < 0) return false;
-                if (h.char_start >= originalText.length || h.char_end > originalText.length) return false;
-                if (h.char_start >= h.char_end) return false;
-                return true;
-            })
-            .sort((a, b) => a.char_start - b.char_start); // Sort by position
-        
-        console.log('🎨 Valid highlights after filtering:', validHighlights.length);
-        
-        // Step 2: Handle overlapping highlights
-        const resolvedHighlights = resolveOverlappingHighlights(validHighlights);
-        console.log('🎨 Highlights after overlap resolution:', resolvedHighlights.length);
-        
-        // Step 3: Build highlighted text
-        return buildHighlightedHTML(originalText, resolvedHighlights);
-    }
-
-    /**
-     * Resolves overlapping highlights using priority-based merging
-     */
-    function resolveOverlappingHighlights(highlights) {
-        if (highlights.length <= 1) return highlights;
-        
-        const resolved = [];
-        let current = highlights[0];
-        
-        for (let i = 1; i < highlights.length; i++) {
-            const next = highlights[i];
-            
-            // Check for overlap
-            if (current.char_end > next.char_start) {
-                console.log(`🎨 Overlap detected: ${current.id} vs ${next.id}`);
-                
-                // Merge overlapping highlights - keep the one with higher severity
-                if (next.severity > current.severity) {
-                    current = {
-                        ...next,
-                        char_start: Math.min(current.char_start, next.char_start),
-                        char_end: Math.max(current.char_end, next.char_end),
-                        label: `${current.label} + ${next.label}`
-                    };
-                } else {
-                    current = {
-                        ...current,
-                        char_end: Math.max(current.char_end, next.char_end),
-                        label: `${current.label} + ${next.label}`
-                    };
-                }
+                `;
             } else {
-                // No overlap - add current to resolved and move to next
-                resolved.push(current);
-                current = next;
+                // Show empty state if no text available
+                console.log('🔍 Showing empty state for full text view');
+                elements.fulltextContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fas fa-file-text"></i></div>
+                        <p>Повний текст з підсвічуванням з'явиться тут після аналізу</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    function generateHighlightedText(originalText, highlights) {
+        if (!originalText || !highlights || highlights.length === 0) {
+            return escapeHtml(originalText || '');
+        }
+
+        console.log('🔍 Generating highlighted text, originalText length:', originalText.length);
+        console.log('🔍 Number of highlights:', highlights.length);
+
+        // Normalize text for better matching
+        const normalizedOriginal = originalText.replace(/\s+/g, ' ').trim();
+        const positions = [];
+        
+        for (const highlight of highlights) {
+            const searchText = highlight.text?.trim();
+            if (!searchText) {
+                console.warn('🔍 Empty highlight text, skipping:', highlight);
+                continue;
+            }
+            
+            console.log('🔍 Searching for highlight text:', searchText);
+            
+            // Normalize search text
+            const normalizedSearch = searchText.replace(/\s+/g, ' ').trim();
+            let foundPositions = [];
+            
+            // Strategy 1: Exact match in original text
+            let startIndex = 0;
+            let index;
+            while ((index = originalText.indexOf(searchText, startIndex)) !== -1) {
+                foundPositions.push({
+                    start: index,
+                    end: index + searchText.length,
+                    highlight: highlight,
+                    matchType: 'exact',
+                    priority: 1
+                });
+                startIndex = index + 1;
+            }
+            
+            // Strategy 2: Exact match in normalized text
+            if (foundPositions.length === 0 && normalizedSearch !== searchText) {
+                startIndex = 0;
+                while ((index = normalizedOriginal.indexOf(normalizedSearch, startIndex)) !== -1) {
+                    foundPositions.push({
+                        start: index,
+                        end: index + normalizedSearch.length,
+                        highlight: highlight,
+                        matchType: 'normalized',
+                        priority: 2
+                    });
+                    startIndex = index + 1;
+                }
+            }
+            
+            // Strategy 3: Case insensitive match
+            if (foundPositions.length === 0) {
+                const lowerOriginal = originalText.toLowerCase();
+                const lowerSearch = searchText.toLowerCase();
+                startIndex = 0;
+                while ((index = lowerOriginal.indexOf(lowerSearch, startIndex)) !== -1) {
+                    foundPositions.push({
+                        start: index,
+                        end: index + searchText.length,
+                        highlight: highlight,
+                        matchType: 'case-insensitive',
+                        priority: 3
+                    });
+                    startIndex = index + 1;
+                }
+            }
+            
+            // Strategy 4: Word-by-word matching for partial matches
+            if (foundPositions.length === 0) {
+                const words = searchText.split(/\s+/).filter(w => w.length > 2);
+                for (const word of words) {
+                    const regex = new RegExp(`\\b${escapeRegExp(word)}\\b`, 'gi');
+                    let match;
+                    while ((match = regex.exec(originalText)) !== null) {
+                        // Look for the full phrase in a larger context around this word
+                        const contextRadius = Math.max(searchText.length * 2, 100);
+                        const contextStart = Math.max(0, match.index - contextRadius);
+                        const contextEnd = Math.min(originalText.length, match.index + contextRadius);
+                        const context = originalText.substring(contextStart, contextEnd);
+                        
+                        // Try different variations of the search text in this context
+                        const variations = [
+                            searchText,
+                            searchText.toLowerCase(),
+                            normalizedSearch,
+                            normalizedSearch.toLowerCase()
+                        ];
+                        
+                        for (const variation of variations) {
+                            const localIndex = context.toLowerCase().indexOf(variation.toLowerCase());
+                            if (localIndex !== -1) {
+                                const actualStart = contextStart + localIndex;
+                                const actualEnd = actualStart + variation.length;
+                                
+                                // Make sure we don't already have this position
+                                const isDuplicate = foundPositions.some(pos => 
+                                    Math.abs(pos.start - actualStart) < 5
+                                );
+                                
+                                if (!isDuplicate) {
+                                    foundPositions.push({
+                                        start: actualStart,
+                                        end: actualEnd,
+                                        highlight: highlight,
+                                        matchType: 'context-based',
+                                        priority: 4
+                                    });
+                                }
+                                break; // Found one variation, move to next word
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Strategy 5: Flexible text search ignoring punctuation and extra spaces
+            if (foundPositions.length === 0) {
+                const cleanSearch = searchText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+                const cleanOriginal = originalText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').toLowerCase();
+                
+                if (cleanSearch !== searchText.toLowerCase()) {
+                    const cleanIndex = cleanOriginal.indexOf(cleanSearch);
+                    if (cleanIndex !== -1) {
+                        // Map back to original text position
+                        let originalPos = 0;
+                        let cleanPos = 0;
+                        
+                        while (cleanPos < cleanIndex && originalPos < originalText.length) {
+                            const origChar = originalText[originalPos].toLowerCase();
+                            const cleanChar = cleanOriginal[cleanPos];
+                            
+                            if (origChar === cleanChar) {
+                                cleanPos++;
+                            }
+                            originalPos++;
+                        }
+                        
+                        // Find the end position
+                        const searchEnd = cleanIndex + cleanSearch.length;
+                        let endPos = originalPos;
+                        while (cleanPos < searchEnd && endPos < originalText.length) {
+                            const origChar = originalText[endPos].toLowerCase();
+                            const cleanChar = cleanOriginal[cleanPos];
+                            
+                            if (origChar === cleanChar) {
+                                cleanPos++;
+                            }
+                            endPos++;
+                        }
+                        
+                        foundPositions.push({
+                            start: originalPos,
+                            end: endPos,
+                            highlight: highlight,
+                            matchType: 'flexible',
+                            priority: 4
+                        });
+                    }
+                }
+            }
+            
+            // Strategy 6: Fuzzy search with Levenshtein-like approach for typos
+            if (foundPositions.length === 0 && searchText.length > 10) {
+                const searchLength = searchText.length;
+                const tolerance = Math.floor(searchLength * 0.15); // 15% tolerance
+                
+                for (let i = 0; i <= originalText.length - searchLength + tolerance; i += 5) { // Skip every 5 chars for performance
+                    const candidate = originalText.substring(i, i + searchLength);
+                    const similarity = calculateSimilarity(searchText.toLowerCase(), candidate.toLowerCase());
+                    
+                    if (similarity > 0.75) { // 75% similarity threshold
+                        foundPositions.push({
+                            start: i,
+                            end: i + candidate.length,
+                            highlight: highlight,
+                            matchType: 'fuzzy',
+                            priority: 6,
+                            similarity: similarity
+                        });
+                    }
+                }
+            }
+            
+            // Strategy 7: Last resort - search for key words from the highlight
+            if (foundPositions.length === 0) {
+                const keywords = searchText.split(/\s+/).filter(w => w.length > 3);
+                if (keywords.length > 0) {
+                    const mainKeyword = keywords.sort((a, b) => b.length - a.length)[0]; // Longest word
+                    const regex = new RegExp(`\\b${escapeRegExp(mainKeyword)}\\b`, 'gi');
+                    let match;
+                    while ((match = regex.exec(originalText)) !== null) {
+                        // Expand around the keyword to try to capture the full phrase
+                        const expandRadius = searchText.length;
+                        const expandStart = Math.max(0, match.index - expandRadius);
+                        const expandEnd = Math.min(originalText.length, match.index + mainKeyword.length + expandRadius);
+                        
+                        foundPositions.push({
+                            start: expandStart,
+                            end: expandEnd,
+                            highlight: highlight,
+                            matchType: 'keyword-expanded',
+                            priority: 7
+                        });
+                    }
+                }
+            }
+            
+            console.log(`🔍 Found ${foundPositions.length} positions for "${searchText}"`);
+            if (foundPositions.length === 0) {
+                console.warn(`🔍 No matches found for: "${searchText}"`);
+                console.warn(`🔍 First 200 chars of original text:`, originalText.substring(0, 200));
+            }
+            
+            positions.push(...foundPositions);
+        }
+        
+        // Sort by priority first, then by position
+        positions.sort((a, b) => a.priority - b.priority || a.start - b.start);
+        console.log('🔍 Total positions found:', positions.length);
+        
+        // Remove overlapping highlights (keep the highest priority one)
+        const cleanPositions = [];
+        for (const pos of positions) {
+            const overlaps = cleanPositions.some(existing => 
+                (pos.start >= existing.start && pos.start < existing.end) ||
+                (pos.end > existing.start && pos.end <= existing.end) ||
+                (pos.start <= existing.start && pos.end >= existing.end)
+            );
+            
+            if (!overlaps) {
+                cleanPositions.push(pos);
             }
         }
         
-        // Add the last highlight
-        resolved.push(current);
-        return resolved;
-    }
-
-    /**
-     * Builds the final HTML with highlights
-     */
-    function buildHighlightedHTML(originalText, highlights) {
-        if (highlights.length === 0) {
-            return `<div class="text-content">${escapeHtml(originalText)}</div>`;
-        }
+        cleanPositions.sort((a, b) => a.start - b.start);
+        console.log('🔍 Clean positions after overlap removal:', cleanPositions.length);
         
-        let result = '<div class="text-content">';
-        let currentPos = 0;
-        
-        highlights.forEach((highlight, index) => {
-            // Add text before highlight
-            if (currentPos < highlight.char_start) {
-                const beforeText = originalText.substring(currentPos, highlight.char_start);
-                result += escapeHtml(beforeText);
-            }
-            
-            // Add highlighted text
-            const highlightedText = originalText.substring(highlight.char_start, highlight.char_end);
-            const categoryClass = getCategoryClass(highlight.category);
-            const tooltip = escapeHtml(highlight.explanation || highlight.label || '');
-            
-            result += `<span class="text-highlight ${categoryClass} interactive-highlight" ` +
-                     `data-highlight-id="${highlight.id}" ` +
-                     `data-category="${highlight.category}" ` +
-                     `data-severity="${highlight.severity}" ` +
-                     `title="${tooltip}" ` +
-                     `data-tooltip="${tooltip}">` +
-                     `${escapeHtml(highlightedText)}</span>`;
-            
-            currentPos = highlight.char_end;
-            
-            console.log(`🎨 ✅ Highlight ${index + 1} applied:`, {
-                id: highlight.id,
-                category: highlight.category,
-                class: categoryClass,
-                text_preview: highlightedText.substring(0, 30) + '...'
-            });
-        });
-        
-        // Add remaining text after last highlight
-        if (currentPos < originalText.length) {
-            const remainingText = originalText.substring(currentPos);
-            result += escapeHtml(remainingText);
-        }
-        
-        result += '</div>';
-        
-        console.log('🎨 ✅ HIGHLIGHTING COMPLETE - Final HTML length:', result.length);
-        return result;
-    }
-
-    /**
-     * Get CSS class for highlight category
-     */
-    function getCategoryClass(category) {
-        const categoryMap = {
-            'manipulation': 'manipulation',
-            'cognitive_bias': 'bias',
-            'rhetological_fallacy': 'fallacy',
-            'rhetorical_fallacy': 'fallacy',
-            'logical_fallacy': 'fallacy'
-        };
-        return categoryMap[category] || 'manipulation';
-    }
-
-    // === PROGRESS BAR IMPROVEMENTS ===
-    function updateProgressBar(stage, percent) {
-        const progressBar = document.querySelector('.analysis-progress-bar');
-        const progressText = document.querySelector('.analysis-progress-text');
-        
-        if (progressBar) {
-            progressBar.style.width = `${percent}%`;
-        }
-        
-        if (progressText) {
-            const stageMessages = {
-                'started': 'Розпочинаю аналіз...',
-                'chunking': 'Розбиваю текст на частини...',
-                'processing': `Аналізую частину ${stage}...`,
-                'merging': 'Об\'єдную результати...',
-                'saving': 'Зберігаю аналіз...',
-                'complete': 'Аналіз завершено!'
-            };
-            progressText.textContent = stageMessages[stage] || `Етап: ${stage}`;
-        }
-        
-        console.log(`📊 Progress: ${stage} - ${percent}%`);
-    }
-
-
-    function toggleFilters() {
-        state.ui.filtersVisible = !state.ui.filtersVisible;
-        
-        // Update button state
-        elements.filterView?.classList.toggle('active', state.ui.filtersVisible);
-        
-        // Show/hide filters panel
-        if (elements.filtersPanel) {
-            elements.filtersPanel.style.display = state.ui.filtersVisible ? 'block' : 'none';
-        }
-        
-        // Hide other views when filters are shown
-        if (state.ui.filtersVisible) {
-            if (elements.highlightsList) elements.highlightsList.style.display = 'none';
-            if (elements.fulltextContent) elements.fulltextContent.style.display = 'none';
-            if (elements.fragmentsContent) elements.fragmentsContent.style.display = 'none';
-        } else {
-            // Restore previous view
-            switchHighlightsView(state.ui.highlightsView || 'list');
-        }
-    }
-
-    function applyFilters() {
-        // Get filter values
-        state.ui.filters.showManipulation = elements.filterManipulation?.checked ?? true;
-        state.ui.filters.showCognitiveBias = elements.filterCognitiveBias?.checked ?? true;
-        state.ui.filters.showRhetoricalFallacy = elements.filterRhetoricalFallacy?.checked ?? true;
-        state.ui.filters.minSeverity = parseInt(elements.filterMinSeverity?.value || '1');
-        state.ui.filters.maxSeverity = parseInt(elements.filterMaxSeverity?.value || '3');
-        state.ui.filters.searchText = elements.filterSearch?.value.toLowerCase() || '';
-        
-        // Apply filters to current highlights
-        if (state.currentAnalysis?.highlights) {
-            updateHighlightsDisplay(state.currentAnalysis.highlights);
-        }
-        
-        // Close filters panel
-        toggleFilters();
-        
-
-        // Build the final HTML
+        // Build the highlighted text
         let result = '';
-        let currentIndex = 0;
+        let lastPos = 0;
         
-        for (const segment of cleanSegments) {
-            // Add text before this segment
-            if (segment.start > currentIndex) {
-                const beforeText = originalText.substring(currentIndex, segment.start);
-                result += escapeHtml(beforeText);
+        for (const pos of cleanPositions) {
+            // Add text before highlight
+            if (pos.start > lastPos) {
+                result += escapeHtml(originalText.substring(lastPos, pos.start));
             }
             
-            // Add highlighted segment
-            const category = getCategoryClass(segment.highlight.category || 'manipulation');
-            const tooltip = escapeHtml(segment.highlight.explanation || segment.highlight.description || segment.highlight.label || '');
-            const highlightedText = escapeHtml(segment.originalText);
+            // Get the actual text from original (in case of case differences)
+            const actualText = originalText.substring(pos.start, pos.end);
+            const categoryClass = getCategoryClass(pos.highlight.category);
+            const tooltip = escapeHtml(pos.highlight.explanation || pos.highlight.label || '');
             
-            result += `<span class="text-highlight ${category}" title="${tooltip}" data-highlight-index="${segment.highlightIndex}">${highlightedText}</span>`;
+            result += `<span class="text-highlight ${categoryClass}" data-tooltip="${tooltip}" title="Match type: ${pos.matchType}">${escapeHtml(actualText)}</span>`;
             
-            currentIndex = segment.end;
+            lastPos = pos.end;
         }
         
         // Add remaining text
-        if (currentIndex < originalText.length) {
-            const remainingText = originalText.substring(currentIndex);
-            result += escapeHtml(remainingText);
+        if (lastPos < originalText.length) {
+            result += escapeHtml(originalText.substring(lastPos));
         }
         
-        console.log('🔍 ========== HIGHLIGHTING COMPLETED ==========');
-        console.log('🔍 Final result length:', result.length);
-        console.log('🔍 Applied highlights:', cleanSegments.length);
+        console.log('🔍 Generated highlighted text length:', result.length);
+        console.log('🔍 Highlighted', cleanPositions.length, 'out of', highlights.length, 'total highlights');
         
-        return `<div class="text-content">${result}</div>`;
+        return result;
     }
     
-    // Simplified helper function for category CSS classes
+    // Helper function to calculate text similarity
+    function calculateSimilarity(str1, str2) {
+        const longer = str1.length > str2.length ? str1 : str2;
+        const shorter = str1.length > str2.length ? str2 : str1;
+        
+        if (longer.length === 0) return 1.0;
+        
+        const editDistance = levenshteinDistance(longer, shorter);
+        return (longer.length - editDistance) / longer.length;
+    }
+    
+    // Simple Levenshtein distance implementation
+    function levenshteinDistance(str1, str2) {
+        const matrix = [];
+        
+        for (let i = 0; i <= str2.length; i++) {
+            matrix[i] = [i];
+        }
+        
+        for (let j = 0; j <= str1.length; j++) {
+            matrix[0][j] = j;
+        }
+        
+        for (let i = 1; i <= str2.length; i++) {
+            for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1, // substitution
+                        matrix[i][j - 1] + 1,     // insertion
+                        matrix[i - 1][j] + 1      // deletion
+                    );
+                }
+            }
+        }
+        
+        return matrix[str2.length][str1.length];
+    }
+
     function getCategoryClass(category) {
         const categoryMap = {
             'manipulation': 'manipulation',
-            'cognitive_bias': 'bias',
-            'social_manipulation': 'manipulation',
+            'cognitive_bias': 'cognitive_bias', 
             'rhetological_fallacy': 'fallacy',
             'logical_fallacy': 'fallacy'
         };
         return categoryMap[category] || 'manipulation';
     }
-    
+
     function escapeRegExp(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     // ===== View Controls =====
     function switchHighlightsView(view) {
-        console.log('🔍 Switching highlights view to:', view);
         state.ui.highlightsView = view;
         
         // Update button states
         elements.listView?.classList.toggle('active', view === 'list');
         elements.textView?.classList.toggle('active', view === 'text');
         elements.highlightsView?.classList.toggle('active', view === 'highlights');
-        elements.filterView?.classList.toggle('active', view === 'filter');
         
-        // Show/hide content panels
+        // Show/hide content
         if (elements.highlightsList) {
             elements.highlightsList.style.display = view === 'list' ? 'block' : 'none';
         }
         if (elements.fulltextContent) {
             elements.fulltextContent.style.display = view === 'text' ? 'block' : 'none';
             
-            // Always update full text view when switching to text view
+            // Update full text view when switching to text view
             if (view === 'text') {
-                console.log('🔍 Switching to text view, force updating content');
-                
-                // Priority 1: Use cached highlighted text
+                console.log('🔍 Switching to text view, updating full text view');
                 if (state.currentAnalysis?.highlighted_text) {
-                    console.log('🔍 Using cached highlighted text');
                     updateFullTextView(state.currentAnalysis.highlighted_text);
-                }
-                // Priority 2: Generate from highlights and original text
-                else if (state.currentAnalysis?.highlights && (state.originalText || state.currentAnalysis?.original_text)) {
-                    console.log('🔍 Generating highlighted text from analysis data');
-                    const originalTextToUse = state.originalText || state.currentAnalysis.original_text;
-                    const highlightedText = generateHighlightedText(originalTextToUse, state.currentAnalysis.highlights);
-                    
-                    // Cache the generated text
-                    if (state.currentAnalysis) {
-                        state.currentAnalysis.highlighted_text = highlightedText;
-                    }
-                    
+                } else if (state.currentAnalysis?.highlights && state.originalText) {
+                    // Generate highlighted text if not cached
+                    const highlightedText = generateHighlightedText(state.originalText, state.currentAnalysis.highlights);
+                    state.currentAnalysis.highlighted_text = highlightedText; // Cache it
                     updateFullTextView(highlightedText);
-                }
-                // Priority 3: Show original text if available
-                else if (state.originalText || state.currentAnalysis?.original_text) {
-                    console.log('🔍 Showing original text without highlights');
-                    updateFullTextView(null);
-                }
-                // Priority 4: Show empty state
-                else {
-                    console.log('🔍 No text available, showing empty state');
+                } else {
+                    // Fallback to original text or empty state
                     updateFullTextView(null);
                 }
             }
@@ -3166,11 +2643,6 @@
                 updateFragmentsView(state.currentAnalysis.highlights);
             }
         }
-        if (elements.filtersPanel) {
-            elements.filtersPanel.style.display = view === 'filter' ? 'block' : 'none';
-        }
-        
-        console.log('🔍 View switch completed, current view:', view);
     }
 
     function updateFragmentsView(highlights) {
@@ -3504,7 +2976,35 @@
         }
     }
 
-    // Duplicate functions removed - using main definitions above
+    function completeOnboarding() {
+        state.onboardingCompleted = true;
+        if (elements.onboardingModal) {
+            elements.onboardingModal.style.display = 'none';
+        }
+        
+        // Load initial data
+        loadClients();
+        loadTokenUsage();
+        
+        // Auto-refresh token usage
+        setInterval(loadTokenUsage, 30000);
+    }
+
+    function nextOnboardingStep() {
+        if (state.onboardingStep < 4) {
+            state.onboardingStep++;
+            updateOnboardingStep();
+        } else {
+            completeOnboarding();
+        }
+    }
+
+    function prevOnboardingStep() {
+        if (state.onboardingStep > 1) {
+            state.onboardingStep--;
+            updateOnboardingStep();
+        }
+    }
 
     function updateOnboardingStep() {
         // Hide all steps
@@ -3709,9 +3209,7 @@
                 }
                 
                 if (adviceText) {
-                    // Save both locally and to database
                     saveRecommendation(state.currentClient.id, adviceText, state.selectedFragments.length);
-                    await saveRecommendationToAPI(state.currentClient.id, adviceText, state.selectedFragments.length);
                 }
             }
             
@@ -4000,178 +3498,6 @@
             showNotification('Не вдалося скопіювати', 'error');
         });
     }
-    
-    function showAnalysisHistory() {
-        try {
-            // Get all clients for the client switcher
-            const clients = state.clients || [];
-            const currentClient = state.currentClient;
-            
-            const modal = document.createElement('div');
-            modal.className = 'modal-overlay';
-            modal.innerHTML = `
-                <div class="modal-content analysis-history-modal" style="max-width: 900px;">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-history"></i> Історія аналізів</h3>
-                        <button class="close-modal" title="Закрити">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="client-switcher" style="margin-bottom: 20px;">
-                            <label for="client-select">Клієнт:</label>
-                            <select id="client-select" class="form-control">
-                                ${clients.map(client => `
-                                    <option value="${client.id}" ${currentClient && client.id === currentClient.id ? 'selected' : ''}>
-                                        ${client.company} ${client.negotiator ? `(${client.negotiator})` : ''}
-                                    </option>
-                                `).join('')}
-                            </select>
-                        </div>
-                        <div class="analysis-history-content" id="modal-analysis-history">
-                            <div class="loading-state">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                Завантаження історії аналізів...
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn-secondary close-modal">
-                            <i class="fas fa-times"></i> Закрити
-                        </button>
-                        <button class="btn-ghost clear-analysis-history-btn">
-                            <i class="fas fa-trash"></i> Очистити історію
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Event handlers
-            const clientSelect = modal.querySelector('#client-select');
-            const historyContent = modal.querySelector('#modal-analysis-history');
-            
-            // Close modal handlers
-            modal.addEventListener('click', (e) => {
-                if (e.target.matches('.close-modal') || e.target === modal) {
-                    modal.remove();
-                }
-            });
-            
-            // Clear history handler
-            modal.querySelector('.clear-analysis-history-btn').addEventListener('click', async () => {
-                const selectedClientId = clientSelect.value;
-                if (confirm('Ви впевнені, що хочете видалити всю історію аналізів для обраного клієнта?')) {
-                    try {
-                        const response = await fetch(`/api/clients/${selectedClientId}/analyses`, {
-                            method: 'DELETE'
-                        });
-                        
-                        if (response.ok) {
-                            showNotification('Історію аналізів очищено', 'success');
-                            loadAnalysisHistoryForModal(selectedClientId, historyContent);
-                            // Refresh sidebar history if same client
-                            if (state.currentClient && state.currentClient.id == selectedClientId) {
-                                loadAnalysisHistory(selectedClientId);
-                            }
-                        } else {
-                            showNotification('Помилка очищення історії', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Clear analysis history error:', error);
-                        showNotification('Помилка очищення історії', 'error');
-                    }
-                }
-            });
-            
-            // Client switcher handler
-            clientSelect.addEventListener('change', () => {
-                const selectedClientId = clientSelect.value;
-                loadAnalysisHistoryForModal(selectedClientId, historyContent);
-            });
-            
-            // Load initial analysis history
-            if (currentClient) {
-                loadAnalysisHistoryForModal(currentClient.id, historyContent);
-            } else if (clients.length > 0) {
-                loadAnalysisHistoryForModal(clients[0].id, historyContent);
-            }
-            
-        } catch (error) {
-            console.error('Analysis history modal error:', error);
-            showNotification('Помилка відображення історії аналізів', 'error');
-        }
-    }
-    
-    async function loadAnalysisHistoryForModal(clientId, containerElement) {
-        try {
-            containerElement.innerHTML = `
-                <div class="loading-state">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    Завантаження історії аналізів...
-                </div>
-            `;
-            
-            const response = await fetch(`/api/clients/${clientId}`);
-            const data = await response.json();
-            
-            if (data.success && data.analyses && data.analyses.length > 0) {
-                const analyses = data.analyses;
-                containerElement.innerHTML = `
-                    <div class="analysis-history-list">
-                        ${analyses.map((analysis, index) => {
-                            const highlights = analysis.highlights_json ? JSON.parse(analysis.highlights_json) : [];
-                            const issues = highlights.filter(h => h.category).length;
-                            const date = new Date(analysis.created_at);
-                            const formattedDate = date.toLocaleDateString('uk-UA', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            });
-                            
-                            return `
-                                <div class="analysis-history-item ${index === 0 ? 'latest' : ''}" 
-                                     onclick="window.loadAnalysis(${analysis.id})" 
-                                     style="cursor: pointer; padding: 15px; border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px; margin-bottom: 10px;">
-                                    <div class="analysis-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                        <div class="analysis-date">
-                                            ${index === 0 ? '<i class="fas fa-star" title="Останній"></i> ' : ''}
-                                            ${formattedDate}
-                                        </div>
-                                        <div class="analysis-stats">
-                                            <span class="issues-count">${issues} проблем</span>
-                                        </div>
-                                    </div>
-                                    <div class="analysis-preview" style="color: rgba(255, 255, 255, 0.8); font-size: 0.9em;">
-                                        ${analysis.title || 'Аналіз переговорів'}
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            } else {
-                containerElement.innerHTML = `
-                    <div class="empty-state" style="text-align: center; padding: 40px;">
-                        <i class="fas fa-chart-line" style="font-size: 3rem; color: rgba(255, 255, 255, 0.3); margin-bottom: 20px;"></i>
-                        <p>Історія аналізів для цього клієнта порожня</p>
-                    </div>
-                `;
-            }
-            
-        } catch (error) {
-            console.error('Load analysis history modal error:', error);
-            containerElement.innerHTML = `
-                <div class="error-state" style="text-align: center; padding: 40px;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 20px;"></i>
-                    <p>Помилка завантаження історії аналізів</p>
-                </div>
-            `;
-        }
-    }
 
     function exportSelectedFragments() {
         if (state.selectedFragments.length === 0) {
@@ -4239,293 +3565,115 @@
 
     // ===== Event Handlers =====
     function bindEvents() {
-        console.log('🔧 Binding all event handlers...');
+        // Sidebar toggles (only right sidebar can be toggled now)
+        elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
+        elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
         
-        // Remove any existing listeners first to prevent duplicates
-        const elementsToRebind = [
-            'sidebarRightToggle', 'workspaceToggle', 'productDropdownBtn', 
-            'newClientBtn', 'welcomeNewClient', 'saveClientBtn', 'cancelClientBtn',
-            'startAnalysisBtn', 'newAnalysisBtn', 'analysisHistoryBtn',
-            'textMethod', 'fileMethod', 'negotiationText', 'clearTextBtn', 'pasteBtn',
-            'listView', 'textView', 'filterView', 'getAdviceBtn', 'exportSelectedBtn', 'clearWorkspaceBtn'
-        ];
+        // Product switcher
+        elements.productDropdownBtn?.addEventListener('click', toggleProductDropdown);
         
-        elementsToRebind.forEach(elementKey => {
-            const element = elements[elementKey];
-            if (element && element.hasAttribute && element.hasAttribute('data-listener-bound')) {
-                element.removeAttribute('data-listener-bound');
-                // Clone element to remove all listeners
-                const newElement = element.cloneNode(true);
-                element.parentNode.replaceChild(newElement, element);
-                elements[elementKey] = newElement;
+        // Close product dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.product-switcher')) {
+                closeProductDropdown();
             }
         });
 
-        // Sidebar toggles
-        if (elements.sidebarRightToggle && !elements.sidebarRightToggle.hasAttribute('data-listener-bound')) {
-            elements.sidebarRightToggle.addEventListener('click', () => toggleSidebar('right'));
-            elements.sidebarRightToggle.setAttribute('data-listener-bound', 'true');
-        }
-        
-        if (elements.workspaceToggle && !elements.workspaceToggle.hasAttribute('data-listener-bound')) {
-            elements.workspaceToggle.addEventListener('click', () => toggleSidebar('right'));
-            elements.workspaceToggle.setAttribute('data-listener-bound', 'true');
-        }
-        
-        // Product switcher
-        if (elements.productDropdownBtn && !elements.productDropdownBtn.hasAttribute('data-listener-bound')) {
-            elements.productDropdownBtn.addEventListener('click', toggleProductDropdown);
-            elements.productDropdownBtn.setAttribute('data-listener-bound', 'true');
-        }
-        
         // Client search
-        if (elements.clientSearch && !elements.clientSearch.hasAttribute('data-listener-bound')) {
-            elements.clientSearch.addEventListener('input', debounce(renderClientsList, 300));
-            elements.clientSearch.setAttribute('data-listener-bound', 'true');
-        }
+        elements.clientSearch?.addEventListener('input', debounce(renderClientsList, 300));
 
-        // Client management buttons with proper cleanup
-        console.log('🔧 Setting up client management event listeners...');
-        
-        const newClientBtn = document.getElementById('new-client-btn');
-        if (newClientBtn && !newClientBtn.hasAttribute('data-listener-bound')) {
-            console.log('✅ newClientBtn found, adding listener');
-            newClientBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🎯 New client button clicked');
-                showClientForm();
-            });
-            newClientBtn.setAttribute('data-listener-bound', 'true');
-            elements.newClientBtn = newClientBtn;
-        }
-        
-        const welcomeNewClient = document.getElementById('welcome-new-client');
-        if (welcomeNewClient && !welcomeNewClient.hasAttribute('data-listener-bound')) {
-            console.log('✅ welcomeNewClient found, adding listener');
-            welcomeNewClient.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🎯 Welcome new client button clicked');
-                showClientForm();
-            });
-            welcomeNewClient.setAttribute('data-listener-bound', 'true');
-            elements.welcomeNewClient = welcomeNewClient;
-        }
-        
-        const saveClientBtn = document.getElementById('save-client-btn');
-        if (saveClientBtn && !saveClientBtn.hasAttribute('data-listener-bound')) {
-            console.log('✅ saveClientBtn found, adding listener');
-            saveClientBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🎯 Save client button clicked');
-                saveClient();
-            });
-            saveClientBtn.setAttribute('data-listener-bound', 'true');
-            elements.saveClientBtn = saveClientBtn;
-        }
-        
-        const cancelClientBtn = document.getElementById('cancel-client-btn');
-        if (cancelClientBtn && !cancelClientBtn.hasAttribute('data-listener-bound')) {
-            console.log('✅ cancelClientBtn found, adding listener');
-            cancelClientBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🎯 Cancel client button clicked');
-                showSection('welcome-screen');
-            });
-            cancelClientBtn.setAttribute('data-listener-bound', 'true');
-            elements.cancelClientBtn = cancelClientBtn;
-        }
+        // Client management
+        elements.newClientBtn?.addEventListener('click', () => showClientForm());
+        elements.welcomeNewClient?.addEventListener('click', () => showClientForm());
+        elements.saveClientBtn?.addEventListener('click', saveClient);
+        elements.cancelClientBtn?.addEventListener('click', () => showSection('welcome-screen'));
 
-        // Navigation actions - with proper binding check
-        const helpToggle = document.getElementById('help-toggle');
-        if (helpToggle && !helpToggle.hasAttribute('data-listener-bound')) {
-            helpToggle.addEventListener('click', showOnboarding);
-            helpToggle.setAttribute('data-listener-bound', 'true');
-        }
-        
-        const logoutBtn = document.getElementById('logout-btn');
-        if (logoutBtn && !logoutBtn.hasAttribute('data-listener-bound')) {
-            logoutBtn.addEventListener('click', () => {
-                if (confirm('Ви впевнені, що хочете вийти із системи?')) {
-                    console.log('🔐 Logout button clicked, calling logout function');
-                    if (window.logout) {
-                        window.logout();
-                    } else {
-                        console.error('🔐 logout function not available, falling back to manual logout');
-                        localStorage.clear();
-                        sessionStorage.clear();
-                        document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                        window.location.href = '/login.html';
-                    }
+        // Navigation actions
+        $('#help-toggle')?.addEventListener('click', showOnboarding);
+        $('#logout-btn')?.addEventListener('click', () => {
+            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
+                console.log('🔐 Logout button clicked, calling logout function');
+                // Use the proper logout function from auth.js
+                if (window.logout) {
+                    window.logout();
+                } else {
+                    console.error('🔐 logout function not available, falling back to manual logout');
+                    // Fallback manual logout
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    window.location.href = '/login.html';
                 }
-            });
-            logoutBtn.setAttribute('data-listener-bound', 'true');
-        }
+            }
+        });
 
-        // Onboarding managed by OnboardingManager class
-        const welcomeHelp = document.getElementById('welcome-help');
-        if (welcomeHelp && !welcomeHelp.hasAttribute('data-listener-bound')) {
-            welcomeHelp.addEventListener('click', showOnboarding);
-            welcomeHelp.setAttribute('data-listener-bound', 'true');
-        }
+        // Onboarding
+        elements.welcomeHelp?.addEventListener('click', showOnboarding);
+        elements.skipOnboarding?.addEventListener('click', completeOnboarding);
+        elements.nextStep?.addEventListener('click', nextOnboardingStep);
+        elements.prevStep?.addEventListener('click', prevOnboardingStep);
 
         // Input methods
-        const textMethod = document.getElementById('text-method');
-        if (textMethod && !textMethod.hasAttribute('data-listener-bound')) {
-            textMethod.addEventListener('click', () => updateInputMethod('text'));
-            textMethod.setAttribute('data-listener-bound', 'true');
-        }
-        
-        const fileMethod = document.getElementById('file-method');
-        if (fileMethod && !fileMethod.hasAttribute('data-listener-bound')) {
-            fileMethod.addEventListener('click', () => updateInputMethod('file'));
-            fileMethod.setAttribute('data-listener-bound', 'true');
-        }
+        elements.textMethod?.addEventListener('click', () => updateInputMethod('text'));
+        elements.fileMethod?.addEventListener('click', () => updateInputMethod('file'));
 
         // Text analysis
-        const negotiationText = document.getElementById('negotiation-text');
-        if (negotiationText && !negotiationText.hasAttribute('data-listener-bound')) {
-            negotiationText.addEventListener('input', debounce(updateTextStats, 300));
-            negotiationText.setAttribute('data-listener-bound', 'true');
-            elements.negotiationText = negotiationText;
-        }
+        elements.negotiationText?.addEventListener('input', debouncedUpdateTextStats);
         
-        const startAnalysisBtn = document.getElementById('start-analysis-btn');
-        if (startAnalysisBtn && !startAnalysisBtn.hasAttribute('data-listener-bound')) {
-            startAnalysisBtn.addEventListener('click', startAnalysis);
-            startAnalysisBtn.setAttribute('data-listener-bound', 'true');
-            elements.startAnalysisBtn = startAnalysisBtn;
+        // Ensure textarea wrapper is clickable and transfers focus
+        const textWrapper = document.querySelector('.text-input-wrapper');
+        if (textWrapper && elements.negotiationText) {
+            textWrapper.addEventListener('click', (e) => {
+                // If clicking on the wrapper but not the textarea, focus the textarea
+                if (e.target === textWrapper || e.target.closest('.input-actions')) {
+                    return; // Don't interfere with button clicks
+                }
+                if (e.target !== elements.negotiationText) {
+                    elements.negotiationText.focus();
+                }
+            });
         }
-        
-        const newAnalysisBtn = document.getElementById('new-analysis-btn');
-        if (newAnalysisBtn && !newAnalysisBtn.hasAttribute('data-listener-bound')) {
-            newAnalysisBtn.addEventListener('click', createNewAnalysis);
-            newAnalysisBtn.setAttribute('data-listener-bound', 'true');
-            elements.newAnalysisBtn = newAnalysisBtn;
-        }
-        
-        const analysisHistoryBtn = document.getElementById('analysis-history-btn');
-        if (analysisHistoryBtn && !analysisHistoryBtn.hasAttribute('data-listener-bound')) {
-            analysisHistoryBtn.addEventListener('click', showAnalysisHistory);
-            analysisHistoryBtn.setAttribute('data-listener-bound', 'true');
-            elements.analysisHistoryBtn = analysisHistoryBtn;
-        }
-        
-        const clearTextBtn = document.getElementById('clear-text-btn');
-        if (clearTextBtn && !clearTextBtn.hasAttribute('data-listener-bound')) {
-            clearTextBtn.addEventListener('click', () => {
-                const textArea = document.getElementById('negotiation-text');
-                if (textArea) {
-                    textArea.value = '';
+        elements.startAnalysisBtn?.addEventListener('click', startAnalysis);
+        elements.newAnalysisBtn?.addEventListener('click', createNewAnalysis);
+        elements.clearTextBtn?.addEventListener('click', () => {
+            if (elements.negotiationText) {
+                elements.negotiationText.value = '';
+                updateTextStats();
+            }
+        });
+        elements.pasteBtn?.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (elements.negotiationText) {
+                    elements.negotiationText.value = text;
                     updateTextStats();
+                    showNotification('Текст вставлено з буферу обміну', 'success');
                 }
-            });
-            clearTextBtn.setAttribute('data-listener-bound', 'true');
-        }
-        
-        const pasteBtn = document.getElementById('paste-btn');
-        if (pasteBtn && !pasteBtn.hasAttribute('data-listener-bound')) {
-            pasteBtn.addEventListener('click', async () => {
-                try {
-                    const text = await navigator.clipboard.readText();
-                    const textArea = document.getElementById('negotiation-text');
-                    if (textArea) {
-                        textArea.value = text;
-                        updateTextStats();
-                        showNotification('Текст вставлено з буферу обміну', 'success');
-                    }
-                } catch (err) {
-                    showNotification('Не вдалося вставити з буферу обміну', 'error');
-                }
-            });
-            pasteBtn.setAttribute('data-listener-bound', 'true');
-        }
+            } catch (err) {
+                showNotification('Не вдалося вставити з буферу обміну', 'error');
+            }
+        });
 
         // View controls
-        const listView = document.getElementById('list-view');
-        if (listView && !listView.hasAttribute('data-listener-bound')) {
-            listView.addEventListener('click', () => {
-                console.log('🔍 List view button clicked');
-                switchHighlightsView('list');
-            });
-            listView.setAttribute('data-listener-bound', 'true');
-        }
-        
-        const textView = document.getElementById('text-view');
-        if (textView && !textView.hasAttribute('data-listener-bound')) {
-            textView.addEventListener('click', () => {
-                console.log('🔍 Text view button clicked');
-                switchHighlightsView('text');
-            });
-            textView.setAttribute('data-listener-bound', 'true');
-        }
-        
-        const filterView = document.getElementById('filter-view');
-        if (filterView && !filterView.hasAttribute('data-listener-bound')) {
-            filterView.addEventListener('click', () => {
-                console.log('🔍 Filter view button clicked');
-                toggleFilters();
-            });
-            filterView.setAttribute('data-listener-bound', 'true');
-        }
+        elements.listView?.addEventListener('click', () => switchHighlightsView('list'));
+        elements.textView?.addEventListener('click', () => switchHighlightsView('text'));
+        elements.highlightsView?.addEventListener('click', () => switchHighlightsView('highlights'));
+        elements.filterView?.addEventListener('click', () => toggleFilters());
 
         // Filter controls
-        const clearFiltersBtn = document.getElementById('clear-filters');
-        if (clearFiltersBtn && !clearFiltersBtn.hasAttribute('data-listener-bound')) {
-            clearFiltersBtn.addEventListener('click', clearFilters);
-            clearFiltersBtn.setAttribute('data-listener-bound', 'true');
-        }
-        
-        const applyFiltersBtn = document.getElementById('apply-filters');
-        if (applyFiltersBtn && !applyFiltersBtn.hasAttribute('data-listener-bound')) {
-            applyFiltersBtn.addEventListener('click', applyFilters);
-            applyFiltersBtn.setAttribute('data-listener-bound', 'true');
-        }
+        elements.clearFiltersBtn?.addEventListener('click', clearFilters);
+        elements.applyFiltersBtn?.addEventListener('click', applyFilters);
 
         // Workspace actions
-        const getAdviceBtn = document.getElementById('get-advice-btn');
-        if (getAdviceBtn && !getAdviceBtn.hasAttribute('data-listener-bound')) {
-            getAdviceBtn.addEventListener('click', getPersonalizedAdvice);
-            getAdviceBtn.setAttribute('data-listener-bound', 'true');
-            elements.getAdviceBtn = getAdviceBtn;
-        }
-        
-        const exportSelectedBtn = document.getElementById('export-selected-btn');
-        if (exportSelectedBtn && !exportSelectedBtn.hasAttribute('data-listener-bound')) {
-            exportSelectedBtn.addEventListener('click', exportSelectedFragments);
-            exportSelectedBtn.setAttribute('data-listener-bound', 'true');
-            elements.exportSelectedBtn = exportSelectedBtn;
-        }
-        
-        const clearWorkspaceBtn = document.getElementById('clear-workspace-btn');
-        if (clearWorkspaceBtn && !clearWorkspaceBtn.hasAttribute('data-listener-bound')) {
-            clearWorkspaceBtn.addEventListener('click', clearWorkspace);
-            clearWorkspaceBtn.setAttribute('data-listener-bound', 'true');
-            elements.clearWorkspaceBtn = clearWorkspaceBtn;
-        }
+        elements.getAdviceBtn?.addEventListener('click', getPersonalizedAdvice);
+        elements.exportSelectedBtn?.addEventListener('click', exportSelectedFragments);
+        elements.clearWorkspaceBtn?.addEventListener('click', clearWorkspace);
 
-        // Global event listeners (only bind once)
-        if (!document.hasAttribute('data-global-listeners-bound')) {
-            // Close product dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.product-switcher')) {
-                    closeProductDropdown();
-                }
-            });
-            
-            // Keyboard shortcuts
-            document.addEventListener('keydown', handleKeyboardShortcuts);
-            
-            // Window resize
-            window.addEventListener('resize', debounce(handleResize, 100));
-            
-            document.setAttribute('data-global-listeners-bound', 'true');
-        }
+        // Keyboard shortcuts
+        document.addEventListener('keydown', handleKeyboardShortcuts);
         
-        console.log('✅ All event handlers bound successfully');
+        // Window resize
+        window.addEventListener('resize', debounce(handleResize, 100));
     }
 
     function handleKeyboardShortcuts(e) {
@@ -4570,55 +3718,21 @@
         try {
             console.log('🔄 Loading analysis history for client:', clientId);
             const response = await fetch(`/api/clients/${clientId}`);
-            
-            if (response.status === 404) {
-                console.warn('⚠️ Client not found, clearing from state:', clientId);
-                // Client doesn't exist anymore, clear from state
-                state.currentClient = null;
-                state.analyses = [];
-                renderAnalysisHistory([]);
-                switchView('welcome');
-                return;
-            }
-            
             const data = await response.json();
             
             if (data.success && data.analyses) {
-                console.log('📊 ✅ Received', data.analyses.length, 'analyses from server');
+                console.log('📊 Received', data.analyses.length, 'analyses from server');
                 state.analyses = data.analyses; // Store in state
                 renderAnalysisHistory(data.analyses);
-                
-                // Auto-load latest analysis if available and no current analysis
-                if (data.analyses.length > 0 && !state.currentAnalysis) {
-                    const latestAnalysis = data.analyses[0];
-                    console.log('📊 Auto-loading latest analysis:', latestAnalysis.id);
-                    await loadAnalysis(latestAnalysis.id);
-                }
-            } else {
-                console.log('📊 No analyses found for client');
-                state.analyses = [];
-                renderAnalysisHistory([]);
             }
         } catch (error) {
             console.error('Failed to load analysis history:', error);
-            state.analyses = [];
-            renderAnalysisHistory([]);
         }
     }
 
     async function loadAnalysisHistoryAndLatest(clientId) {
         try {
             const response = await fetch(`/api/clients/${clientId}`);
-            
-            if (response.status === 404) {
-                console.warn('⚠️ Client not found, clearing from state:', clientId);
-                state.currentClient = null;
-                state.analyses = [];
-                renderAnalysisHistory([]);
-                switchView('welcome');
-                return;
-            }
-            
             const data = await response.json();
             
             if (data.success && data.analyses) {
@@ -4720,23 +3834,8 @@
     function renderAnalysisHistory(analyses) {
         if (!elements.analysisHistory) return;
 
-        const count = analyses ? analyses.length : 0;
-        console.log('📊 Updating analysis count:', count);
-        
-        // Force find element every time to ensure it exists
-        const analysisCountElement = document.getElementById('analysis-count');
-        if (analysisCountElement) {
-            analysisCountElement.textContent = count;
-            console.log('📊 ✅ Analysis count updated to:', count);
-            elements.analysisCount = analysisCountElement; // Cache it
-        } else {
-            console.error('📊 ❌ Analysis count element #analysis-count not found in DOM');
-            // Try to find all fragment counters and update the second one
-            const counters = document.querySelectorAll('.fragment-counter');
-            if (counters.length > 1) {
-                counters[1].textContent = count;
-                console.log('📊 ✅ Updated via alternative selector (second counter)');
-            }
+        if (elements.analysisCount) {
+            elements.analysisCount.textContent = analyses.length;
         }
 
         if (analyses.length === 0) {
@@ -4904,39 +4003,7 @@
     // ===== Analysis Loading =====
     async function loadAnalysis(analysisId) {
         try {
-            // Валідація параметрів
-            if (!analysisId || !state.currentClient?.id) {
-                throw new Error('Відсутні необхідні параметри для завантаження аналізу');
-            }
-            
-            const clientId = parseInt(state.currentClient.id);
-            const analysisIdNum = parseInt(analysisId);
-            
-            if (isNaN(clientId) || isNaN(analysisIdNum)) {
-                throw new Error('Некоректні ідентифікатори клієнта або аналізу');
-            }
-            
-            console.log(`📡 Loading analysis ${analysisIdNum} for client ${clientId}`);
-            
-            const response = await fetch(`/api/clients/${clientId}/analyses/${analysisIdNum}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('Аналіз не знайдено');
-                }
-                throw new Error(`Помилка завантаження аналізу: ${response.status}`);
-            }
-            
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Сервер повернув некоректний формат даних');
-            }
-            
+            const response = await fetch(`/api/clients/${state.currentClient.id}/analysis/${analysisId}`);
             const data = await response.json();
             
             if (!response.ok) {
@@ -4965,18 +4032,16 @@
             if (data.analysis.highlighted_text) {
                 console.log('🔍 Loading analysis with pre-generated highlighted text');
                 updateFullTextView(data.analysis.highlighted_text);
-            } else if (data.analysis.highlights && (state.originalText || data.analysis.original_text)) {
+            } else if (data.analysis.highlights && state.originalText) {
                 console.log('🔍 Generating highlighted text from highlights and original text');
-                const originalTextToUse = state.originalText || data.analysis.original_text;
-                const highlightedText = generateHighlightedText(originalTextToUse, data.analysis.highlights);
+                const highlightedText = generateHighlightedText(state.originalText, data.analysis.highlights);
                 updateFullTextView(highlightedText);
                 
                 // Also store it in current analysis for future use
                 state.currentAnalysis.highlighted_text = highlightedText;
-                state.currentAnalysis.original_text = originalTextToUse;
             } else {
                 console.log('🔍 No highlighting data available, showing plain text');
-                updateFullTextView(escapeHtml(state.originalText || data.analysis.original_text || ''));
+                updateFullTextView(escapeHtml(state.originalText || ''));
             }
             
             // Update analysis steps to show completed
@@ -5047,7 +4112,7 @@
         }
         
         try {
-            const client = state.clients.find(c => c.id === parseInt(clientId));
+            const client = state.clients.find(c => c.id === clientId);
             console.log('✏️ Found client for editing:', client ? client.company : 'NOT FOUND');
             
             if (!client) {
@@ -5064,94 +4129,10 @@
         }
     }
 
-    function showHighlightDetails(highlightId, tooltip, event) {
-        console.log('💬 Showing highlight details for:', highlightId);
-        
-        // Знайти повну інформацію про хайлайт
-        let highlight = null;
-        if (state.currentAnalysis && state.currentAnalysis.highlights) {
-            highlight = state.currentAnalysis.highlights.find(h => h.id === highlightId);
-        }
-        
-        const modal = document.createElement('div');
-        modal.className = 'advice-modal highlight-detail-modal';
-        modal.innerHTML = `
-            <div class="advice-content" style="max-width: 600px;">
-                <div class="advice-header">
-                    <h3><i class="fas fa-exclamation-triangle" style="color: var(--neon-pink);"></i> Деталі проблемного фрагменту</h3>
-                    <button class="close-advice" aria-label="Закрити">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="advice-body">
-                    ${highlight ? `
-                        <div class="highlight-detail">
-                            <div class="highlight-category">
-                                <span class="category-badge ${getCategoryClass(highlight.category)}">${highlight.label || highlight.category}</span>
-                                <span class="severity-badge severity-${highlight.severity || 1}">Рівень ${highlight.severity || 1}</span>
-                            </div>
-                            <div class="highlight-text-preview">
-                                <strong>Фрагмент:</strong><br>
-                                <em>"${escapeHtml(highlight.text)}"</em>
-                            </div>
-                            <div class="highlight-explanation">
-                                <strong>Пояснення:</strong><br>
-                                ${escapeHtml(highlight.explanation || tooltip)}
-                            </div>
-                            ${highlight.suggestion ? `
-                                <div class="highlight-suggestion">
-                                    <strong>Рекомендація:</strong><br>
-                                    ${escapeHtml(highlight.suggestion)}
-                                </div>
-                            ` : ''}
-                        </div>
-                    ` : `
-                        <div class="highlight-basic">
-                            <p><strong>Опис:</strong><br>${escapeHtml(tooltip)}</p>
-                        </div>
-                    `}
-                    <div class="highlight-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                        <button class="btn-secondary add-to-workspace-detail-btn" data-highlight='${JSON.stringify(highlight || {text: "Невідомий фрагмент", explanation: tooltip}).replace(/'/g, "&#39;")}'>
-                            <i class="fas fa-plus"></i> Додати до робочої області
-                        </button>
-                        <button class="btn-secondary copy-text-btn" data-text="${escapeHtml((highlight && highlight.text) || '')}">
-                            <i class="fas fa-copy"></i> Скопіювати текст
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        modal.style.display = 'flex';
-        
-        // Event listeners
-        modal.querySelector('.close-advice').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
-        });
-        
-        // Add to workspace button
-        modal.querySelector('.add-to-workspace-detail-btn')?.addEventListener('click', (e) => {
-            const highlightData = JSON.parse(e.target.dataset.highlight);
-            addToSelectedFragments(highlightData);
-            modal.remove();
-            showNotification('Фрагмент додано до робочої області', 'success');
-        });
-        
-        // Copy text button
-        modal.querySelector('.copy-text-btn')?.addEventListener('click', (e) => {
-            const text = e.target.dataset.text;
-            navigator.clipboard.writeText(text).then(() => {
-                showNotification('Текст скопійовано', 'success');
-            });
-        });
-    }
-
     function showDeleteClientModal(clientId) {
         console.log('🗑️ showDeleteClientModal called with ID:', clientId);
         
-        const client = state.clients.find(c => c.id === parseInt(clientId));
+        const client = state.clients.find(c => c.id === clientId);
         if (!client) {
             console.error('❌ Client not found for deletion with ID:', clientId);
             showNotification('Клієнт не знайдений', 'error');
@@ -5225,7 +4206,7 @@
     async function performDeleteClient(clientId) {
         console.log('🗑️ performDeleteClient called with ID:', clientId);
         try {
-            const client = state.clients.find(c => c.id === parseInt(clientId));
+            const client = state.clients.find(c => c.id === clientId);
             console.log('🗑️ Found client for deletion:', client ? client.company : 'NOT FOUND');
 
             console.log('🗑️ Sending delete request...');
@@ -5241,10 +4222,10 @@
             }
 
             // Update state
-            state.clients = state.clients.filter(c => c.id !== parseInt(clientId));
+            state.clients = state.clients.filter(c => c.id !== clientId);
             
             // If deleted client was current, clear selection
-            if (state.currentClient?.id === parseInt(clientId)) {
+            if (state.currentClient?.id === clientId) {
                 state.currentClient = null;
                 state.currentAnalysis = null;
                 state.selectedFragments = [];
@@ -5266,102 +4247,11 @@
         }
     }
 
-    // ===== Global Functions ===== 
-    // Оголошення глобальних функцій буде в кінці файлу після визначення всіх функцій
-    
-    // Глобальний обробник для всіх кнопок клієнтів
-    document.addEventListener('click', (e) => {
-        // Кнопки створення клієнта
-        if (e.target && (
-            e.target.id === 'new-client-btn' || 
-            e.target.id === 'welcome-new-client' ||
-            e.target.id === 'empty-new-client-btn' ||
-            e.target.classList.contains('new-client-trigger')
-        )) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🎯 Global click handler for client creation button:', e.target.id);
-            showClientForm();
-            return;
-        }
-
-        // Знайти кнопку редагування клієнта (може бути іконка всередині кнопки)
-        const editBtn = e.target.closest('.edit-client-btn');
-        if (editBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            const clientId = parseInt(editBtn.dataset.clientId);
-            console.log('🎯 Edit client button clicked for ID:', clientId);
-            if (clientId) {
-                editClient(clientId, e);
-            }
-            return;
-        }
-
-        // Знайти кнопку видалення клієнта (може бути іконка всередині кнопки)
-        const deleteBtn = e.target.closest('.delete-client-btn');
-        if (deleteBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            const clientId = parseInt(deleteBtn.dataset.clientId);
-            console.log('🎯 Delete client button clicked for ID:', clientId);
-            if (clientId) {
-                deleteClient(clientId, e);
-            }
-            return;
-        }
-
-        // Кнопка вибору клієнта (клік по елементу клієнта)
-        const clientItem = e.target.closest('.client-item:not(.active)');
-        if (clientItem && clientItem.dataset.clientId) {
-            e.preventDefault();
-            e.stopPropagation();
-            const clientId = clientItem.dataset.clientId;
-            console.log('🎯 Client selection clicked for ID:', clientId);
-            if (clientId) {
-                selectClient(clientId);
-            }
-            return;
-        }
-
-        // Обробка кліків по хайлайтам
-        const highlightSpan = e.target.closest('.text-highlight');
-        if (highlightSpan) {
-            e.preventDefault();
-            e.stopPropagation();
-            const highlightId = highlightSpan.dataset.highlightId;
-            const tooltip = highlightSpan.dataset.tooltip;
-            if (highlightId && tooltip) {
-                showHighlightDetails(highlightId, tooltip, e);
-            }
-            return;
-        }
-        
-        // Обробка кліків по кнопкам рекомендацій
-        const expandRecBtn = e.target.closest('.expand-rec-btn');
-        if (expandRecBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            expandRecommendation(expandRecBtn);
-            return;
-        }
-        
-        const copyRecBtn = e.target.closest('.copy-rec-btn');
-        if (copyRecBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            copyRecommendation(copyRecBtn);
-            return;
-        }
-        
-        const removeRecBtn = e.target.closest('.remove-rec-btn');
-        if (removeRecBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            deleteRecommendation(removeRecBtn);
-            return;
-        }
-    });
+    // ===== Global Functions =====
+    window.showClientForm = showClientForm;
+    window.selectClient = selectClient;
+    window.editClient = editClient;
+    window.deleteClient = deleteClient;
     window.addToWorkspace = addToWorkspace;
     window.removeFromWorkspace = removeFromWorkspace;
     window.shareHighlight = (id) => console.log('Share highlight:', id);
@@ -5492,13 +4382,6 @@
                 
                 // Found valid state
                 appState = parsedState;
-                
-                // Validate currentClient if exists
-                if (appState.currentClient && appState.currentClient.id) {
-                    console.log('🔍 Validating saved currentClient:', appState.currentClient.id);
-                    // We'll validate this client exists when we load clients list
-                }
-                
                 if (key !== 'teampulse-app-state') {
                     console.log(`🔄 Recovered from backup: ${key}`);
                     showNotification('Відновлено з резервної копії', 'success');
@@ -5611,397 +4494,9 @@
         scheduleStateSave.timeout = setTimeout(saveAppState, 1000);
     }
 
-    // Re-initialize DOM elements (in case they weren't available during initial load)
-    function reinitializeElements() {
-        // Re-initialize key elements that might have been null
-        Object.assign(elements, {
-            // Layout
-            sidebarLeft: $('#sidebar-left'),
-            sidebarRight: $('#sidebar-right'),
-            mainContent: $('#main-content'),
-            sidebarRightToggle: $('#sidebar-right-toggle'),
-            mobileMenuToggle: $('#mobile-menu-toggle'),
-            workspaceToggle: $('#workspace-toggle'),
-            
-            // Client Management
-            clientList: $('#client-list'),
-            clientSearch: $('#client-search'),
-            clientCount: $('#client-count'),
-            newClientBtn: $('#new-client-btn'),
-            welcomeNewClient: $('#welcome-new-client'),
-            welcomeHelp: $('#welcome-help'),
-            
-            // Navigation
-            navClientInfo: $('#nav-client-info'),
-            navClientAvatar: $('#nav-client-avatar'),
-            navClientName: $('#nav-client-name'),
-            navClientSector: $('#nav-client-sector'),
-            
-            // Token Counter
-            tokenCounter: $('#token-counter'),
-            usedTokens: $('#used-tokens'),
-            totalTokens: $('#total-tokens'),
-            tokenProgressFill: $('#token-progress-fill'),
-            workspaceUsedTokens: $('#workspace-used-tokens'),
-            workspaceTotalTokens: $('#workspace-total-tokens'),
-            workspaceTokenProgress: $('#workspace-token-progress'),
-            workspaceTokenPercentage: $('#workspace-token-percentage'),
-            
-            // Tabs & Content
-            welcomeScreen: $('#welcome-screen'),
-            clientForm: $('#client-form'),
-            analysisDashboard: $('#analysis-dashboard'),
-            
-            // Client Form
-            clientFormTitle: $('#client-form-title'),
-            saveClientBtn: $('#save-client-btn'),
-            cancelClientBtn: $('#cancel-client-btn'),
-            
-            // Analysis
-            startAnalysisBtn: $('#start-analysis-btn'),
-            newAnalysisBtn: $('#new-analysis-btn'),
-            negotiationText: $('#negotiation-text'),
-            charCount: $('#char-count'),
-            wordCount: $('#word-count'),
-            
-            // Statistics
-            manipulationsCount: $('#manipulations-count'),
-            biasesCount: $('#biases-count'),
-            fallaciesCount: $('#fallacies-count'),
-            recommendationsCount: $('#recommendations-count'),
-            
-            // Analysis History
-            analysisCount: $('#analysis-count'),
-            
-            // Workspace
-            fragmentsCount: $('#fragments-count'),
-            getAdviceBtn: $('#get-advice-btn'),
-            exportSelectedBtn: $('#export-selected-btn'),
-            clearWorkspaceBtn: $('#clear-workspace-btn')
-        });
-    }
-
-    // ===== Modal Functionality =====
-    function initializeModalHandlers() {
-        console.log('🔗 Initializing modal handlers...');
-        
-        // Get counter elements and modal elements
-        const manipulationCounter = document.querySelector('.counter[data-category="manipulation"]');
-        const biasCounter = document.querySelector('.counter[data-category="cognitive_bias"]'); 
-        const fallacyCounter = document.querySelector('.counter[data-category="rhetological_fallacy"]');
-        const modal = document.getElementById('counter-modal');
-        const modalTitle = document.getElementById('counter-modal-title');
-        const modalItems = document.getElementById('counter-modal-items');
-        const modalClose = document.getElementById('counter-modal-close');
-        
-        if (!modal || !modalTitle || !modalItems || !modalClose) {
-            console.warn('⚠️ Modal elements not found, skipping modal initialization');
-            return;
-        }
-        
-        // Close modal handlers
-        modalClose.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
-        
-        // Escape key handler
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.style.display !== 'none') {
-                closeModal();
-            }
-        });
-        
-        // Counter click handlers
-        if (manipulationCounter) {
-            manipulationCounter.style.cursor = 'pointer';
-            manipulationCounter.addEventListener('click', () => {
-                showCounterModal('manipulation', 'Маніпулятивні техніки');
-            });
-        }
-        
-        if (biasCounter) {
-            biasCounter.style.cursor = 'pointer';
-            biasCounter.addEventListener('click', () => {
-                showCounterModal('cognitive_bias', 'Когнітивні викривлення');
-            });
-        }
-        
-        if (fallacyCounter) {
-            fallacyCounter.style.cursor = 'pointer';
-            fallacyCounter.addEventListener('click', () => {
-                showCounterModal('rhetological_fallacy', 'Логічні помилки та софізми');
-            });
-        }
-        
-        console.log('✅ Modal handlers initialized');
-    }
-    
-    function showCounterModal(category, title) {
-        console.log(`🔍 Opening modal for category: ${category}`);
-        
-        if (!state.currentAnalysis || !state.currentAnalysis.highlights) {
-            console.warn('⚠️ No current analysis available for modal');
-            return;
-        }
-        
-        const modal = document.getElementById('counter-modal');
-        const modalTitle = document.getElementById('counter-modal-title');
-        const modalItems = document.getElementById('counter-modal-items');
-        
-        if (!modal || !modalTitle || !modalItems) {
-            console.warn('⚠️ Modal elements not found');
-            return;
-        }
-        
-        // Filter highlights by category
-        const categoryHighlights = state.currentAnalysis.highlights.filter(h => h.category === category);
-        
-        console.log(`📊 Found ${categoryHighlights.length} highlights for category ${category}`);
-        
-        // Set modal title
-        modalTitle.textContent = `${title} (${categoryHighlights.length})`;
-        
-        // Clear and populate items
-        modalItems.innerHTML = '';
-        
-        if (categoryHighlights.length === 0) {
-            modalItems.innerHTML = `
-                <div class="counter-item">
-                    <div class="counter-item-header">
-                        <span class="counter-item-label">Проблеми не знайдено</span>
-                    </div>
-                    <div class="counter-item-explanation">
-                        У цій категорії поки що немає виявлених проблем.
-                    </div>
-                </div>
-            `;
-        } else {
-            categoryHighlights.forEach((highlight, index) => {
-                const itemHtml = `
-                    <div class="counter-item">
-                        <div class="counter-item-header">
-                            <span class="counter-item-label">${highlight.label || `Проблема ${index + 1}`}</span>
-                            <span class="counter-item-severity severity-${highlight.severity || 1}">
-                                Рівень ${highlight.severity || 1}
-                            </span>
-                        </div>
-                        ${highlight.text ? `
-                            <div class="counter-item-text">
-                                "${highlight.text}"
-                            </div>
-                        ` : ''}
-                        <div class="counter-item-explanation">
-                            ${highlight.explanation || 'Опис недоступний'}
-                        </div>
-                    </div>
-                `;
-                modalItems.insertAdjacentHTML('beforeend', itemHtml);
-            });
-        }
-        
-        // Show modal
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        
-        console.log('✅ Modal opened successfully');
-    }
-    
-    function closeModal() {
-        const modal = document.getElementById('counter-modal');
-        if (modal) {
-            modal.style.display = 'none';
-            document.body.style.overflow = '';
-            console.log('✅ Modal closed');
-        }
-    }
-
-    // ===== Event Binding =====
-    function bindEvents() {
-        console.log('🔧 Binding event handlers...');
-        
-        // Analysis buttons
-        if (elements.startAnalysisBtn) {
-            elements.startAnalysisBtn.addEventListener('click', startAnalysis);
-        }
-        if (elements.newAnalysisBtn) {
-            elements.newAnalysisBtn.addEventListener('click', createNewAnalysis);
-        }
-        if (elements.analysisHistoryBtn) {
-            elements.analysisHistoryBtn.addEventListener('click', showAnalysisHistory);
-        }
-        
-        // Client buttons
-        if (elements.saveClientBtn) {
-            elements.saveClientBtn.addEventListener('click', saveClient);
-        }
-        if (elements.cancelClientBtn) {
-            elements.cancelClientBtn.addEventListener('click', () => {
-                switchView('welcome');
-            });
-        }
-        
-        // Workspace buttons
-        if (elements.getAdviceBtn) {
-            elements.getAdviceBtn.addEventListener('click', getPersonalizedAdvice);
-        }
-        if (elements.exportSelectedBtn) {
-            elements.exportSelectedBtn.addEventListener('click', exportSelectedFragments);
-        }
-        if (elements.clearWorkspaceBtn) {
-            elements.clearWorkspaceBtn.addEventListener('click', clearWorkspace);
-        }
-        
-        // Global click handler for recommendations and other dynamic content
-        document.addEventListener('click', (e) => {
-            // New client buttons
-            if (e.target && (
-                e.target.id === 'new-client-btn' || 
-                e.target.id === 'welcome-new-client' ||
-                e.target.id === 'empty-new-client-btn' ||
-                e.target.classList.contains('new-client-trigger')
-            )) {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🎯 Global click handler for client creation button:', e.target.id);
-                showClientForm();
-                return;
-            }
-            
-            // Client management buttons
-            const editBtn = e.target.closest('.edit-client-btn');
-            if (editBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                const clientId = parseInt(editBtn.dataset.clientId);
-                console.log('🎯 Edit client button clicked for ID:', clientId);
-                if (clientId) {
-                    editClient(clientId, e);
-                }
-                return;
-            }
-            
-            const deleteBtn = e.target.closest('.delete-client-btn');
-            if (deleteBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                const clientId = parseInt(deleteBtn.dataset.clientId);
-                console.log('🎯 Delete client button clicked for ID:', clientId);
-                if (clientId) {
-                    deleteClient(clientId, e);
-                }
-                return;
-            }
-            
-            // Client selection
-            const clientItem = e.target.closest('.client-item:not(.active)');
-            if (clientItem && clientItem.dataset.clientId) {
-                e.preventDefault();
-                e.stopPropagation();
-                const clientId = clientItem.dataset.clientId;
-                console.log('🎯 Client selection clicked for ID:', clientId);
-                if (clientId) {
-                    selectClient(clientId);
-                }
-                return;
-            }
-            
-            // Recommendation buttons
-            const expandRecBtn = e.target.closest('.expand-rec-btn');
-            if (expandRecBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                expandRecommendation(expandRecBtn);
-                return;
-            }
-            
-            const copyRecBtn = e.target.closest('.copy-rec-btn');
-            if (copyRecBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                copyRecommendation(copyRecBtn);
-                return;
-            }
-            
-            const removeRecBtn = e.target.closest('.remove-rec-btn');
-            if (removeRecBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                deleteRecommendation(removeRecBtn);
-                return;
-            }
-            
-            // Highlight clicks
-            const highlightSpan = e.target.closest('.text-highlight');
-            if (highlightSpan) {
-                e.preventDefault();
-                e.stopPropagation();
-                const highlightId = highlightSpan.dataset.highlightId;
-                const tooltip = highlightSpan.dataset.tooltip;
-                if (highlightId && tooltip) {
-                    showHighlightDetails(highlightId, tooltip, e);
-                }
-                return;
-            }
-        });
-        
-        // Text input handlers
-        if (elements.negotiationText) {
-            elements.negotiationText.addEventListener('input', updateTextStats);
-        }
-        
-        // Onboarding buttons already handled above in main binding section
-        
-        console.log('✅ Event handlers bound successfully');
-    }
-    
-    async function deleteRecommendation(button) {
-        const recItem = button.closest('.recommendation-item');
-        const recId = recItem.dataset.recommendationId;
-        const clientId = recItem.dataset.clientId;
-        
-        if (!confirm('Видалити цю рекомендацію?')) {
-            return;
-        }
-        
-        // Delete from API
-        const success = await deleteRecommendationFromAPI(recId);
-        
-        if (success) {
-            // Remove from local state
-            const recommendations = state.recommendationsHistory[clientId] || [];
-            const index = recommendations.findIndex(r => r.id == recId);
-            if (index >= 0) {
-                recommendations.splice(index, 1);
-                updateRecommendationsHistory(clientId);
-            }
-        }
-    }
-
     // ===== Initialization =====
     function init() {
         console.log('🚀 TeamPulse Turbo Neon - Initializing...');
-        
-        // Re-initialize DOM elements to ensure they are available
-        reinitializeElements();
-        
-        // Verify all button listeners are properly bound
-        setTimeout(() => {
-            console.log('🔧 Verifying all buttons have listeners...');
-            
-            const buttonIds = [
-                'new-client-btn', 'welcome-new-client', 'save-client-btn', 'cancel-client-btn',
-                'start-analysis-btn', 'new-analysis-btn', 'analysis-history-btn'
-            ];
-            
-            buttonIds.forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn && !btn.hasAttribute('data-listener-bound')) {
-                    console.warn(`⚠️ Button ${id} missing listener, re-binding...`);
-                    bindEvents(); // Re-run binding for missed elements
-                }
-            });
-        }, 100);
         
         // Load saved UI state
         const savedState = localStorage.getItem('teampulse-ui-state');
@@ -6032,64 +4527,8 @@
         
         // Always load initial data
         console.log('🚀 Starting loadClients...');
-        
-        // Force initial counter display to 0 
-        setTimeout(() => {
-            console.log('🚀 Force updating counters on startup');
-            console.log('🚀 DOM elements check:', {
-                clientCount: !!document.getElementById('client-count'),
-                analysisCount: !!document.getElementById('analysis-count'),
-                manipulationsCount: !!document.getElementById('manipulations-count'),
-                biasesCount: !!document.getElementById('biases-count'),
-                fallaciesCount: !!document.getElementById('fallacies-count'),
-                recommendationsCount: !!document.getElementById('recommendations-count'),
-                clientList: !!document.getElementById('client-list'),
-                analysisHistory: !!document.getElementById('analysis-history')
-            });
-            
-            // Force reset all counters to 0
-            const counters = [
-                'client-count', 'analysis-count', 'manipulations-count', 
-                'biases-count', 'fallacies-count', 'recommendations-count'
-            ];
-            
-            counters.forEach(counterId => {
-                const element = document.getElementById(counterId);
-                if (element) {
-                    element.textContent = '0';
-                    console.log('🚀 ✅ Reset', counterId, 'to 0');
-                } else {
-                    console.error('🚀 ❌ Element', counterId, 'not found');
-                }
-            });
-            
-            updateClientCount();
-            renderAnalysisHistory([]);
-            updateCountersFromHighlights([]);
-        }, 100);
-        
         loadClients().then(() => {
             console.log('🚀 loadClients completed, clients loaded:', state.clients.length);
-            
-            // Force update counters with real data
-            setTimeout(() => {
-                updateClientCount();
-                renderAnalysisHistory(state.analyses || []);
-                
-                // Also load analysis history for current client if exists
-                if (state.currentClient) {
-                    console.log('🚀 Loading analysis history for current client:', state.currentClient.company);
-                    loadAnalysisHistory(state.currentClient.id);
-                }
-                
-                // Double-check all counters are updated
-                setTimeout(() => {
-                    updateClientCount();
-                    updateCountersFromHighlights([]);
-                    console.log('🚀 Final counter update completed');
-                }, 500);
-            }, 200);
-            
             loadTokenUsage();
             
             // Try to restore previous app state
@@ -6126,1494 +4565,10 @@
         // Save state on page unload
         window.addEventListener('beforeunload', saveAppState);
         
-        // Initialize modal functionality
-        initializeModalHandlers();
-        
         console.log('✨ TeamPulse Turbo Neon - Ready!');
     }
 
-    // Legacy initialization disabled - now handled by ApplicationManager
-    console.log('🔐 Legacy app-neon.js loaded - SOLID managers will handle initialization');
-    
-    // Keep some backward compatibility functions
-    window.legacyShowNotification = showNotification;
-    
-    // Initialize immediately if already authenticated, or wait for auth-success event
-    // console.log('🔐 Auth status:', sessionStorage.getItem('teampulse-auth'));
-    // if (sessionStorage.getItem('teampulse-auth') === 'true') {
-    //     console.log('🔐 Authenticated, initializing...');
-    //     init();
-    // } else {
-    //     console.log('🔐 Not authenticated, waiting for auth-success event...');
-    //     // Start when authenticated
-    //     window.addEventListener('auth-success', init);
-    // }
-
-    // ===== Advanced Navigation System =====
-    
-    // State management for advanced features
-    let advancedState = {
-        currentView: 'list',
-        searchTerm: '',
-        filters: {
-            dateRange: 'all',
-            clientType: 'all',
-            analysisType: 'all',
-            results: 'all'
-        },
-        selectedItems: new Set(),
-        bookmarks: new Set(),
-        sortBy: 'date',
-        sortOrder: 'desc',
-        searchHistory: [],
-        analytics: null
-    };
-
-    // Advanced modal management
-    function openAdvancedModal() {
-        const modal = document.getElementById('advancedModal');
-        if (modal) {
-            modal.classList.add('show');
-            loadAdvancedData();
-            updateAdvancedView();
-        }
-    }
-
-    function closeAdvancedModal() {
-        const modal = document.getElementById('advancedModal');
-        if (modal) {
-            modal.classList.remove('show');
-        }
-    }
-
-    // Smart search with highlighting
-    function performAdvancedSearch(term) {
-        advancedState.searchTerm = term.toLowerCase();
-        const searchInput = document.getElementById('advancedSearch');
-        
-        if (searchInput) {
-            searchInput.value = term;
-        }
-        
-        // Add to search history
-        if (term && !advancedState.searchHistory.includes(term)) {
-            advancedState.searchHistory.unshift(term);
-            if (advancedState.searchHistory.length > 10) {
-                advancedState.searchHistory.pop();
-            }
-        }
-        
-        updateAdvancedView();
-        updateSearchSuggestions();
-    }
-
-    function updateSearchSuggestions() {
-        const container = document.querySelector('.search-suggestions');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        if (advancedState.searchHistory.length > 0) {
-            advancedState.searchHistory.forEach(term => {
-                const suggestion = document.createElement('div');
-                suggestion.className = 'search-suggestion';
-                suggestion.innerHTML = `
-                    <i class="fas fa-history"></i>
-                    <span>${term}</span>
-                `;
-                suggestion.addEventListener('click', () => {
-                    performAdvancedSearch(term);
-                });
-                container.appendChild(suggestion);
-            });
-        }
-    }
-
-    // View switching functionality
-    function switchView(viewType) {
-        advancedState.currentView = viewType;
-        
-        // Update active tab
-        document.querySelectorAll('.view-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        const activeTab = document.querySelector(`[data-view="${viewType}"]`);
-        if (activeTab) {
-            activeTab.classList.add('active');
-        }
-        
-        updateAdvancedView();
-    }
-
-    function updateAdvancedView() {
-        const container = document.getElementById('advancedContent');
-        if (!container) return;
-        
-        const filteredData = getFilteredData();
-        
-        switch (advancedState.currentView) {
-            case 'list':
-                renderListView(container, filteredData);
-                break;
-            case 'timeline':
-                renderTimelineView(container, filteredData);
-                break;
-            case 'grid':
-                renderGridView(container, filteredData);
-                break;
-            case 'analytics':
-                renderAnalyticsView(container, filteredData);
-                break;
-        }
-        
-        updateSelectionStatus();
-    }
-
-    // Data filtering and processing
-    function getFilteredData() {
-        let data = getAllAnalysesData();
-        
-        // Apply search filter
-        if (advancedState.searchTerm) {
-            data = data.filter(item => 
-                item.clientName?.toLowerCase().includes(advancedState.searchTerm) ||
-                item.analysisType?.toLowerCase().includes(advancedState.searchTerm) ||
-                item.content?.toLowerCase().includes(advancedState.searchTerm) ||
-                item.results?.some(r => r.text?.toLowerCase().includes(advancedState.searchTerm))
-            );
-        }
-        
-        // Apply filters
-        if (advancedState.filters.dateRange !== 'all') {
-            data = data.filter(item => matchesDateRange(item.date, advancedState.filters.dateRange));
-        }
-        
-        if (advancedState.filters.clientType !== 'all') {
-            data = data.filter(item => item.clientType === advancedState.filters.clientType);
-        }
-        
-        if (advancedState.filters.analysisType !== 'all') {
-            data = data.filter(item => item.analysisType === advancedState.filters.analysisType);
-        }
-        
-        // Sort data
-        data.sort((a, b) => {
-            let aVal = a[advancedState.sortBy];
-            let bVal = b[advancedState.sortBy];
-            
-            if (advancedState.sortBy === 'date') {
-                aVal = new Date(aVal);
-                bVal = new Date(bVal);
-            }
-            
-            const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-            return advancedState.sortOrder === 'desc' ? -comparison : comparison;
-        });
-        
-        return data;
-    }
-
-    function matchesDateRange(date, range) {
-        const itemDate = new Date(date);
-        const now = new Date();
-        
-        switch (range) {
-            case 'today':
-                return itemDate.toDateString() === now.toDateString();
-            case 'week':
-                return (now - itemDate) <= (7 * 24 * 60 * 60 * 1000);
-            case 'month':
-                return (now - itemDate) <= (30 * 24 * 60 * 60 * 1000);
-            case 'year':
-                return (now - itemDate) <= (365 * 24 * 60 * 60 * 1000);
-            default:
-                return true;
-        }
-    }
-
-    // View renderers
-    function renderListView(container, data) {
-        container.innerHTML = `
-            <div class="list-view">
-                <div class="list-header">
-                    <div class="bulk-actions">
-                        <input type="checkbox" id="selectAll" class="select-all-checkbox">
-                        <button class="bulk-btn" onclick="exportSelected()">
-                            <i class="fas fa-download"></i> Export Selected
-                        </button>
-                        <button class="bulk-btn" onclick="deleteSelected()">
-                            <i class="fas fa-trash"></i> Delete Selected
-                        </button>
-                    </div>
-                    <div class="sort-controls">
-                        <select id="sortBy" onchange="updateSort()">
-                            <option value="date">Date</option>
-                            <option value="clientName">Client</option>
-                            <option value="analysisType">Type</option>
-                            <option value="score">Score</option>
-                        </select>
-                        <button class="sort-order-btn" onclick="toggleSortOrder()">
-                            <i class="fas fa-sort-${advancedState.sortOrder === 'desc' ? 'down' : 'up'}"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="list-items">
-                    ${data.map(item => renderListItem(item)).join('')}
-                </div>
-            </div>
-        `;
-        
-        bindListEvents();
-    }
-
-    function renderListItem(item) {
-        const isSelected = advancedState.selectedItems.has(item.id);
-        const isBookmarked = advancedState.bookmarks.has(item.id);
-        const highlightedContent = highlightSearchTerm(item.content || '', advancedState.searchTerm);
-        
-        return `
-            <div class="list-item ${isSelected ? 'selected' : ''}" data-id="${item.id}">
-                <div class="item-header">
-                    <input type="checkbox" class="item-checkbox" ${isSelected ? 'checked' : ''}>
-                    <div class="item-meta">
-                        <h4>${item.clientName}</h4>
-                        <span class="item-date">${formatDate(item.date)}</span>
-                        <span class="item-type">${item.analysisType}</span>
-                    </div>
-                    <div class="item-actions">
-                        <button class="action-btn bookmark-btn ${isBookmarked ? 'active' : ''}" 
-                                onclick="toggleBookmark('${item.id}')">
-                            <i class="fas fa-bookmark"></i>
-                        </button>
-                        <button class="action-btn" onclick="viewAnalysis('${item.id}')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="action-btn" onclick="exportAnalysis('${item.id}')">
-                            <i class="fas fa-download"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="item-content">
-                    <p>${highlightedContent}</p>
-                    <div class="item-stats">
-                        <span class="stat">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            ${item.results?.length || 0} Issues
-                        </span>
-                        <span class="stat">
-                            <i class="fas fa-chart-line"></i>
-                            Score: ${item.score || 'N/A'}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    function renderTimelineView(container, data) {
-        const groupedData = groupDataByDate(data);
-        
-        container.innerHTML = `
-            <div class="timeline-view">
-                <div class="timeline-container">
-                    ${Object.entries(groupedData).map(([date, items]) => `
-                        <div class="timeline-group">
-                            <div class="timeline-date">
-                                <h3>${formatDateFull(date)}</h3>
-                                <span class="item-count">${items.length} analyses</span>
-                            </div>
-                            <div class="timeline-items">
-                                ${items.map(item => renderTimelineItem(item)).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    function renderTimelineItem(item) {
-        const isBookmarked = advancedState.bookmarks.has(item.id);
-        
-        return `
-            <div class="timeline-item" data-id="${item.id}">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                    <div class="timeline-header">
-                        <h4>${item.clientName}</h4>
-                        <span class="timeline-time">${formatTime(item.date)}</span>
-                        <button class="bookmark-btn ${isBookmarked ? 'active' : ''}" 
-                                onclick="toggleBookmark('${item.id}')">
-                            <i class="fas fa-bookmark"></i>
-                        </button>
-                    </div>
-                    <p>${item.content || 'No content available'}</p>
-                    <div class="timeline-actions">
-                        <button class="timeline-btn" onclick="viewAnalysis('${item.id}')">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="timeline-btn" onclick="exportAnalysis('${item.id}')">
-                            <i class="fas fa-download"></i> Export
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    function renderGridView(container, data) {
-        container.innerHTML = `
-            <div class="grid-view">
-                <div class="grid-container">
-                    ${data.map(item => renderGridItem(item)).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    function renderGridItem(item) {
-        const isBookmarked = advancedState.bookmarks.has(item.id);
-        
-        return `
-            <div class="grid-item" data-id="${item.id}">
-                <div class="grid-header">
-                    <h4>${item.clientName}</h4>
-                    <button class="bookmark-btn ${isBookmarked ? 'active' : ''}" 
-                            onclick="toggleBookmark('${item.id}')">
-                        <i class="fas fa-bookmark"></i>
-                    </button>
-                </div>
-                <div class="grid-content">
-                    <div class="grid-meta">
-                        <span class="grid-date">${formatDate(item.date)}</span>
-                        <span class="grid-type">${item.analysisType}</span>
-                    </div>
-                    <p>${(item.content || 'No content available').substring(0, 150)}...</p>
-                    <div class="grid-stats">
-                        <span class="stat">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            ${item.results?.length || 0}
-                        </span>
-                        <span class="stat">
-                            <i class="fas fa-chart-line"></i>
-                            ${item.score || 'N/A'}
-                        </span>
-                    </div>
-                </div>
-                <div class="grid-actions">
-                    <button class="grid-btn" onclick="viewAnalysis('${item.id}')">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="grid-btn" onclick="exportAnalysis('${item.id}')">
-                        <i class="fas fa-download"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    function renderAnalyticsView(container, data) {
-        const analytics = generateAnalytics(data);
-        
-        container.innerHTML = `
-            <div class="analytics-view">
-                <div class="analytics-header">
-                    <h3>Analytics Dashboard</h3>
-                    <div class="analytics-filters">
-                        <select id="analyticsDateRange" onchange="updateAnalytics()">
-                            <option value="all">All Time</option>
-                            <option value="year">This Year</option>
-                            <option value="month">This Month</option>
-                            <option value="week">This Week</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="analytics-grid">
-                    <div class="analytics-card">
-                        <h4>Total Analyses</h4>
-                        <div class="analytics-number">${analytics.totalAnalyses}</div>
-                        <div class="analytics-trend ${analytics.analysesTrend >= 0 ? 'positive' : 'negative'}">
-                            <i class="fas fa-arrow-${analytics.analysesTrend >= 0 ? 'up' : 'down'}"></i>
-                            ${Math.abs(analytics.analysesTrend)}%
-                        </div>
-                    </div>
-                    
-                    <div class="analytics-card">
-                        <h4>Active Clients</h4>
-                        <div class="analytics-number">${analytics.activeClients}</div>
-                        <div class="analytics-subtitle">Unique clients</div>
-                    </div>
-                    
-                    <div class="analytics-card">
-                        <h4>Average Score</h4>
-                        <div class="analytics-number">${analytics.averageScore.toFixed(1)}</div>
-                        <div class="analytics-trend ${analytics.scoreTrend >= 0 ? 'positive' : 'negative'}">
-                            <i class="fas fa-arrow-${analytics.scoreTrend >= 0 ? 'up' : 'down'}"></i>
-                            ${Math.abs(analytics.scoreTrend).toFixed(1)}%
-                        </div>
-                    </div>
-                    
-                    <div class="analytics-card">
-                        <h4>Issues Found</h4>
-                        <div class="analytics-number">${analytics.totalIssues}</div>
-                        <div class="analytics-subtitle">Across all analyses</div>
-                    </div>
-                </div>
-                
-                <div class="analytics-charts">
-                    <div class="chart-container">
-                        <canvas id="analysesChart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="issuesChart"></canvas>
-                    </div>
-                </div>
-                
-                <div class="analytics-tables">
-                    <div class="analytics-table">
-                        <h4>Top Clients</h4>
-                        <div class="table-content">
-                            ${analytics.topClients.map(client => `
-                                <div class="table-row">
-                                    <span>${client.name}</span>
-                                    <span>${client.count} analyses</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    
-                    <div class="analytics-table">
-                        <h4>Common Issues</h4>
-                        <div class="table-content">
-                            ${analytics.commonIssues.map(issue => `
-                                <div class="table-row">
-                                    <span>${issue.type}</span>
-                                    <span>${issue.count} occurrences</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Initialize charts
-        setTimeout(() => {
-            initializeCharts(analytics);
-        }, 100);
-    }
-
-    // Analytics generation
-    function generateAnalytics(data) {
-        const now = new Date();
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-        
-        const currentPeriodData = data.filter(item => new Date(item.date) >= lastMonth);
-        const previousPeriodData = data.filter(item => {
-            const itemDate = new Date(item.date);
-            return itemDate < lastMonth && itemDate >= new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
-        });
-        
-        const analytics = {
-            totalAnalyses: data.length,
-            analysesTrend: calculateTrend(currentPeriodData.length, previousPeriodData.length),
-            activeClients: new Set(data.map(item => item.clientName)).size,
-            averageScore: data.reduce((sum, item) => sum + (item.score || 0), 0) / data.length || 0,
-            scoreTrend: calculateScoreTrend(currentPeriodData, previousPeriodData),
-            totalIssues: data.reduce((sum, item) => sum + (item.results?.length || 0), 0),
-            topClients: getTopClients(data),
-            commonIssues: getCommonIssues(data),
-            timeSeriesData: getTimeSeriesData(data),
-            issueDistribution: getIssueDistribution(data)
-        };
-        
-        return analytics;
-    }
-
-    function calculateTrend(current, previous) {
-        if (previous === 0) return current > 0 ? 100 : 0;
-        return ((current - previous) / previous) * 100;
-    }
-
-    function calculateScoreTrend(currentData, previousData) {
-        const currentAvg = currentData.reduce((sum, item) => sum + (item.score || 0), 0) / currentData.length || 0;
-        const previousAvg = previousData.reduce((sum, item) => sum + (item.score || 0), 0) / previousData.length || 0;
-        
-        if (previousAvg === 0) return currentAvg > 0 ? 100 : 0;
-        return ((currentAvg - previousAvg) / previousAvg) * 100;
-    }
-
-    function getTopClients(data) {
-        const clientCounts = {};
-        data.forEach(item => {
-            clientCounts[item.clientName] = (clientCounts[item.clientName] || 0) + 1;
-        });
-        
-        return Object.entries(clientCounts)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 5)
-            .map(([name, count]) => ({ name, count }));
-    }
-
-    function getCommonIssues(data) {
-        const issueCounts = {};
-        data.forEach(item => {
-            if (item.results) {
-                item.results.forEach(result => {
-                    const type = result.category || result.type || 'Unknown';
-                    issueCounts[type] = (issueCounts[type] || 0) + 1;
-                });
-            }
-        });
-        
-        return Object.entries(issueCounts)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 5)
-            .map(([type, count]) => ({ type, count }));
-    }
-
-    // Export functionality
-    function exportSelected() {
-        const selectedIds = Array.from(advancedState.selectedItems);
-        if (selectedIds.length === 0) {
-            alert('Please select items to export');
-            return;
-        }
-        
-        showExportModal(selectedIds);
-    }
-
-    function exportAnalysis(analysisId) {
-        showExportModal([analysisId]);
-    }
-
-    function showExportModal(analysisIds) {
-        const modal = document.createElement('div');
-        modal.className = 'export-modal';
-        modal.innerHTML = `
-            <div class="export-modal-content">
-                <div class="export-header">
-                    <h3>Export Analyses</h3>
-                    <button class="close-btn" onclick="this.closest('.export-modal').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="export-options">
-                    <div class="export-format">
-                        <h4>Format</h4>
-                        <div class="format-options">
-                            <label>
-                                <input type="radio" name="format" value="pdf" checked>
-                                <i class="fas fa-file-pdf"></i> PDF Report
-                            </label>
-                            <label>
-                                <input type="radio" name="format" value="json">
-                                <i class="fas fa-file-code"></i> JSON Data
-                            </label>
-                            <label>
-                                <input type="radio" name="format" value="csv">
-                                <i class="fas fa-file-csv"></i> CSV Spreadsheet
-                            </label>
-                        </div>
-                    </div>
-                    <div class="export-settings">
-                        <h4>Include</h4>
-                        <label>
-                            <input type="checkbox" checked> Analysis Results
-                        </label>
-                        <label>
-                            <input type="checkbox" checked> Client Information
-                        </label>
-                        <label>
-                            <input type="checkbox"> Raw Text
-                        </label>
-                        <label>
-                            <input type="checkbox"> Recommendations
-                        </label>
-                    </div>
-                </div>
-                <div class="export-actions">
-                    <button class="export-btn primary" onclick="performExport('${analysisIds.join(',')}')">
-                        <i class="fas fa-download"></i> Export
-                    </button>
-                    <button class="export-btn" onclick="this.closest('.export-modal').remove()">
-                        Cancel
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-    }
-
-    function performExport(analysisIdsStr) {
-        const analysisIds = analysisIdsStr.split(',');
-        const format = document.querySelector('input[name="format"]:checked').value;
-        
-        const data = getAllAnalysesData().filter(item => analysisIds.includes(item.id));
-        
-        switch (format) {
-            case 'pdf':
-                exportToPDF(data);
-                break;
-            case 'json':
-                exportToJSON(data);
-                break;
-            case 'csv':
-                exportToCSV(data);
-                break;
-        }
-        
-        // Close modal
-        document.querySelector('.export-modal').remove();
-    }
-
-    function exportToPDF(data) {
-        // Create a formatted HTML report
-        const reportHtml = generateHTMLReport(data);
-        
-        // Open in new window for printing/saving as PDF
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(reportHtml);
-        printWindow.document.close();
-        printWindow.print();
-    }
-
-    function exportToJSON(data) {
-        const jsonData = JSON.stringify(data, null, 2);
-        downloadFile(jsonData, 'analyses-export.json', 'application/json');
-    }
-
-    function exportToCSV(data) {
-        const csvHeaders = ['Date', 'Client', 'Type', 'Content', 'Issues', 'Score'];
-        const csvRows = data.map(item => [
-            item.date,
-            item.clientName,
-            item.analysisType,
-            (item.content || '').replace(/"/g, '""'),
-            item.results?.length || 0,
-            item.score || ''
-        ]);
-        
-        const csvContent = [csvHeaders, ...csvRows]
-            .map(row => row.map(field => `"${field}"`).join(','))
-            .join('\n');
-        
-        downloadFile(csvContent, 'analyses-export.csv', 'text/csv');
-    }
-
-    function downloadFile(content, filename, mimeType) {
-        const blob = new Blob([content], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    // Utility functions
-    function highlightSearchTerm(text, term) {
-        if (!term || !text) return text;
-        
-        const regex = new RegExp(`(${term})`, 'gi');
-        return text.replace(regex, '<mark>$1</mark>');
-    }
-
-    function formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    }
-
-    function formatDateFull(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    }
-
-    function formatTime(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
-
-    function groupDataByDate(data) {
-        const grouped = {};
-        data.forEach(item => {
-            const date = new Date(item.date).toDateString();
-            if (!grouped[date]) {
-                grouped[date] = [];
-            }
-            grouped[date].push(item);
-        });
-        return grouped;
-    }
-
-    // Bookmark management
-    function toggleBookmark(analysisId) {
-        if (advancedState.bookmarks.has(analysisId)) {
-            advancedState.bookmarks.delete(analysisId);
-        } else {
-            advancedState.bookmarks.add(analysisId);
-        }
-        
-        // Save to localStorage
-        localStorage.setItem('analysisBookmarks', JSON.stringify(Array.from(advancedState.bookmarks)));
-        
-        updateAdvancedView();
-    }
-
-    function loadBookmarks() {
-        const saved = localStorage.getItem('analysisBookmarks');
-        if (saved) {
-            advancedState.bookmarks = new Set(JSON.parse(saved));
-        }
-    }
-
-    // Keyboard shortcuts
-    function setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            // Only handle shortcuts when advanced modal is open
-            if (!document.getElementById('advancedModal')?.classList.contains('show')) {
-                return;
-            }
-            
-            if (e.ctrlKey || e.metaKey) {
-                switch (e.key) {
-                    case 'f':
-                        e.preventDefault();
-                        document.getElementById('advancedSearch')?.focus();
-                        break;
-                    case 'a':
-                        e.preventDefault();
-                        selectAllItems();
-                        break;
-                    case 'e':
-                        e.preventDefault();
-                        exportSelected();
-                        break;
-                    case '1':
-                        e.preventDefault();
-                        switchView('list');
-                        break;
-                    case '2':
-                        e.preventDefault();
-                        switchView('timeline');
-                        break;
-                    case '3':
-                        e.preventDefault();
-                        switchView('grid');
-                        break;
-                    case '4':
-                        e.preventDefault();
-                        switchView('analytics');
-                        break;
-                }
-            }
-            
-            if (e.key === 'Escape') {
-                closeAdvancedModal();
-            }
-        });
-    }
-
-    // Event bindings
-    function bindListEvents() {
-        // Select all checkbox
-        const selectAllCheckbox = document.getElementById('selectAll');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', (e) => {
-                const checkboxes = document.querySelectorAll('.item-checkbox');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = e.target.checked;
-                    const itemId = checkbox.closest('.list-item').dataset.id;
-                    if (e.target.checked) {
-                        advancedState.selectedItems.add(itemId);
-                    } else {
-                        advancedState.selectedItems.delete(itemId);
-                    }
-                });
-                updateSelectionStatus();
-            });
-        }
-        
-        // Individual checkboxes
-        document.querySelectorAll('.item-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const itemId = e.target.closest('.list-item').dataset.id;
-                if (e.target.checked) {
-                    advancedState.selectedItems.add(itemId);
-                } else {
-                    advancedState.selectedItems.delete(itemId);
-                }
-                updateSelectionStatus();
-            });
-        });
-    }
-
-    function updateSelectionStatus() {
-        const selectedCount = advancedState.selectedItems.size;
-        const statusElement = document.querySelector('.selection-status');
-        
-        if (statusElement) {
-            statusElement.textContent = selectedCount > 0 ? 
-                `${selectedCount} item${selectedCount > 1 ? 's' : ''} selected` : '';
-        }
-        
-        // Update bulk action buttons
-        const bulkButtons = document.querySelectorAll('.bulk-btn');
-        bulkButtons.forEach(btn => {
-            btn.disabled = selectedCount === 0;
-        });
-    }
-
-    // Missing utility functions
-    function selectAllItems() {
-        const checkboxes = document.querySelectorAll('.item-checkbox');
-        const selectAllCheckbox = document.getElementById('selectAll');
-        
-        if (selectAllCheckbox) {
-            selectAllCheckbox.checked = true;
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = true;
-                const itemId = checkbox.closest('.list-item').dataset.id;
-                advancedState.selectedItems.add(itemId);
-            });
-            updateSelectionStatus();
-        }
-    }
-
-    function updateSort() {
-        const sortSelect = document.getElementById('sortBy');
-        if (sortSelect) {
-            advancedState.sortBy = sortSelect.value;
-            updateAdvancedView();
-        }
-    }
-
-    function toggleSortOrder() {
-        advancedState.sortOrder = advancedState.sortOrder === 'desc' ? 'asc' : 'desc';
-        updateAdvancedView();
-    }
-
-    function deleteSelected() {
-        const selectedIds = Array.from(advancedState.selectedItems);
-        if (selectedIds.length === 0) {
-            alert('Please select items to delete');
-            return;
-        }
-        
-        if (confirm(`Are you sure you want to delete ${selectedIds.length} analyses? This action cannot be undone.`)) {
-            // Here you would make API calls to delete the analyses
-            // For now, we'll just clear the selection
-            selectedIds.forEach(id => {
-                advancedState.selectedItems.delete(id);
-                // Remove from bookmarks if bookmarked
-                advancedState.bookmarks.delete(id);
-            });
-            
-            updateAdvancedView();
-            alert(`${selectedIds.length} analyses deleted successfully.`);
-        }
-    }
-
-    function updateAnalytics() {
-        const dateRangeSelect = document.getElementById('analyticsDateRange');
-        if (dateRangeSelect) {
-            const range = dateRangeSelect.value;
-            advancedState.filters.dateRange = range;
-            updateAdvancedView();
-        }
-    }
-
-    function initializeCharts(analytics) {
-        // Initialize analyses chart
-        const analysesCtx = document.getElementById('analysesChart');
-        if (analysesCtx && analytics.timeSeriesData) {
-            try {
-                // Simple chart implementation using basic canvas
-                const canvas = analysesCtx.getContext('2d');
-                drawTimeSeriesChart(canvas, analytics.timeSeriesData, 'Analyses Over Time');
-            } catch (error) {
-                console.log('Chart initialization failed:', error);
-                analysesCtx.style.display = 'none';
-            }
-        }
-
-        // Initialize issues chart
-        const issuesCtx = document.getElementById('issuesChart');
-        if (issuesCtx && analytics.issueDistribution) {
-            try {
-                const canvas = issuesCtx.getContext('2d');
-                drawPieChart(canvas, analytics.issueDistribution, 'Issue Distribution');
-            } catch (error) {
-                console.log('Chart initialization failed:', error);
-                issuesCtx.style.display = 'none';
-            }
-        }
-    }
-
-    function drawTimeSeriesChart(ctx, data, title) {
-        const canvas = ctx.canvas;
-        const width = canvas.width;
-        const height = canvas.height;
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, width, height);
-        
-        // Draw simple line chart
-        ctx.strokeStyle = '#00ffff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        
-        const maxValue = Math.max(...data.map(d => d.value));
-        const stepX = width / (data.length - 1);
-        
-        data.forEach((point, index) => {
-            const x = index * stepX;
-            const y = height - (point.value / maxValue) * height * 0.8;
-            
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
-        
-        ctx.stroke();
-    }
-
-    function drawPieChart(ctx, data, title) {
-        const canvas = ctx.canvas;
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const radius = Math.min(centerX, centerY) * 0.8;
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        const total = data.reduce((sum, item) => sum + item.value, 0);
-        let currentAngle = 0;
-        
-        const colors = ['#00ffff', '#ff00ff', '#ffff00', '#ff6600', '#00ff00'];
-        
-        data.forEach((slice, index) => {
-            const sliceAngle = (slice.value / total) * 2 * Math.PI;
-            
-            ctx.fillStyle = colors[index % colors.length];
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
-            ctx.closePath();
-            ctx.fill();
-            
-            currentAngle += sliceAngle;
-        });
-    }
-
-    function getTimeSeriesData(data) {
-        // Group data by month for time series
-        const monthlyData = {};
-        
-        data.forEach(item => {
-            const date = new Date(item.date);
-            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            
-            if (!monthlyData[monthKey]) {
-                monthlyData[monthKey] = 0;
-            }
-            monthlyData[monthKey]++;
-        });
-        
-        return Object.entries(monthlyData)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([month, count]) => ({ date: month, value: count }));
-    }
-
-    function getIssueDistribution(data) {
-        const distribution = {};
-        
-        data.forEach(item => {
-            if (item.results) {
-                item.results.forEach(result => {
-                    const category = result.category || 'Unknown';
-                    distribution[category] = (distribution[category] || 0) + 1;
-                });
-            }
-        });
-        
-        return Object.entries(distribution)
-            .map(([category, count]) => ({ label: category, value: count }))
-            .sort((a, b) => b.value - a.value);
-    }
-
-    function generateHTMLReport(data) {
-        const reportDate = new Date().toLocaleDateString();
-        
-        return `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Analysis Report - ${reportDate}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; }
-        .analysis { border: 1px solid #ddd; margin: 20px 0; padding: 15px; }
-        .meta { background: #f5f5f5; padding: 10px; margin-bottom: 10px; }
-        .results { margin-top: 15px; }
-        .issue { background: #fff3cd; border: 1px solid #ffeaa7; padding: 8px; margin: 5px 0; }
-        .stats { text-align: center; margin: 20px 0; }
-        @media print { body { margin: 20px; } }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Analysis Report</h1>
-        <p>Generated on ${reportDate}</p>
-        <p>Total Analyses: ${data.length}</p>
-    </div>
-    
-    ${data.map(item => `
-        <div class="analysis">
-            <div class="meta">
-                <strong>Client:</strong> ${item.clientName} |
-                <strong>Type:</strong> ${item.analysisType} |
-                <strong>Date:</strong> ${formatDate(item.date)} |
-                <strong>Score:</strong> ${item.score || 'N/A'}
-            </div>
-            
-            <div class="content">
-                <h3>Analysis Content</h3>
-                <p>${item.content || 'No content available'}</p>
-            </div>
-            
-            ${item.results && item.results.length > 0 ? `
-                <div class="results">
-                    <h3>Issues Found (${item.results.length})</h3>
-                    ${item.results.map(result => `
-                        <div class="issue">
-                            <strong>${result.category || 'Unknown'}:</strong>
-                            ${result.text || 'No description'}
-                        </div>
-                    `).join('')}
-                </div>
-            ` : '<p>No issues found.</p>'}
-        </div>
-    `).join('')}
-    
-    <div class="stats">
-        <p>Report generated by Teampulse Negotiations Analysis System</p>
-    </div>
-</body>
-</html>
-        `;
-    }
-
-    function viewAnalysis(analysisId) {
-        // Find the analysis data
-        const allData = getAllAnalysesData();
-        const analysis = allData.find(item => item.id === analysisId);
-        
-        if (!analysis) {
-            alert('Analysis not found');
-            return;
-        }
-        
-        // Create a detailed view modal
-        const modal = document.createElement('div');
-        modal.className = 'view-analysis-modal';
-        modal.innerHTML = `
-            <div class="view-analysis-content">
-                <div class="view-header">
-                    <h3>Analysis Details</h3>
-                    <button class="close-btn" onclick="this.closest('.view-analysis-modal').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                
-                <div class="analysis-details">
-                    <div class="detail-section">
-                        <h4>Client Information</h4>
-                        <div class="detail-grid">
-                            <div class="detail-item">
-                                <label>Client Name:</label>
-                                <span>${analysis.clientName}</span>
-                            </div>
-                            <div class="detail-item">
-                                <label>Analysis Type:</label>
-                                <span>${analysis.analysisType}</span>
-                            </div>
-                            <div class="detail-item">
-                                <label>Date:</label>
-                                <span>${formatDateFull(analysis.date)}</span>
-                            </div>
-                            <div class="detail-item">
-                                <label>Score:</label>
-                                <span>${analysis.score || 'N/A'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4>Analysis Content</h4>
-                        <div class="content-text">
-                            ${analysis.content || 'No content available'}
-                        </div>
-                    </div>
-                    
-                    ${analysis.results && analysis.results.length > 0 ? `
-                        <div class="detail-section">
-                            <h4>Issues Found (${analysis.results.length})</h4>
-                            <div class="issues-list">
-                                ${analysis.results.map((result, index) => `
-                                    <div class="issue-item">
-                                        <div class="issue-header">
-                                            <span class="issue-category">${result.category || 'Unknown'}</span>
-                                            <span class="issue-number">#${index + 1}</span>
-                                        </div>
-                                        <div class="issue-text">
-                                            ${result.text || 'No description available'}
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : '<div class="detail-section"><p>No issues found in this analysis.</p></div>'}
-                </div>
-                
-                <div class="view-actions">
-                    <button class="view-btn primary" onclick="exportAnalysis('${analysisId}')">
-                        <i class="fas fa-download"></i> Export
-                    </button>
-                    <button class="view-btn" onclick="toggleBookmark('${analysisId}'); this.querySelector('i').className = window.advancedState?.bookmarks.has('${analysisId}') ? 'fas fa-bookmark' : 'far fa-bookmark';">
-                        <i class="fas fa-bookmark"></i> ${advancedState.bookmarks.has(analysisId) ? 'Remove Bookmark' : 'Add Bookmark'}
-                    </button>
-                    <button class="view-btn" onclick="this.closest('.view-analysis-modal').remove()">
-                        Close
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-    }
-
-    // Client comparison functionality
-    function openComparisonView() {
-        const modal = document.createElement('div');
-        modal.className = 'comparison-modal';
-        modal.innerHTML = `
-            <div class="comparison-modal-content">
-                <div class="comparison-header">
-                    <h3>Client Comparison</h3>
-                    <button class="close-btn" onclick="this.closest('.comparison-modal').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                
-                <div class="comparison-setup">
-                    <div class="client-selector">
-                        <h4>Select Clients to Compare</h4>
-                        <div class="client-selection-grid">
-                            ${getUniqueClients().map(client => `
-                                <label class="client-option">
-                                    <input type="checkbox" class="client-checkbox" value="${client}" 
-                                           onchange="updateComparison()">
-                                    <span>${client}</span>
-                                </label>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="comparisonResults" class="comparison-results">
-                    <p class="comparison-placeholder">Select 2 or more clients to see comparison</p>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-    }
-
-    function updateComparison() {
-        const selectedClients = Array.from(document.querySelectorAll('.client-checkbox:checked'))
-            .map(cb => cb.value);
-        
-        const resultsContainer = document.getElementById('comparisonResults');
-        
-        if (selectedClients.length < 2) {
-            resultsContainer.innerHTML = '<p class="comparison-placeholder">Select 2 or more clients to see comparison</p>';
-            return;
-        }
-        
-        const allData = getAllAnalysesData();
-        const comparisonData = selectedClients.map(clientName => {
-            const clientAnalyses = allData.filter(item => item.clientName === clientName);
-            
-            return {
-                clientName,
-                totalAnalyses: clientAnalyses.length,
-                averageScore: clientAnalyses.reduce((sum, item) => sum + (item.score || 0), 0) / clientAnalyses.length || 0,
-                totalIssues: clientAnalyses.reduce((sum, item) => sum + (item.results?.length || 0), 0),
-                issueTypes: getClientIssueBreakdown(clientAnalyses),
-                recentActivity: clientAnalyses.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 3),
-                analysisTypes: getClientAnalysisTypes(clientAnalyses)
-            };
-        });
-        
-        resultsContainer.innerHTML = `
-            <div class="comparison-grid">
-                ${comparisonData.map(client => `
-                    <div class="comparison-card">
-                        <h4>${client.clientName}</h4>
-                        
-                        <div class="comparison-stats">
-                            <div class="stat-item">
-                                <label>Total Analyses</label>
-                                <span class="stat-value">${client.totalAnalyses}</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Average Score</label>
-                                <span class="stat-value">${client.averageScore.toFixed(1)}</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Total Issues</label>
-                                <span class="stat-value">${client.totalIssues}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="comparison-section">
-                            <h5>Issue Breakdown</h5>
-                            <div class="issue-breakdown">
-                                ${Object.entries(client.issueTypes).map(([type, count]) => `
-                                    <div class="issue-type-row">
-                                        <span>${type}</span>
-                                        <span class="issue-count">${count}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        <div class="comparison-section">
-                            <h5>Analysis Types</h5>
-                            <div class="analysis-types">
-                                ${Object.entries(client.analysisTypes).map(([type, count]) => `
-                                    <div class="analysis-type-badge">
-                                        ${type} (${count})
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        <div class="comparison-section">
-                            <h5>Recent Activity</h5>
-                            <div class="recent-activity">
-                                ${client.recentActivity.map(activity => `
-                                    <div class="activity-item">
-                                        <span class="activity-type">${activity.analysisType}</span>
-                                        <span class="activity-date">${formatDate(activity.date)}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-            
-            <div class="comparison-summary">
-                <h4>Comparison Summary</h4>
-                <div class="summary-insights">
-                    ${generateComparisonInsights(comparisonData)}
-                </div>
-            </div>
-        `;
-    }
-
-    function getUniqueClients() {
-        const allData = getAllAnalysesData();
-        return [...new Set(allData.map(item => item.clientName))];
-    }
-
-    function getClientIssueBreakdown(analyses) {
-        const breakdown = {};
-        analyses.forEach(analysis => {
-            if (analysis.results) {
-                analysis.results.forEach(result => {
-                    const category = result.category || 'Unknown';
-                    breakdown[category] = (breakdown[category] || 0) + 1;
-                });
-            }
-        });
-        return breakdown;
-    }
-
-    function getClientAnalysisTypes(analyses) {
-        const types = {};
-        analyses.forEach(analysis => {
-            const type = analysis.analysisType || 'Unknown';
-            types[type] = (types[type] || 0) + 1;
-        });
-        return types;
-    }
-
-    function generateComparisonInsights(comparisonData) {
-        if (comparisonData.length < 2) return '';
-        
-        const insights = [];
-        
-        // Find highest and lowest scoring clients
-        const sortedByScore = [...comparisonData].sort((a, b) => b.averageScore - a.averageScore);
-        insights.push(`<div class="insight">🏆 <strong>${sortedByScore[0].clientName}</strong> has the highest average score (${sortedByScore[0].averageScore.toFixed(1)})</div>`);
-        
-        if (sortedByScore.length > 1) {
-            insights.push(`<div class="insight">⚠️ <strong>${sortedByScore[sortedByScore.length - 1].clientName}</strong> has the lowest average score (${sortedByScore[sortedByScore.length - 1].averageScore.toFixed(1)})</div>`);
-        }
-        
-        // Find most active client
-        const sortedByActivity = [...comparisonData].sort((a, b) => b.totalAnalyses - a.totalAnalyses);
-        insights.push(`<div class="insight">📊 <strong>${sortedByActivity[0].clientName}</strong> is the most active with ${sortedByActivity[0].totalAnalyses} analyses</div>`);
-        
-        // Find client with most issues
-        const sortedByIssues = [...comparisonData].sort((a, b) => b.totalIssues - a.totalIssues);
-        insights.push(`<div class="insight">🚨 <strong>${sortedByIssues[0].clientName}</strong> has the most issues detected (${sortedByIssues[0].totalIssues})</div>`);
-        
-        return insights.join('');
-    }
-
-    // Mock data functions (replace with actual API calls)
-    function getAllAnalysesData() {
-        // This should be replaced with actual data from your API
-        return [
-            {
-                id: '1',
-                clientName: 'Tech Corp',
-                analysisType: 'Contract Review',
-                content: 'Sample contract analysis content with detailed examination of terms and conditions. This analysis covers various aspects including liability clauses, termination conditions, and payment terms.',
-                date: new Date().toISOString(),
-                score: 85,
-                results: [
-                    { category: 'manipulation', text: 'Potential manipulation tactic detected in payment terms section' },
-                    { category: 'cognitive_bias', text: 'Anchoring bias evident in pricing structure' }
-                ]
-            },
-            {
-                id: '2',
-                clientName: 'Global Industries',
-                analysisType: 'Negotiation Strategy',
-                content: 'Strategic analysis for upcoming merger negotiations. Focus on identifying potential leverage points and risk factors.',
-                date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-                score: 92,
-                results: [
-                    { category: 'rhetological_fallacy', text: 'False dichotomy in proposed deal structure' },
-                    { category: 'manipulation', text: 'Pressure tactics in timeline requirements' },
-                    { category: 'cognitive_bias', text: 'Confirmation bias in market analysis' }
-                ]
-            },
-            {
-                id: '3',
-                clientName: 'StartupX',
-                analysisType: 'Partnership Agreement',
-                content: 'Review of partnership agreement terms for equity distribution and decision-making processes.',
-                date: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-                score: 78,
-                results: [
-                    { category: 'manipulation', text: 'Unbalanced voting rights structure' }
-                ]
-            }
-        ];
-    }
-
-    function loadAdvancedData() {
-        // Load bookmarks from localStorage
-        loadBookmarks();
-        
-        // Initialize other data
-        advancedState.analytics = null;
-    }
-
-    // Initialize advanced features
-    function initAdvancedFeatures() {
-        setupKeyboardShortcuts();
-        loadAdvancedData();
-        
-        // Bind search input
-        const searchInput = document.getElementById('advancedSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                performAdvancedSearch(e.target.value);
-            });
-        }
-        
-        // Bind filter inputs
-        document.querySelectorAll('.filter-select').forEach(select => {
-            select.addEventListener('change', (e) => {
-                const filterType = e.target.dataset.filter;
-                advancedState.filters[filterType] = e.target.value;
-                updateAdvancedView();
-            });
-        });
-        
-        // Bind view tabs
-        document.querySelectorAll('.view-tab').forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                const viewType = e.target.dataset.view;
-                switchView(viewType);
-            });
-        });
-    }
-
-    // Call initialization
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAdvancedFeatures);
-    } else {
-        initAdvancedFeatures();
-    }
-
-    // ===== Global Functions Export =====
-    window.showClientForm = showClientForm;
-    window.selectClient = selectClient;
-    window.editClient = editClient;
-    window.deleteClient = deleteClient;
-    window.startAnalysis = startAnalysis;
-    window.createNewAnalysis = createNewAnalysis;
-    
-    // Debug functions for NEW onboarding manager
-    window.debugCloseOnboarding = () => window.onboardingManager?.forceComplete();
-    window.debugShowOnboarding = () => window.onboardingManager?.forceShow();
-    window.debugResetOnboarding = () => window.onboardingManager?.reset();
-    window.debugGetState = () => window.onboardingManager?.getState();
-    
-    // Advanced navigation functions
-    window.openAdvancedModal = openAdvancedModal;
-    window.closeAdvancedModal = closeAdvancedModal;
-    window.switchView = switchView;
-    window.performAdvancedSearch = performAdvancedSearch;
-    window.exportSelected = exportSelected;
-    window.exportAnalysis = exportAnalysis;
-    window.toggleBookmark = toggleBookmark;
-    window.viewAnalysis = viewAnalysis;
-    window.selectAllItems = selectAllItems;
-    window.updateSort = updateSort;
-    window.toggleSortOrder = toggleSortOrder;
-    window.deleteSelected = deleteSelected;
-    window.updateAnalytics = updateAnalytics;
-    window.performExport = performExport;
-    window.openComparisonView = openComparisonView;
-    window.updateComparison = updateComparison;
+    // Start when authenticated
+    window.addEventListener('auth-success', init);
 
 })();
