@@ -294,6 +294,15 @@ class ClientButtonHandler extends IButtonHandler {
         }
         
         try {
+            // Use new ClientService if available
+            if (window.services?.client) {
+                console.log('🎯 Using ClientService for save');
+                await window.services.client.createClient(clientData);
+                return;
+            }
+            
+            // Fallback to direct API call
+            console.log('🎯 Using direct API call for save');
             const response = await fetch('/api/clients', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -310,17 +319,14 @@ class ClientButtonHandler extends IButtonHandler {
             if (result.success) {
                 alert('✅ Клієнт збережений успішно!');
                 
-                // Update client counter instead of full reload
-                if (window.updateClientCounter) {
-                    window.updateClientCounter();
+                // Force reload clients
+                if (window.services?.client) {
+                    await window.services.client.loadClients(true);
+                } else if (window.loadClients) {
+                    await window.loadClients(true);
                 }
                 
-                // Refresh client select options
-                if (window.refreshClientSelect) {
-                    window.refreshClientSelect();
-                }
-                
-                this.showWelcomeScreen();
+                this.showAnalysisDashboard();
             } else {
                 throw new Error(result.error || 'Невідома помилка збереження');
             }
@@ -421,6 +427,16 @@ class ClientButtonHandler extends IButtonHandler {
         if (welcomeScreen) welcomeScreen.style.display = 'block';
         if (clientForm) clientForm.style.display = 'none';
         if (analysisDashboard) analysisDashboard.style.display = 'none';
+    }
+    
+    showAnalysisDashboard() {
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const clientForm = document.getElementById('client-form');
+        const analysisDashboard = document.getElementById('analysis-dashboard');
+        
+        if (welcomeScreen) welcomeScreen.style.display = 'none';
+        if (clientForm) clientForm.style.display = 'none';
+        if (analysisDashboard) analysisDashboard.style.display = 'block';
     }
 }
 

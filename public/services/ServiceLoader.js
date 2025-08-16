@@ -8,6 +8,7 @@ class ServiceLoader {
         this.loadingPromises = new Map();
         this.isInitialized = false;
         this.dependencyGraph = {
+            ClientService: [],
             AnalysisService: [],
             WorkspaceService: [],
             AdviceService: ['WorkspaceService'],
@@ -146,10 +147,7 @@ class ServiceLoader {
     async connectServicesToUI() {
         console.log('⚡ Connecting services to UI...');
         
-        // Wait for critical UI elements
-        await this.waitForElement('#analysis-section');
-        
-        // Ensure services are properly connected
+        // Just ensure services are properly connected (no critical elements check)
         this.validateServiceConnections();
         
         // Setup global service access
@@ -215,6 +213,7 @@ class ServiceLoader {
     setupGlobalAccess() {
         // Create service registry
         window.services = {
+            client: this.services.get('ClientService'),
             analysis: this.services.get('AnalysisService'),
             workspace: this.services.get('WorkspaceService'),
             advice: this.services.get('AdviceService'),
