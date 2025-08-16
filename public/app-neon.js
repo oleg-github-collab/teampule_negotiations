@@ -1846,20 +1846,18 @@
 
             showNotification(`Клієнта ${isEdit ? 'оновлено' : 'збережено'} успішно! 🎉`, 'success');
 
-            if (isEdit) {
-                const index = state.clients.findIndex(c => c.id === parseInt(clientId));
-                if (index !== -1) {
-                    state.clients[index] = savedClient;
-                }
-                if (state.currentClient?.id === parseInt(clientId)) {
-                    state.currentClient = savedClient;
-                }
-            } else {
-                state.clients.unshift(savedClient);
-                state.currentClient = savedClient;
+            // Clear any client search filter so the new client is visible
+            if (elements.clientSearch) {
+                elements.clientSearch.value = '';
             }
 
-            // Update UI
+            // Refresh clients from API to ensure sidebar is up-to-date
+            await loadClients(true);
+
+            // Set current client to the newly saved one
+            state.currentClient = state.clients.find(c => c.id === savedClient.id) || savedClient;
+
+            // Update UI with refreshed state
             renderClientsList();
             updateClientCount();
             updateNavClientInfo(state.currentClient);
