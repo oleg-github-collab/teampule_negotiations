@@ -47,6 +47,14 @@ class ClientService {
             return this.selectClient(testId);
         };
         
+        window.debugClientService = () => {
+            console.log('🔍 DEBUG ClientService:');
+            console.log('- Clients:', this.clients.length);
+            console.log('- Current client:', this.currentClient?.company || 'NONE');
+            console.log('- Client items in DOM:', document.querySelectorAll('.client-item').length);
+            console.log('- Client list container:', !!document.getElementById('client-list'));
+        };
+        
         // Setup text area and client select listeners to update button state
         setTimeout(() => {
             const textArea = document.getElementById('negotiation-text');
@@ -238,8 +246,10 @@ class ClientService {
         // Set HTML
         clientList.innerHTML = html;
         
-        // Event listeners are handled by delegation, no need to re-attach
-        console.log('👥 HTML set, event delegation will handle clicks');
+        // Add direct listeners as fallback after HTML is set
+        this.addDirectEventListeners();
+        
+        console.log('👥 🔥 HTML set and direct listeners added');
         
         console.log('👥 === RENDERING CLIENTS LIST END ===');
     }
@@ -321,17 +331,50 @@ class ClientService {
         const clientList = document.getElementById('client-list');
         if (!clientList) {
             console.warn('👥 Client list container not found');
+            setTimeout(() => this.attachClientEventListeners(), 1000);
             return;
         }
         
         // Remove any existing listeners to avoid duplicates
-        clientList.removeEventListener('click', this.handleClientListClick);
+        if (this.handleClientListClick) {
+            clientList.removeEventListener('click', this.handleClientListClick);
+        }
         
         // Add single delegated listener
         this.handleClientListClick = this.handleClientListClick.bind(this);
         clientList.addEventListener('click', this.handleClientListClick);
         
-        console.log('👥 Event delegation set up on client-list');
+        console.log('👥 🔥 Event delegation set up on client-list');
+        
+        // FALLBACK: Also add direct listeners as backup
+        this.addDirectEventListeners();
+    }
+    
+    // Single Responsibility: Add direct event listeners as fallback
+    addDirectEventListeners() {
+        document.querySelectorAll('.client-item').forEach(item => {
+            const clientId = parseInt(item.dataset.clientId);
+            
+            // Create unique handler for each item
+            const handler = (e) => {
+                console.log('👥 🔥 DIRECT CLICK on client:', clientId);
+                if (!e.target.closest('.client-actions')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.selectClient(clientId);
+                }
+            };
+            
+            // Store handler reference for cleanup
+            item._clickHandler = handler;
+            
+            // Add click listener
+            item.addEventListener('click', handler);
+            
+            console.log('👥 🔥 Direct listener added for client:', clientId);
+        });
+        
+        console.log('👥 🔥 All direct listeners added');
     }
     
     // Single Responsibility: Handle all client list clicks (EVENT DELEGATION)

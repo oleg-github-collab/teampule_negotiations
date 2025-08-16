@@ -400,7 +400,9 @@ class ClientButtonHandler extends IButtonHandler {
                 }
                 
                 // Close modal and return to main view
-                this.closeAllModals();
+                if (window.notificationService && window.notificationService.closeAllModals) {
+                    window.notificationService.closeAllModals();
+                }
                 this.showWelcomeScreen();
             } else {
                 throw new Error(result.error || 'Помилка видалення');

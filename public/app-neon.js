@@ -505,10 +505,21 @@
     // ===== DEPRECATED - Use ClientService instead =====
     async function loadClients(forceRefresh = false) {
         console.log('🔄 DEPRECATED: Use ClientService.loadClients() instead');
+        
+        // Try multiple ways to find ClientService
         if (window.services?.client) {
             return window.services.client.loadClients(forceRefresh);
+        } else if (window.clientService) {
+            return window.clientService.loadClients(forceRefresh);
+        } else {
+            console.warn('🔄 ClientService not available yet, waiting...');
+            // Wait a bit and try again
+            setTimeout(() => {
+                if (window.clientService) {
+                    window.clientService.loadClients(forceRefresh);
+                }
+            }, 1000);
         }
-        console.warn('🔄 ClientService not available');
     }
 
     async function validateDataIntegrity() {
