@@ -4312,9 +4312,9 @@
 
     // ===== Global Functions =====
     window.showClientForm = showClientForm;
-    window.selectClient = selectClient;
-    window.editClient = editClient;
-    window.deleteClient = deleteClient;
+    // window.selectClient = selectClient; // DISABLED: Now handled by ClientService
+    // window.editClient = editClient; // DISABLED: Now handled by ClientService  
+    // window.deleteClient = deleteClient; // DISABLED: Now handled by ClientService
     window.addToWorkspace = addToWorkspace;
     window.removeFromWorkspace = removeFromWorkspace;
     window.shareHighlight = (id) => console.log('Share highlight:', id);

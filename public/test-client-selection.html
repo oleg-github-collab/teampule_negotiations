@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Client Selection</title>
+</head>
+<body>
+    <h1>Test Client Selection</h1>
+    
+    <div>
+        <h2>Manual Client Selection Test</h2>
+        <button onclick="testClientSelection()">Test Client Selection</button>
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        function testClientSelection() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<p>Testing client selection...</p>';
+            
+            // Test if ClientService is available
+            if (window.clientService) {
+                results.innerHTML += '<p>✅ ClientService found</p>';
+                
+                // Create test client
+                const testClient = {
+                    id: 999,
+                    company: 'Test Company',
+                    negotiator: 'Test User',
+                    sector: 'Testing'
+                };
+                
+                // Simulate adding to clients array
+                if (window.clientService.clients) {
+                    window.clientService.clients.push(testClient);
+                    results.innerHTML += '<p>✅ Test client added</p>';
+                    
+                    // Test selection
+                    window.clientService.selectClient(999);
+                    results.innerHTML += '<p>✅ Client selection called</p>';
+                    
+                    if (window.clientService.currentClient) {
+                        results.innerHTML += `<p>✅ Current client: ${window.clientService.currentClient.company}</p>`;
+                    } else {
+                        results.innerHTML += '<p>❌ No current client set</p>';
+                    }
+                } else {
+                    results.innerHTML += '<p>❌ ClientService.clients not found</p>';
+                }
+            } else {
+                results.innerHTML += '<p>❌ ClientService not found</p>';
+                
+                // Check if services are loading
+                if (window.services) {
+                    results.innerHTML += '<p>ℹ️ Services object found</p>';
+                    if (window.services.client) {
+                        results.innerHTML += '<p>✅ Services.client found</p>';
+                    }
+                }
+            }
+        }
+        
+        // Wait for services to load
+        setTimeout(() => {
+            console.log('Services status:', {
+                clientService: !!window.clientService,
+                services: !!window.services,
+                servicesClient: !!(window.services && window.services.client)
+            });
+        }, 3000);
+    </script>
+</body>
+</html>

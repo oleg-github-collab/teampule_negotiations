@@ -28,6 +28,27 @@ class ClientService {
         window.createClient = (data) => this.createClient(data);
         window.selectClient = (id) => this.selectClient(id);
         window.deleteClient = (id) => this.deleteClient(id);
+        
+        // Setup text area and client select listeners to update button state
+        setTimeout(() => {
+            const textArea = document.getElementById('negotiation-text');
+            if (textArea) {
+                textArea.addEventListener('input', () => this.updateAnalysisButtonState());
+                textArea.addEventListener('change', () => this.updateAnalysisButtonState());
+            }
+            
+            const clientSelect = document.getElementById('client-select');
+            if (clientSelect) {
+                clientSelect.addEventListener('change', (e) => {
+                    // Handle dropdown client selection
+                    const clientId = parseInt(e.target.value);
+                    if (clientId) {
+                        this.selectClient(clientId);
+                    }
+                    this.updateAnalysisButtonState();
+                });
+            }
+        }, 2000);
     }
     
     // Single Responsibility: Setup event listeners
@@ -324,6 +345,9 @@ class ClientService {
     
     // Single Responsibility: Select client
     selectClient(clientId) {
+        console.log('👥 selectClient called with ID:', clientId, 'type:', typeof clientId);
+        console.log('👥 Available clients:', this.clients.map(c => ({ id: c.id, company: c.company })));
+        
         const client = this.clients.find(c => c.id == clientId);
         if (!client) {
             console.warn('👥 Client not found:', clientId);
@@ -423,6 +447,32 @@ class ClientService {
                 section.style.display = sectionId === 'analysis-dashboard' ? 'block' : 'none';
             }
         });
+        
+        // Enable analysis button when client is selected
+        this.updateAnalysisButtonState();
+    }
+    
+    // Single Responsibility: Update analysis button state
+    updateAnalysisButtonState() {
+        const analysisBtn = document.getElementById('start-analysis-btn');
+        const textArea = document.getElementById('negotiation-text');
+        
+        if (analysisBtn) {
+            const hasClient = this.currentClient !== null;
+            const hasText = textArea?.value?.trim();
+            
+            analysisBtn.disabled = !hasClient || !hasText;
+            
+            if (hasClient && !hasText) {
+                analysisBtn.title = 'Введіть текст для аналізу';
+            } else if (!hasClient) {
+                analysisBtn.title = 'Спочатку оберіть клієнта';
+            } else {
+                analysisBtn.title = 'Розпочати аналіз';
+            }
+            
+            console.log('👥 Analysis button state:', { hasClient, hasText, disabled: analysisBtn.disabled });
+        }
     }
     
     // Single Responsibility: Update navigation client info

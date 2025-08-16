@@ -105,14 +105,19 @@ class AnalysisManager {
         if (wordCountEl) wordCountEl.textContent = `${wordCount} слів`;
         if (tokensEl) tokensEl.textContent = `≈ ${estimatedTokens} токенів`;
         
-        // Enable/disable analysis button
-        const analysisBtn = document.getElementById('start-analysis-btn');
-        const clientSelect = document.getElementById('client-select');
-        
-        if (analysisBtn) {
-            const hasText = charCount >= 20;
-            const hasClient = clientSelect && clientSelect.value;
-            analysisBtn.disabled = !hasText || !hasClient || this.isAnalyzing;
+        // Update analysis button state (delegate to ClientService if available)
+        if (window.clientService && window.clientService.updateAnalysisButtonState) {
+            window.clientService.updateAnalysisButtonState();
+        } else {
+            // Fallback: Enable/disable analysis button directly
+            const analysisBtn = document.getElementById('start-analysis-btn');
+            const clientSelect = document.getElementById('client-select');
+            
+            if (analysisBtn) {
+                const hasText = charCount >= 20;
+                const hasClient = clientSelect && clientSelect.value;
+                analysisBtn.disabled = !hasText || !hasClient || this.isAnalyzing;
+            }
         }
     }
     

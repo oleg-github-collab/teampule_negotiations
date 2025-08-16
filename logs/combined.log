@@ -13202,3 +13202,22 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-16 12:05:21'
 }
+{
+  service: 'teampulse-turbo',
+  event: 'Unauthorized access attempt',
+  details: {
+    ip: '127.0.0.1',
+    userAgent: 'curl/8.7.1',
+    path: '/',
+    method: 'POST'
+  },
+  timestamp: '2025-08-16 12:12:04',
+  level: 'warn',
+  message: 'Security Event'
+}
+{
+  message: '127.0.0.1 - - [16/Aug/2025:10:12:04 +0000] "POST /api/clients HTTP/1.1" 302 28 "-" "curl/8.7.1"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-16 12:12:04'
+}
