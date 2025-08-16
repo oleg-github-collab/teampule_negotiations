@@ -29,6 +29,24 @@ class ClientService {
         window.selectClient = (id) => this.selectClient(id);
         window.deleteClient = (id) => this.deleteClient(id);
         
+        // DEBUG FUNCTIONS
+        window.testClientClick = (clientId) => {
+            console.log('🧪 TESTING CLIENT CLICK for ID:', clientId);
+            if (this.clients.length === 0) {
+                console.log('🧪 No clients available. Creating test client...');
+                this.clients.push({
+                    id: 999,
+                    company: 'Test Company',
+                    negotiator: 'Test User',
+                    sector: 'Testing'
+                });
+                this.renderClientsList();
+            }
+            const testId = clientId || this.clients[0]?.id;
+            console.log('🧪 Selecting client:', testId);
+            return this.selectClient(testId);
+        };
+        
         // Setup text area and client select listeners to update button state
         setTimeout(() => {
             const textArea = document.getElementById('negotiation-text');
@@ -53,6 +71,9 @@ class ClientService {
     
     // Single Responsibility: Setup event listeners
     setupEventListeners() {
+        // Setup client click delegation (MOST IMPORTANT!)
+        this.attachClientEventListeners();
+        
         // Client search
         const clientSearch = document.getElementById('client-search');
         if (clientSearch) {
@@ -217,8 +238,8 @@ class ClientService {
         // Set HTML
         clientList.innerHTML = html;
         
-        // Attach event listeners
-        this.attachClientEventListeners();
+        // Event listeners are handled by delegation, no need to re-attach
+        console.log('👥 HTML set, event delegation will handle clicks');
         
         console.log('👥 === RENDERING CLIENTS LIST END ===');
     }
@@ -295,38 +316,58 @@ class ClientService {
         }
     }
     
-    // Single Responsibility: Attach event listeners to client items
+    // Single Responsibility: Attach event listeners using event delegation (MUCH MORE RELIABLE)
     attachClientEventListeners() {
-        document.querySelectorAll('.client-item').forEach(item => {
-            const clientId = parseInt(item.dataset.clientId);
-            
-            // Client selection
-            item.addEventListener('click', (e) => {
-                if (!e.target.closest('.client-actions')) {
-                    this.selectClient(clientId);
-                }
-            });
-            
-            // Edit button
-            const editBtn = item.querySelector('.edit-client-btn');
-            if (editBtn) {
-                editBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.editClient(clientId);
-                });
-            }
-            
-            // Delete button
-            const deleteBtn = item.querySelector('.delete-client-btn');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.deleteClient(clientId);
-                });
-            }
-        });
+        const clientList = document.getElementById('client-list');
+        if (!clientList) {
+            console.warn('👥 Client list container not found');
+            return;
+        }
+        
+        // Remove any existing listeners to avoid duplicates
+        clientList.removeEventListener('click', this.handleClientListClick);
+        
+        // Add single delegated listener
+        this.handleClientListClick = this.handleClientListClick.bind(this);
+        clientList.addEventListener('click', this.handleClientListClick);
+        
+        console.log('👥 Event delegation set up on client-list');
+    }
+    
+    // Single Responsibility: Handle all client list clicks (EVENT DELEGATION)
+    handleClientListClick(e) {
+        console.log('👥 🔥 CLICK DETECTED on:', e.target);
+        
+        // Find the client item
+        const clientItem = e.target.closest('.client-item');
+        if (!clientItem) {
+            console.log('👥 Click not on client item');
+            return;
+        }
+        
+        const clientId = parseInt(clientItem.dataset.clientId);
+        console.log('👥 🔥 CLIENT ITEM CLICKED! ID:', clientId);
+        
+        // Handle different click targets
+        if (e.target.closest('.delete-client-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('👥 Delete button clicked');
+            this.deleteClient(clientId);
+            return;
+        }
+        
+        if (e.target.closest('.edit-client-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('👥 Edit button clicked');
+            this.editClient(clientId);
+            return;
+        }
+        
+        // If not action button, select client
+        console.log('👥 🔥 SELECTING CLIENT:', clientId);
+        this.selectClient(clientId);
     }
     
     // Single Responsibility: Update client count display
@@ -343,31 +384,32 @@ class ClientService {
         return clientSearch?.value.toLowerCase().trim() || '';
     }
     
-    // Single Responsibility: Select client
+    // Single Responsibility: Select client (COMPLETELY REWRITTEN FOR RELIABILITY)
     selectClient(clientId) {
-        console.log('👥 selectClient called with ID:', clientId, 'type:', typeof clientId);
-        console.log('👥 Available clients:', this.clients.map(c => ({ id: c.id, company: c.company })));
+        console.log('👥 🔥 ==> SELECT CLIENT CALLED <==');
+        console.log('👥 🔥 ClientID:', clientId, 'type:', typeof clientId);
+        console.log('👥 🔥 Available clients:', this.clients.map(c => ({ id: c.id, company: c.company })));
         
+        // Find client
         const client = this.clients.find(c => c.id == clientId);
         if (!client) {
-            console.warn('👥 Client not found:', clientId);
-            return;
+            console.error('👥 ❌ CLIENT NOT FOUND:', clientId);
+            return false;
         }
         
+        console.log('👥 🔥 CLIENT FOUND:', client.company);
+        
+        // Set current client
         this.currentClient = client;
-        console.log('👥 Client selected:', client.company);
-        console.log('👥 this.currentClient set to:', this.currentClient);
+        console.log('👥 🔥 CURRENT CLIENT SET TO:', this.currentClient);
         
-        // Update UI
-        this.renderClientsList();
-        this.updateNavClientInfo();
-        this.updateClientSelectDropdown();
-        
-        console.log('👥 After dropdown update, client-select value:', document.getElementById('client-select')?.value);
+        // Update ALL UI elements immediately
+        this.updateAllUIForSelectedClient(client);
         
         // Update global state for backward compatibility
         if (window.state) {
             window.state.currentClient = client;
+            console.log('👥 🔥 Global state updated');
         }
         
         // Notify other services
@@ -375,6 +417,35 @@ class ClientService {
         
         // Show analysis dashboard
         this.showAnalysisDashboard();
+        
+        console.log('👥 🔥 ==> CLIENT SELECTION COMPLETE <==');
+        return true;
+    }
+    
+    // Single Responsibility: Update ALL UI elements for selected client
+    updateAllUIForSelectedClient(client) {
+        console.log('👥 🔥 Updating ALL UI for client:', client.company);
+        
+        // 1. Update client list (highlight selected)
+        document.querySelectorAll('.client-item').forEach(item => {
+            const isSelected = parseInt(item.dataset.clientId) === client.id;
+            item.classList.toggle('active', isSelected);
+            console.log('👥 Client item', item.dataset.clientId, 'active:', isSelected);
+        });
+        
+        // 2. Update navigation info
+        this.updateNavClientInfo();
+        
+        // 3. Update client select dropdown
+        this.updateClientSelectDropdown();
+        
+        // 4. Update analysis button state
+        this.updateAnalysisButtonState();
+        
+        // 5. Force re-render client list to ensure proper state
+        // this.renderClientsList(); // Commented out to avoid infinite loop
+        
+        console.log('👥 🔥 All UI updated for client selection');
     }
     
     // Single Responsibility: Update client select dropdown for analysis
