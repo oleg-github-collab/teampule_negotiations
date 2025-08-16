@@ -201,10 +201,20 @@ class ApplicationManager {
         
         // Log to API if available
         const apiClient = this.managers.get('api');
-        if (apiClient) {
-            apiClient.logError(error, type).catch(() => {
-                // Ignore logging errors
+        if (apiClient && typeof apiClient.logClientError === 'function') {
+            const payload = {
+                message: error?.message || error?.toString?.() || 'Unknown error',
+                stack: error?.stack,
+                type
+            };
+            apiClient.logClientError(payload).catch(() => {
+                // Ignore logging errors to keep app stable
             });
+        }
+
+        // Notify user without breaking flow
+        if (window.legacyShowNotification) {
+            window.legacyShowNotification('Сталася внутрішня помилка. Деталі в консолі.', 'error');
         }
     }
     
