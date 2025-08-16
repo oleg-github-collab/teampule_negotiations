@@ -888,6 +888,64 @@
     <!-- Notifications Container -->
     <div id="notifications" class="notifications"></div>
 
+    <!-- Client Analysis History Modal -->
+    <div id="client-analysis-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container analysis-history-modal">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-history"></i>
+                    <span>Історія аналізів</span>
+                    <span class="client-name" id="modal-client-name"></span>
+                </h2>
+                <button class="modal-close" id="close-analysis-modal" title="Закрити">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-content">
+                <div class="analysis-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="modal-total-analyses">0</span>
+                        <span class="stat-label">Аналізів</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="modal-avg-complexity">—</span>
+                        <span class="stat-label">Середня складність</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="modal-last-analysis">—</span>
+                        <span class="stat-label">Останній аналіз</span>
+                    </div>
+                </div>
+                
+                <div class="analysis-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="analysis-search" placeholder="Пошук по назві або даті...">
+                </div>
+                
+                <div class="analysis-list-container">
+                    <div class="analysis-list" id="modal-analysis-list">
+                        <div class="loading-state" id="modal-loading">
+                            <div class="loading-spinner"></div>
+                            <p>Завантаження аналізів...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-secondary" id="close-analysis-modal-btn">
+                    <i class="fas fa-times"></i>
+                    Закрити
+                </button>
+                <button class="btn-primary" id="new-analysis-from-modal">
+                    <i class="fas fa-plus"></i>
+                    Новий аналіз
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/auth.js"></script>
     <script src="/app-neon.js"></script>

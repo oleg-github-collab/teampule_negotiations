@@ -842,3 +842,8 @@
 {"details":{"clientId":20,"company":"Test Corp","ip":"127.0.0.1","userAgent":"curl/8.7.1"},"event":"Client deletion","level":"warn","message":"Security Event","service":"teampulse-turbo","timestamp":"2025-08-14 00:04:09"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:04:09 +0000] \"DELETE /api/clients/20 HTTP/1.1\" 200 78 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:04:09"}
 {"level":"info","message":"127.0.0.1 - - [13/Aug/2025:22:04:17 +0000] \"GET /api/clients HTTP/1.1\" 200 65 \"-\" \"curl/8.7.1\"","service":"teampulse-turbo","timestamp":"2025-08-14 00:04:17"}
+{"level":"info","message":"🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3001 (production)","service":"teampulse-turbo","timestamp":"2025-08-16 22:41:30"}
+{"level":"info","message":"📊 Daily token limit: 512,000","service":"teampulse-turbo","timestamp":"2025-08-16 22:41:30"}
+{"level":"info","message":"🤖 AI Model: gpt-4o","service":"teampulse-turbo","timestamp":"2025-08-16 22:41:30"}
+{"level":"info","message":"🔒 Security features enabled: YES","service":"teampulse-turbo","timestamp":"2025-08-16 22:41:30"}
+{"level":"info","message":"📝 Logging level: info","service":"teampulse-turbo","timestamp":"2025-08-16 22:41:30"}

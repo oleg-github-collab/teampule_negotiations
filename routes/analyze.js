@@ -39,6 +39,62 @@ function splitToParagraphs(s) {
   });
 }
 
+// Smart text chunking for large texts
+function createSmartChunks(text, maxChunkSize = 4000) {
+  console.log(`📦 Starting smart chunking for text of ${text.length} characters`);
+
+  if (text.length <= maxChunkSize) {
+    console.log('📦 Text fits in single chunk');
+    return [{ text, startChar: 0, endChar: text.length, chunkIndex: 0 }];
+  }
+
+  const chunks = [];
+  const paragraphs = splitToParagraphs(text);
+  let currentChunk = '';
+  let currentStartChar = 0;
+  let chunkIndex = 0;
+
+  for (let i = 0; i < paragraphs.length; i++) {
+    const para = paragraphs[i];
+    const paraWithNewlines = (i > 0 ? '\n\n' : '') + para.text;
+    
+    // If adding this paragraph would exceed chunk size
+    if (currentChunk.length + paraWithNewlines.length > maxChunkSize && currentChunk.length > 0) {
+      // Save current chunk
+      chunks.push({
+        text: currentChunk,
+        startChar: currentStartChar,
+        endChar: currentStartChar + currentChunk.length,
+        chunkIndex: chunkIndex++
+      });
+      
+      // Start new chunk
+      currentChunk = para.text;
+      currentStartChar = para.startOffset;
+    } else {
+      // Add paragraph to current chunk
+      currentChunk += paraWithNewlines;
+      if (currentChunk === paraWithNewlines) {
+        // First paragraph in chunk
+        currentStartChar = para.startOffset;
+      }
+    }
+  }
+
+  // Add final chunk if not empty
+  if (currentChunk.length > 0) {
+    chunks.push({
+      text: currentChunk,
+      startChar: currentStartChar,
+      endChar: currentStartChar + currentChunk.length,
+      chunkIndex: chunkIndex
+    });
+  }
+
+  console.log(`📦 Created ${chunks.length} chunks from ${text.length} characters`);
+  return chunks;
+}
+
 function extractTextFromHighlight(highlight, paragraphs) {
   if (highlight.text) return highlight.text; // Already has text
   
@@ -544,6 +600,10 @@ r.post('/', validateFileUpload, async (req, res) => {
       });
     }
 
+    // Create chunks for large texts
+    const chunks = createSmartChunks(text);
+    console.log(`📦 Processing ${chunks.length} chunks for analysis`);
+    
     const paragraphs = splitToParagraphs(text);
     
     const clientCtx = {
@@ -603,6 +663,7 @@ r.post('/', validateFileUpload, async (req, res) => {
     const rawHighlights = [];
     let summaryObj = null;
     let barometerObj = null;
+    let chunkIndex = 0;
 
     // Enhanced OpenAI client availability check with recovery
     if (!openaiClient) {
@@ -626,215 +687,258 @@ r.post('/', validateFileUpload, async (req, res) => {
     }
 
     const system = buildSystemPrompt();
-    const user = JSON.stringify(
-      buildUserPayload(paragraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
-    );
+    
+    // Process each chunk separately for large texts
+    for (const chunk of chunks) {
+      console.log(`📦 Processing chunk ${chunk.chunkIndex + 1}/${chunks.length} (${chunk.text.length} chars)`);
+      
+      // Create paragraphs for this chunk
+      const chunkParagraphs = splitToParagraphs(chunk.text);
+      
+      // Adjust paragraph indices to match original text
+      const adjustedParagraphs = chunkParagraphs.map(p => ({
+        ...p,
+        index: p.index + (chunk.chunkIndex * 1000), // Unique index across chunks
+        startOffset: p.startOffset + chunk.startChar,
+        endOffset: p.endOffset + chunk.startChar
+      }));
+      
+      const user = JSON.stringify(
+        buildUserPayload(adjustedParagraphs, clientCtx, MAX_HIGHLIGHTS_PER_1000_WORDS)
+      );
 
-    const reqPayload = {
-      model: MODEL,
-      stream: true,
-      messages: [
-        { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
-        { role: 'user', content: user },
-      ],
-      stop: ['```','</artifacts>','</artifact>'],
-      max_tokens: 8000, // Increased for larger texts with more findings
-      top_p: 0.9
-    };
+      const reqPayload = {
+        model: MODEL,
+        stream: true,
+        messages: [
+          { role: 'system', content: system + '\nВідповідай БЕЗ ``` та будь-якого маркапу.' },
+          { role: 'user', content: user },
+        ],
+        stop: ['```','</artifacts>','</artifact>'],
+        max_tokens: 8000, // Increased for larger texts with more findings
+        top_p: 0.9
+      };
 
-    if (supportsTemperature(MODEL)) {
-      reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.1);
-    }
-    
-    // Encourage complete analysis
-    reqPayload.presence_penalty = 0.1;
-    reqPayload.frequency_penalty = 0.1;
-
-    // Enhanced request handling with progressive timeout
-    const controller = new AbortController();
-    const REQUEST_TIMEOUT = process.env.NODE_ENV === 'production' ? 300000 : 240000; // 5min prod, 4min dev for large texts
-    
-    const timeout = setTimeout(() => {
-      controller.abort(new Error('Request timeout after ' + (REQUEST_TIMEOUT/1000) + 's'));
-    }, REQUEST_TIMEOUT);
-    
-    req.on('close', () => {
-      clearTimeout(timeout);
-      controller.abort(new Error('Request closed by client'));
-    });
-    
-    // Connection heartbeat with early termination detection
-    const connectionCheck = setInterval(() => {
-      if (req.destroyed || req.closed) {
-        clearTimeout(timeout);
-        controller.abort(new Error('Connection lost'));
-        clearInterval(connectionCheck);
+      if (supportsTemperature(MODEL)) {
+        reqPayload.temperature = Number(process.env.OPENAI_TEMPERATURE ?? 0.1);
       }
-    }, 5000);
+      
+      // Encourage complete analysis
+      reqPayload.presence_penalty = 0.1;
+      reqPayload.frequency_penalty = 0.1;
+
+      // Enhanced request handling with progressive timeout
+      const controller = new AbortController();
+      const REQUEST_TIMEOUT = process.env.NODE_ENV === 'production' ? 300000 : 240000; // 5min prod, 4min dev for large texts
+      
+      const timeout = setTimeout(() => {
+        controller.abort(new Error('Request timeout after ' + (REQUEST_TIMEOUT/1000) + 's'));
+      }, REQUEST_TIMEOUT);
     
-    let stream;
-    let retryCount = 0;
-    const maxRetries = process.env.NODE_ENV === 'production' ? 3 : 1;
-    
-    while (retryCount <= maxRetries) {
-      try {
-        // Add retry delay for subsequent attempts
-        if (retryCount > 0) {
-          await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, retryCount), 10000)));
-        }
-        
-        stream = await openaiClient.chat.completions.create(reqPayload);
-        
+      req.on('close', () => {
         clearTimeout(timeout);
-        clearInterval(connectionCheck);
-        break; // Success, exit retry loop
-        
-      } catch (apiError) {
-        retryCount++;
-        
-        // Check if it's a retryable error
-        const isRetryable = apiError.status >= 500 || 
-                          apiError.status === 429 || 
-                          apiError.code === 'ECONNRESET' ||
-                          apiError.code === 'ETIMEDOUT';
-                          
-        if (retryCount > maxRetries || !isRetryable) {
+        controller.abort(new Error('Request closed by client'));
+      });
+      
+      // Connection heartbeat with early termination detection
+      const connectionCheck = setInterval(() => {
+        if (req.destroyed || req.closed) {
+          clearTimeout(timeout);
+          controller.abort(new Error('Connection lost'));
+          clearInterval(connectionCheck);
+        }
+      }, 5000);
+    
+      let stream;
+      let retryCount = 0;
+      const maxRetries = process.env.NODE_ENV === 'production' ? 3 : 1;
+    
+      while (retryCount <= maxRetries) {
+        try {
+          // Add retry delay for subsequent attempts
+          if (retryCount > 0) {
+            await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, retryCount), 10000)));
+          }
+          
+          stream = await openaiClient.chat.completions.create(reqPayload);
+          
           clearTimeout(timeout);
           clearInterval(connectionCheck);
-          throw apiError;
-        }
-        
-        logError(apiError, {
-          context: `OpenAI API retry ${retryCount}/${maxRetries}`,
-          model: MODEL,
-          textLength: text.length,
-          isRetryable,
-          ip: req.ip
-        });
-      }
-    }
-    if (!stream) {
-      clearInterval(heartbeat);
-      return res.status(503).json({
-        error: 'Не вдалося встановити зʼєднання з AI сервісом після кількох спроб',
-        code: 'AI_CONNECTION_FAILED',
-        retries: maxRetries,
-        timestamp: new Date().toISOString()
-      });
-    }
-    // Stream processing with enhanced error handling
-    try {
-      // Фільтрація та видобування JSON-об'єктів
-      const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
-
-      // Дістає з буфера всі повні JSON-об'єкти (brace-matching), повертає [objs, rest]
-      function extractJsonObjects(buffer) {
-        const out = [];
-        let i = 0;
-        const n = buffer.length;
-        let depth = 0;
-        let start = -1;
-        let inStr = false;
-        let esc = false;
-
-        while (i < n) {
-          const ch = buffer[i];
-
-          if (inStr) {
-            if (esc) { esc = false; }
-            else if (ch === '\\') { esc = true; }
-            else if (ch === '"') { inStr = false; }
-            i++; continue;
+          break; // Success, exit retry loop
+          
+        } catch (apiError) {
+          retryCount++;
+          
+          // Check if it's a retryable error
+          const isRetryable = apiError.status >= 500 || 
+                            apiError.status === 429 || 
+                            apiError.code === 'ECONNRESET' ||
+                            apiError.code === 'ETIMEDOUT';
+                            
+          if (retryCount > maxRetries || !isRetryable) {
+            clearTimeout(timeout);
+            clearInterval(connectionCheck);
+            throw apiError;
           }
-
-          if (ch === '"') { inStr = true; i++; continue; }
-
-          if (ch === '{') {
-            if (depth === 0) start = i;
-            depth++;
-          } else if (ch === '}') {
-            depth--;
-            if (depth === 0 && start >= 0) {
-              const raw = buffer.slice(start, i + 1);
-              out.push(raw);
-              start = -1;
-            }
-          }
-
-          i++;
-        }
-
-        const rest = depth === 0 ? '' : buffer.slice(start >= 0 ? start : n);
-        return [out, rest];
-      }
-
-      // Санітизація: прибрати бектики, мітки ```json та керівні символи (крім \n\t)
-      const sanitizeChunk = (s) =>
-        s
-          .replace(/```(?:json)?/gi, '')
-          .replace(/<\/?artifact[^>]*>/gi, '')
-          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-
-      let buffer = '';
-      let chunkCount = 0;
-      const maxChunks = 2000; // Prevent infinite processing
-      
-      for await (const part of stream) {
-        if (++chunkCount > maxChunks) {
-          logError(new Error('Too many chunks received from AI stream'), {
-            chunkCount,
-            bufferLength: buffer.length
+          
+          logError(apiError, {
+            context: `OpenAI API retry ${retryCount}/${maxRetries}`,
+            model: MODEL,
+            textLength: text.length,
+            isRetryable,
+            ip: req.ip
           });
-          break;
-        }
-        
-        const delta = part.choices?.[0]?.delta?.content || '';
-        if (!delta) continue;
-
-        buffer += sanitizeChunk(delta);
-
-        // Витягуємо всі завершені JSON-об'єкти з буфера
-        const [rawObjs, rest] = extractJsonObjects(buffer);
-        buffer = rest;
-
-        for (const raw of rawObjs) {
-          try {
-            const obj = JSON.parse(raw);
-
-            // Пропускаємо тільки очікувані типи
-            if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
-
-            if (obj.type === 'highlight') {
-              rawHighlights.push(obj);
-              sendLine(obj);
-            } else if (obj.type === 'summary') {
-              summaryObj = obj;
-            } else if (obj.type === 'barometer') {
-              barometerObj = obj;
-            }
-          } catch (e) {
-            // Тихо ігноруємо биті об'єкти
-          }
         }
       }
-    } catch (streamError) {
-      clearInterval(heartbeat);
-      
-      logError(streamError, {
-        context: 'Stream processing failed',
-        clientId: finalClientId,
-        textLength: text.length
-      });
-      
-      if (!res.headersSent) {
+      if (!stream) {
+        clearInterval(heartbeat);
         return res.status(503).json({
-          error: 'Помилка обробки відповіді AI сервісу',
-          code: 'AI_STREAM_ERROR',
+          error: 'Не вдалося встановити зʼєднання з AI сервісом після кількох спроб',
+          code: 'AI_CONNECTION_FAILED',
+          retries: maxRetries,
           timestamp: new Date().toISOString()
         });
       }
-      return;
-    }
+      // Stream processing with enhanced error handling
+      try {
+        // Фільтрація та видобування JSON-об'єктів
+        const ALLOWED_TYPES = new Set(['highlight','summary','barometer']);
+
+        // Дістає з буфера всі повні JSON-об'єкти (brace-matching), повертає [objs, rest]
+        function extractJsonObjects(buffer) {
+          const out = [];
+          let i = 0;
+          const n = buffer.length;
+          let depth = 0;
+          let start = -1;
+          let inStr = false;
+          let esc = false;
+
+          while (i < n) {
+            const ch = buffer[i];
+
+            if (inStr) {
+              if (esc) { esc = false; }
+              else if (ch === '\\') { esc = true; }
+              else if (ch === '"') { inStr = false; }
+              i++; continue;
+            }
+
+            if (ch === '"') { inStr = true; i++; continue; }
+
+            if (ch === '{') {
+              if (depth === 0) start = i;
+              depth++;
+            } else if (ch === '}') {
+              depth--;
+              if (depth === 0 && start >= 0) {
+                const raw = buffer.slice(start, i + 1);
+                out.push(raw);
+                start = -1;
+              }
+            }
+
+            i++;
+          }
+
+          const rest = depth === 0 ? '' : buffer.slice(start >= 0 ? start : n);
+          return [out, rest];
+        }
+
+        // Санітизація: прибрати бектики, мітки ```json та керівні символи (крім \n\t)
+        const sanitizeChunk = (s) =>
+          s
+            .replace(/```(?:json)?/gi, '')
+            .replace(/<\/?artifact[^>]*>/gi, '')
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+
+        let buffer = '';
+        let chunkCount = 0;
+        const maxChunks = 2000; // Prevent infinite processing
+        
+        for await (const part of stream) {
+          if (++chunkCount > maxChunks) {
+            logError(new Error('Too many chunks received from AI stream'), {
+              chunkCount,
+              bufferLength: buffer.length
+            });
+            break;
+          }
+          
+          const delta = part.choices?.[0]?.delta?.content || '';
+          if (!delta) continue;
+
+          buffer += sanitizeChunk(delta);
+
+          // Витягуємо всі завершені JSON-об'єкти з буфера
+          const [rawObjs, rest] = extractJsonObjects(buffer);
+          buffer = rest;
+
+          for (const raw of rawObjs) {
+            try {
+              const obj = JSON.parse(raw);
+
+              // Пропускаємо тільки очікувані типи
+              if (!obj || !ALLOWED_TYPES.has(obj.type)) continue;
+
+              if (obj.type === 'highlight') {
+                // Adjust highlight positions for chunk offset
+                const adjustedHighlight = {
+                  ...obj,
+                  paragraph_index: obj.paragraph_index + (chunk.chunkIndex * 1000),
+                  char_start: (obj.char_start || 0) + chunk.startChar,
+                  char_end: (obj.char_end || 0) + chunk.startChar
+                };
+                rawHighlights.push(adjustedHighlight);
+                sendLine(adjustedHighlight);
+              } else if (obj.type === 'summary') {
+                // Merge summaries from multiple chunks
+                if (summaryObj) {
+                  // Combine counts
+                  Object.keys(obj.counts_by_category || {}).forEach(key => {
+                    summaryObj.counts_by_category[key] = 
+                      (summaryObj.counts_by_category[key] || 0) + (obj.counts_by_category[key] || 0);
+                  });
+                  // Combine patterns
+                  summaryObj.top_patterns = [
+                    ...(summaryObj.top_patterns || []),
+                    ...(obj.top_patterns || [])
+                  ];
+                } else {
+                  summaryObj = obj;
+                }
+              } else if (obj.type === 'barometer') {
+                // Use the highest complexity score from all chunks
+                if (!barometerObj || (obj.score || 0) > (barometerObj.score || 0)) {
+                  barometerObj = obj;
+                }
+              }
+            } catch (e) {
+              // Тихо ігноруємо биті об'єкти
+            }
+          }
+        }
+      } catch (streamError) {
+        clearInterval(heartbeat);
+        
+        logError(streamError, {
+          context: 'Stream processing failed',
+          clientId: finalClientId,
+          textLength: text.length
+        });
+        
+        if (!res.headersSent) {
+          return res.status(503).json({
+            error: 'Помилка обробки відповіді AI сервісу',
+            code: 'AI_STREAM_ERROR',
+            timestamp: new Date().toISOString()
+          });
+        }
+        return;
+      }
+      
+      console.log(`📦 Completed chunk ${chunk.chunkIndex + 1}/${chunks.length}`);
+    } // End of chunk processing loop
 
     // Remove artificial highlight limits to find all problems
     const merged = mergeOverlaps(rawHighlights, paragraphs);

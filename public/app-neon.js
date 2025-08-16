@@ -658,6 +658,9 @@
                         </div>
                     </div>
                     <div class="client-actions">
+                        <button class="btn-icon history-client-btn" data-client-id="${client.id}" title="Історія аналізів">
+                            <i class="fas fa-history"></i>
+                        </button>
                         <button class="btn-icon edit-client-btn" data-client-id="${client.id}" title="Редагувати">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -691,6 +694,20 @@
                     e.stopPropagation();
                     console.log('✏️ Edit button clicked for client:', clientId);
                     editClient(clientId, e);
+                });
+            }
+            
+            // History button
+            const historyBtn = item.querySelector('.history-client-btn');
+            if (historyBtn) {
+                historyBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('📊 History button clicked for client:', clientId);
+                    const client = state.clients.find(c => c.id === clientId);
+                    if (client) {
+                        openAnalysisHistoryModal(client);
+                    }
                 });
             }
             
@@ -3669,6 +3686,22 @@
         elements.exportSelectedBtn?.addEventListener('click', exportSelectedFragments);
         elements.clearWorkspaceBtn?.addEventListener('click', clearWorkspace);
 
+        // Analysis History Modal
+        $('#close-analysis-modal')?.addEventListener('click', closeAnalysisHistoryModal);
+        $('#close-analysis-modal-btn')?.addEventListener('click', closeAnalysisHistoryModal);
+        $('#new-analysis-from-modal')?.addEventListener('click', () => {
+            closeAnalysisHistoryModal();
+            showView('analysis-dashboard');
+            createNewAnalysis();
+        });
+        
+        // Close modal when clicking backdrop
+        $('#client-analysis-modal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'client-analysis-modal') {
+                closeAnalysisHistoryModal();
+            }
+        });
+
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
         
@@ -3688,6 +3721,8 @@
         if (e.key === 'Escape') {
             if (elements.onboardingModal?.style.display === 'flex') {
                 completeOnboarding();
+            } else if ($('#client-analysis-modal')?.style.display === 'flex') {
+                closeAnalysisHistoryModal();
             }
         }
     }
@@ -4493,6 +4528,328 @@
         clearTimeout(scheduleStateSave.timeout);
         scheduleStateSave.timeout = setTimeout(saveAppState, 1000);
     }
+
+    // ===== Analysis History Modal Functions =====
+    function openAnalysisHistoryModal(client) {
+        if (!client) return;
+        
+        console.log('🔍 Opening analysis history modal for:', client.company);
+        
+        const modal = $('#client-analysis-modal');
+        const modalClientName = $('#modal-client-name');
+        const modalLoading = $('#modal-loading');
+        const modalAnalysisList = $('#modal-analysis-list');
+        
+        if (!modal) return;
+        
+        // Set client name
+        if (modalClientName) {
+            modalClientName.textContent = `— ${client.company}`;
+        }
+        
+        // Show modal
+        modal.style.display = 'flex';
+        
+        // Show loading state
+        if (modalLoading) {
+            modalLoading.style.display = 'flex';
+        }
+        if (modalAnalysisList) {
+            modalAnalysisList.innerHTML = '<div class="loading-state" id="modal-loading"><div class="loading-spinner"></div><p>Завантаження аналізів...</p></div>';
+        }
+        
+        // Load analysis history
+        loadClientAnalysisHistory(client.id);
+    }
+    
+    async function loadClientAnalysisHistory(clientId) {
+        try {
+            const response = await fetch(`/api/clients/${clientId}`, {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch client analysis history');
+            }
+            
+            const data = await response.json();
+            console.log('🔍 Loaded client analysis history:', data);
+            
+            if (data.success) {
+                displayAnalysisHistoryInModal(data.client, data.analyses);
+            } else {
+                throw new Error(data.error || 'Failed to load analysis history');
+            }
+        } catch (error) {
+            console.error('Error loading analysis history:', error);
+            showAnalysisHistoryError('Помилка завантаження історії аналізів');
+        }
+    }
+    
+    function displayAnalysisHistoryInModal(client, analyses) {
+        const modalTotalAnalyses = $('#modal-total-analyses');
+        const modalAvgComplexity = $('#modal-avg-complexity');
+        const modalLastAnalysis = $('#modal-last-analysis');
+        const modalAnalysisList = $('#modal-analysis-list');
+        
+        // Update stats
+        if (modalTotalAnalyses) {
+            modalTotalAnalyses.textContent = analyses.length;
+        }
+        
+        if (modalAvgComplexity && analyses.length > 0) {
+            const avgComplexity = analyses.reduce((sum, analysis) => {
+                return sum + (analysis.complexity_score || 0);
+            }, 0) / analyses.length;
+            modalAvgComplexity.textContent = Math.round(avgComplexity);
+        }
+        
+        if (modalLastAnalysis && analyses.length > 0) {
+            const lastAnalysis = new Date(analyses[0].created_at);
+            modalLastAnalysis.textContent = formatDate(lastAnalysis);
+        }
+        
+        // Display analysis list
+        if (modalAnalysisList) {
+            if (analyses.length === 0) {
+                modalAnalysisList.innerHTML = `
+                    <div class="empty-analysis-state">
+                        <i class="fas fa-chart-line"></i>
+                        <p>Ще немає аналізів для цього клієнта</p>
+                        <button class="btn-primary btn-sm" onclick="closeAnalysisHistoryModal(); showNewAnalysis();">
+                            <i class="fas fa-plus"></i>
+                            Створити перший аналіз
+                        </button>
+                    </div>
+                `;
+            } else {
+                modalAnalysisList.innerHTML = analyses.map(analysis => `
+                    <div class="analysis-item" data-analysis-id="${analysis.id}">
+                        <div class="analysis-info">
+                            <div class="analysis-title">${escapeHtml(analysis.title)}</div>
+                            <div class="analysis-meta">
+                                <div class="analysis-date">
+                                    <i class="fas fa-calendar"></i>
+                                    ${formatDate(new Date(analysis.created_at))}
+                                </div>
+                                ${analysis.complexity_score ? `
+                                    <div class="analysis-complexity">
+                                        <i class="fas fa-tachometer-alt"></i>
+                                        ${analysis.complexity_score}/100
+                                    </div>
+                                ` : ''}
+                                ${analysis.source === 'file' && analysis.original_filename ? `
+                                    <div class="analysis-source">
+                                        <i class="fas fa-file"></i>
+                                        ${escapeHtml(analysis.original_filename)}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="analysis-actions">
+                            <button class="action-btn view" onclick="viewAnalysisFromModal(${client.id}, ${analysis.id})" title="Переглянути аналіз">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-btn delete" onclick="deleteAnalysisFromModal(${client.id}, ${analysis.id})" title="Видалити аналіз">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        // Set up search functionality
+        setupAnalysisSearch(analyses);
+    }
+    
+    function setupAnalysisSearch(analyses) {
+        const searchInput = $('#analysis-search');
+        if (!searchInput) return;
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            filterAnalysisDisplay(analyses, searchTerm);
+        });
+    }
+    
+    function filterAnalysisDisplay(analyses, searchTerm) {
+        const modalAnalysisList = $('#modal-analysis-list');
+        if (!modalAnalysisList) return;
+        
+        const filteredAnalyses = analyses.filter(analysis => 
+            analysis.title.toLowerCase().includes(searchTerm) ||
+            (analysis.original_filename && analysis.original_filename.toLowerCase().includes(searchTerm)) ||
+            new Date(analysis.created_at).toLocaleDateString().includes(searchTerm)
+        );
+        
+        if (filteredAnalyses.length === 0) {
+            modalAnalysisList.innerHTML = `
+                <div class="empty-analysis-state">
+                    <i class="fas fa-search"></i>
+                    <p>Не знайдено аналізів за запитом "${escapeHtml(searchTerm)}"</p>
+                </div>
+            `;
+        } else {
+            modalAnalysisList.innerHTML = filteredAnalyses.map(analysis => `
+                <div class="analysis-item" data-analysis-id="${analysis.id}">
+                    <div class="analysis-info">
+                        <div class="analysis-title">${escapeHtml(analysis.title)}</div>
+                        <div class="analysis-meta">
+                            <div class="analysis-date">
+                                <i class="fas fa-calendar"></i>
+                                ${formatDate(new Date(analysis.created_at))}
+                            </div>
+                            ${analysis.complexity_score ? `
+                                <div class="analysis-complexity">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    ${analysis.complexity_score}/100
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="analysis-actions">
+                        <button class="action-btn view" onclick="viewAnalysisFromModal(${state.currentClient?.id}, ${analysis.id})" title="Переглянути аналіз">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="action-btn delete" onclick="deleteAnalysisFromModal(${state.currentClient?.id}, ${analysis.id})" title="Видалити аналіз">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+    
+    function showAnalysisHistoryError(message) {
+        const modalAnalysisList = $('#modal-analysis-list');
+        if (modalAnalysisList) {
+            modalAnalysisList.innerHTML = `
+                <div class="empty-analysis-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>${escapeHtml(message)}</p>
+                    <button class="btn-secondary btn-sm" onclick="loadClientAnalysisHistory(${state.currentClient?.id})">
+                        <i class="fas fa-refresh"></i>
+                        Спробувати знову
+                    </button>
+                </div>
+            `;
+        }
+    }
+    
+    function closeAnalysisHistoryModal() {
+        const modal = $('#client-analysis-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        
+        // Clear search
+        const searchInput = $('#analysis-search');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+    }
+    
+    async function viewAnalysisFromModal(clientId, analysisId) {
+        console.log('🔍 Loading analysis:', clientId, analysisId);
+        
+        try {
+            // Close modal first
+            closeAnalysisHistoryModal();
+            
+            // Load the analysis
+            const response = await fetch(`/api/clients/${clientId}/analysis/${analysisId}`, {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load analysis');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update current analysis state
+                state.currentAnalysis = data.analysis;
+                
+                // Show analysis dashboard
+                showView('analysis-dashboard');
+                
+                // Display the analysis results
+                displayAnalysisResults(data.analysis);
+                
+                // Show results section
+                if (elements.resultsSection) {
+                    elements.resultsSection.style.display = 'block';
+                }
+                
+                showNotification('Аналіз завантажено успішно', 'success');
+            } else {
+                throw new Error(data.error || 'Failed to load analysis');
+            }
+        } catch (error) {
+            console.error('Error loading analysis:', error);
+            showNotification('Помилка завантаження аналізу', 'error');
+        }
+    }
+    
+    async function deleteAnalysisFromModal(clientId, analysisId) {
+        if (!confirm('Ви впевнені, що хочете видалити цей аналіз? Цю дію неможливо скасувати.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/clients/${clientId}/analysis/${analysisId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to delete analysis');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification('Аналіз видалено успішно', 'success');
+                
+                // Reload the analysis history
+                loadClientAnalysisHistory(clientId);
+                
+                // Refresh analyses list in sidebar
+                if (state.currentClient) {
+                    loadAnalysisHistory(state.currentClient.id);
+                }
+            } else {
+                throw new Error(data.error || 'Failed to delete analysis');
+            }
+        } catch (error) {
+            console.error('Error deleting analysis:', error);
+            showNotification('Помилка видалення аналізу', 'error');
+        }
+    }
+    
+    function formatDate(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) {
+            return 'Сьогодні';
+        } else if (diffDays === 1) {
+            return 'Вчора';
+        } else if (diffDays < 7) {
+            return `${diffDays} дн. тому`;
+        } else {
+            return date.toLocaleDateString('uk-UA');
+        }
+    }
+
+    // Make functions available globally for onclick handlers
+    window.openAnalysisHistoryModal = openAnalysisHistoryModal;
+    window.closeAnalysisHistoryModal = closeAnalysisHistoryModal;
+    window.viewAnalysisFromModal = viewAnalysisFromModal;
+    window.deleteAnalysisFromModal = deleteAnalysisFromModal;
 
     // ===== Initialization =====
     function init() {
