@@ -12900,3 +12900,33 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-16 07:18:20'
 }
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3010 (development)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-16 07:44:43'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-16 07:44:43'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-16 07:44:43'
+}
+{
+  message: '🔒 Security features enabled: NO',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-16 07:44:43'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-16 07:44:43'
+}

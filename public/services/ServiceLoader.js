@@ -11,8 +11,7 @@ class ServiceLoader {
             AnalysisService: [],
             WorkspaceService: [],
             AdviceService: ['WorkspaceService'],
-            NavigationService: [],
-            BarometerService: []
+            NavigationService: []
         };
         
         console.log('⚡ ServiceLoader initialized');
@@ -128,7 +127,8 @@ class ServiceLoader {
         // Check if service class is available
         const ServiceClass = window[serviceName];
         if (!ServiceClass) {
-            throw new Error(`Service class ${serviceName} not found. Make sure the script is loaded.`);
+            console.warn(`⚡ Service class ${serviceName} not found, skipping...`);
+            return null;
         }
         
         // Create service instance
@@ -219,7 +219,6 @@ class ServiceLoader {
             workspace: this.services.get('WorkspaceService'),
             advice: this.services.get('AdviceService'),
             navigation: this.services.get('NavigationService'),
-            barometer: this.services.get('BarometerService'),
             
             // Service loader methods
             get: (name) => this.services.get(name),
@@ -380,19 +379,13 @@ class ServiceLoader {
 // Auto-initialize service loader when script loads
 window.serviceLoader = new ServiceLoader();
 
-// Initialize services when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        window.serviceLoader.init().catch(error => {
-            console.error('⚡ Failed to initialize services:', error);
-        });
-    });
-} else {
-    // DOM already ready, initialize immediately
+// Initialize services after a delay to allow main app to load first
+setTimeout(() => {
+    console.log('⚡ Starting delayed service initialization...');
     window.serviceLoader.init().catch(error => {
         console.error('⚡ Failed to initialize services:', error);
     });
-}
+}, 1000);
 
 // Export for module use
 window.ServiceLoader = ServiceLoader;

@@ -530,6 +530,7 @@
             
             // Force immediate UI update with animation
             setTimeout(() => {
+                console.log('🔄 Triggering UI update after loadClients');
                 renderClientsList();
                 updateClientCount();
             }, 100);
@@ -584,8 +585,12 @@
         console.log('🎨 renderClientsList called with', state.clients.length, 'clients');
         
         if (!elements.clientList) {
-            console.warn('❌ Client list element not found');
-            return;
+            console.warn('❌ Client list element not found, trying to get it again...');
+            elements.clientList = document.getElementById('client-list');
+            if (!elements.clientList) {
+                console.error('❌ Client list element still not found! DOM might not be ready.');
+                return;
+            }
         }
 
         const searchTerm = elements.clientSearch?.value.toLowerCase().trim() || '';

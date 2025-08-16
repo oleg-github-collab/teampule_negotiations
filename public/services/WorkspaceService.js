@@ -133,7 +133,7 @@ class WorkspaceService {
         }
         
         if (!workspaceList) {
-            console.warn('📝 Workspace list element not found');
+            console.log('📝 Workspace UI not implemented yet, skipping display update');
             return;
         }
         
