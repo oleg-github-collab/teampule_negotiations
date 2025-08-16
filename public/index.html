@@ -1299,29 +1299,18 @@
     <!-- Scripts -->
     <script src="/auth.js"></script>
     
-    <!-- SOLID Services - Load first for optimal performance -->
+    <!-- SOLID Services - Essential only -->
     <script src="/services/NotificationService.js"></script>
+    <script src="/api-client.js"></script>
     
-    <!-- 🔥 НОВИЙ ПРОСТИЙ ВИБІР КЛІЄНТІВ - ЗАМІНЯЄ ВСІ СКЛАДНІ СЕРВІСИ -->
-    <script src="/SIMPLE_CLIENT_SYSTEM.js"></script>
-    <script src="/SIMPLE_ANALYSIS_FIX.js"></script>
+    <!-- 🔥 TEAMPULSE CORE v3.0 - SINGLE SOLID ARCHITECTURE -->
+    <!-- ЗАМІНЯЄ ВСІ СТАРІ СИСТЕМИ: ClientService, AnalysisService, SIMPLE_*, EMERGENCY_* -->
+    <script src="/TEAMPULSE_CORE.js"></script>
     
-    <!-- Other services (kept for compatibility) -->
+    <!-- Compatibility services (kept for workspace, barometer, etc.) -->
     <script src="/services/ResultsService.js"></script>
     <script src="/services/BarometerService.js"></script>
     <script src="/services/WorkspaceService.js"></script>
     <script src="/services/AdviceService.js"></script>
-    <script src="/services/NavigationService.js"></script>
-    
-    <!-- ULTIMATE BUTTON CONTROLLER v2.0 - SOLID Architecture -->
-    <script src="/ultimate-button-controller.js"></script>
-    
-    <!-- Core Managers (Required for data handling) -->
-    <script src="/api-client.js"></script>
-    <script src="/analysis-manager.js"></script>
-    <script src="/application-manager.js"></script>
-    
-    <!-- Legacy app compatibility -->
-    <script src="/app-neon.js"></script>
 </body>
 </html>

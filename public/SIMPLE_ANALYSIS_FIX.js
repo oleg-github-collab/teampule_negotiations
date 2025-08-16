@@ -71,17 +71,14 @@ window.SIMPLE_START_ANALYSIS = async function() {
             analysisBtn.textContent = 'Аналізую...';
         }
         
-        // ВІДПРАВИТИ ЗАПИТ
-        const formData = new URLSearchParams();
+        // ВІДПРАВИТИ ЗАПИТ (MULTIPART FORM DATA)
+        const formData = new FormData();
         Object.keys(analysisData).forEach(key => {
             formData.append(key, analysisData[key]);
         });
         
         const response = await fetch('/api/analyze', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
             body: formData,
             credentials: 'include'
         });
@@ -189,7 +186,7 @@ function SIMPLE_SHOW_RESULTS(highlights) {
     
     console.log('🔥 Results:', { totalCount, manipulationCount, biasCount, fallacyCount });
     
-    // ПОКАЗАТИ ПОВІДОМЛЕННЯ ПРО УСПІХ
+    // ПОКАЗАТИ ПОВІДОМЛЕННЯ ПРО УСПІХ (СПЛИВНЕ)
     if (window.notificationService) {
         window.notificationService.showNotification(`Аналіз завершено! Знайдено ${totalCount} проблем`, 'success');
     }

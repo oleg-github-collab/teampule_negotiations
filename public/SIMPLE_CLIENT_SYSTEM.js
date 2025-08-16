@@ -298,53 +298,247 @@ window.SIMPLE_CLIENT_SYSTEM = {
         });
     },
     
-    // 13. ВИДАЛИТИ КЛІЄНТА
+    // 13. ВИДАЛИТИ КЛІЄНТА (З АСИНХРОННИМ ОНОВЛЕННЯМ)
     async deleteClient(clientId) {
         const client = window.SIMPLE_STATE.clients.find(c => c.id == clientId);
         if (!client) return;
         
-        // ПІДТВЕРДЖЕННЯ
-        let confirmed = false;
-        if (window.notificationService) {
-            confirmed = await window.notificationService.showConfirm(`Видалити клієнта "${client.company}"?`);
-        } else {
-            confirmed = confirm(`Видалити клієнта "${client.company}"?`);
-        }
-        
-        if (!confirmed) return;
+        console.log('🔥 Deleting client:', client.company);
         
         try {
-            const response = await fetch(`/api/clients/${clientId}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
+            // ПІДТВЕРДЖЕННЯ ЧЕРЕЗ КАСТОМНУ МОДАЛКУ
+            let confirmed = false;
+            if (window.notificationService) {
+                confirmed = await window.notificationService.showConfirm(
+                    `Ви дійсно хочете видалити клієнта "${client.company}"?\n\nЦя дія незворотна.`
+                );
+            } else {
+                confirmed = confirm(`Видалити клієнта "${client.company}"?`);
+            }
             
-            if (response.ok) {
+            if (!confirmed) {
+                console.log('🔥 Delete cancelled by user');
+                return false;
+            }
+            
+            // ВИДАЛЕННЯ ЧЕРЕЗ API
+            let result;
+            if (window.apiClient) {
+                result = await window.apiClient.deleteClient(clientId);
+            } else {
+                // FALLBACK DIRECT API CALL
+                const response = await fetch(`/api/clients/${clientId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    result = { success: true };
+                } else {
+                    const error = await response.text();
+                    result = { success: false, error: `HTTP ${response.status}: ${error}` };
+                }
+            }
+            
+            if (result.success) {
+                console.log('🔥 Client deleted successfully');
+                
                 // ВИДАЛИТИ З ЛОКАЛЬНОГО МАСИВУ
                 window.SIMPLE_STATE.clients = window.SIMPLE_STATE.clients.filter(c => c.id !== clientId);
                 
                 // ЯКЩО ПОТОЧНИЙ КЛІЄНТ ВИДАЛЯЄТЬСЯ
                 if (window.SIMPLE_STATE.currentClient?.id === clientId) {
                     window.SIMPLE_STATE.currentClient = null;
+                    // ПЕРЕЙТИ НА WELCOME SCREEN
+                    this.showWelcomeScreen();
                 }
                 
-                // ПЕРЕРЕНДЕРИТИ
+                // АСИНХРОННЕ ОНОВЛЕННЯ UI
                 this.renderClients();
                 
-                console.log('🔥 Client deleted successfully');
+                // ПОКАЗАТИ УСПІХ (СПЛИВНЕ ПОВІДОМЛЕННЯ)
+                if (window.notificationService) {
+                    window.notificationService.showNotification(`Клієнт "${client.company}" видалений`, 'success');
+                } else {
+                    alert(`✅ Клієнт "${client.company}" видалений`);
+                }
+                
+                return true;
+                
+            } else {
+                console.error('🔥 Delete error:', result.error);
+                
+                if (window.notificationService) {
+                    window.notificationService.showAlert('Помилка видалення: ' + result.error, 'error');
+                } else {
+                    alert('❌ Помилка видалення: ' + result.error);
+                }
+                
+                return false;
             }
+            
         } catch (error) {
-            console.error('🔥 Delete error:', error);
+            console.error('🔥 Delete client error:', error);
+            
+            if (window.notificationService) {
+                window.notificationService.showAlert('Помилка видалення: ' + error.message, 'error');
+            } else {
+                alert('❌ Помилка видалення: ' + error.message);
+            }
+            
+            return false;
         }
     },
     
-    // 14. РЕДАГУВАТИ КЛІЄНТА
+    // 13.1. ПОКАЗАТИ WELCOME SCREEN
+    showWelcomeScreen() {
+        const sections = ['welcome-screen', 'client-form', 'analysis-dashboard'];
+        sections.forEach(sectionId => {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.style.display = sectionId === 'welcome-screen' ? 'block' : 'none';
+            }
+        });
+    },
+    
+    // 14. ЗБЕРЕГТИ КЛІЄНТА (НОВИЙ АБО РЕДАГОВАНИЙ)
+    async saveClient() {
+        console.log('🔥 Saving client...');
+        
+        try {
+            // ЗБИРАННЯ ДАНИХ З ФОРМИ
+            const clientData = {
+                company: document.getElementById('company')?.value?.trim() || '',
+                negotiator: document.getElementById('negotiator')?.value?.trim() || '',
+                sector: document.getElementById('sector')?.value || '',
+                company_size: document.getElementById('company-size')?.value || '',
+                negotiation_type: document.getElementById('negotiation-type')?.value || '',
+                goals: document.getElementById('goals')?.value?.trim() || '',
+                deal_value: document.getElementById('deal-value')?.value?.trim() || ''
+            };
+            
+            // ВАЛІДАЦІЯ
+            if (!clientData.company) {
+                if (window.notificationService) {
+                    window.notificationService.showAlert('Назва компанії є обов\'язковою', 'error');
+                } else {
+                    alert('❌ Назва компанії є обов\'язковою');
+                }
+                return false;
+            }
+            
+            console.log('🔥 Client data to save:', clientData);
+            
+            // КНОПКА ЗАВАНТАЖЕННЯ
+            const saveBtn = document.getElementById('save-client-btn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Збереження...';
+            }
+            
+            // ЗБЕРЕЖЕННЯ ЧЕРЕЗ API
+            let result;
+            if (window.apiClient) {
+                result = await window.apiClient.saveClient(clientData);
+            } else {
+                // FALLBACK DIRECT API CALL
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clientData),
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result = { success: true, client: data.client };
+                } else {
+                    const error = await response.text();
+                    result = { success: false, error: `HTTP ${response.status}: ${error}` };
+                }
+            }
+            
+            if (result.success) {
+                console.log('🔥 Client saved successfully:', result.client);
+                
+                // ДОДАТИ ДО ЛОКАЛЬНОГО МАСИВУ
+                if (result.client) {
+                    const existingIndex = window.SIMPLE_STATE.clients.findIndex(c => c.id === result.client.id);
+                    if (existingIndex >= 0) {
+                        window.SIMPLE_STATE.clients[existingIndex] = result.client;
+                    } else {
+                        window.SIMPLE_STATE.clients.push(result.client);
+                    }
+                }
+                
+                // АСИНХРОННЕ ОНОВЛЕННЯ UI
+                this.renderClients();
+                
+                // АВТОМАТИЧНО ВИБРАТИ НОВОСТВОРЕНИЙ КЛІЄНТ
+                if (result.client) {
+                    this.selectClient(result.client.id);
+                }
+                
+                // ПОКАЗАТИ УСПІХ (СПЛИВНЕ ПОВІДОМЛЕННЯ)
+                if (window.notificationService) {
+                    window.notificationService.showNotification('Клієнт збережений успішно!', 'success');
+                } else {
+                    alert('✅ Клієнт збережений успішно!');
+                }
+                
+                // ОЧИСТИТИ ФОРМУ
+                this.clearClientForm();
+                
+                return true;
+                
+            } else {
+                console.error('🔥 Save error:', result.error);
+                
+                if (window.notificationService) {
+                    window.notificationService.showAlert('Помилка збереження: ' + result.error, 'error');
+                } else {
+                    alert('❌ Помилка збереження: ' + result.error);
+                }
+                
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('🔥 Save client error:', error);
+            
+            if (window.notificationService) {
+                window.notificationService.showAlert('Помилка збереження: ' + error.message, 'error');
+            } else {
+                alert('❌ Помилка збереження: ' + error.message);
+            }
+            
+            return false;
+        } finally {
+            // ВІДНОВИТИ КНОПКУ
+            const saveBtn = document.getElementById('save-client-btn');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Зберегти клієнта';
+            }
+        }
+    },
+    
+    // 15. ОЧИСТИТИ ФОРМУ КЛІЄНТА
+    clearClientForm() {
+        const fields = ['company', 'negotiator', 'sector', 'company-size', 'negotiation-type', 'goals', 'deal-value'];
+        fields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) field.value = '';
+        });
+    },
+    
+    // 16. РЕДАГУВАТИ КЛІЄНТА
     editClient(clientId) {
         console.log('🔥 Edit client:', clientId);
         this.showClientForm(clientId);
     },
     
-    // 15. ІНІЦІАЛІЗАЦІЯ
+    // 17. ІНІЦІАЛІЗАЦІЯ
     async init() {
         console.log('🔥 SIMPLE CLIENT SYSTEM - INITIALIZING...');
         
@@ -364,6 +558,14 @@ window.SIMPLE_CLIENT_SYSTEM = {
         if (newClientBtn) {
             newClientBtn.addEventListener('click', () => {
                 this.showClientForm();
+            });
+        }
+        
+        // ВСТАНОВИТИ ОБРОБНИК НА КНОПКУ "ЗБЕРЕГТИ КЛІЄНТА"
+        const saveClientBtn = document.getElementById('save-client-btn');
+        if (saveClientBtn) {
+            saveClientBtn.addEventListener('click', () => {
+                this.saveClient();
             });
         }
         
