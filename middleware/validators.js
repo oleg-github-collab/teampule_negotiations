@@ -92,12 +92,12 @@ export const validateClient = [
   
   // New fields validation
   body('company_size')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(['startup', 'small', 'medium', 'large'])
     .withMessage('Розмір компанії має бути одним з: startup, small, medium, large'),
   
   body('negotiation_type')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(['sales', 'partnership', 'contract', 'investment', 'acquisition', 'licensing', 'other'])
     .withMessage('Тип переговорів має бути одним з: sales, partnership, contract, investment, acquisition, licensing, other'),
   
