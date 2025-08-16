@@ -641,14 +641,17 @@
             const avatar = (client.company || 'C')[0].toUpperCase();
             const analysisCount = client.analyses_count || 0;
             
+            const safeCompany = (client.company || 'Без назви').replace(/[<>&"]/g, '');
+            const safeSector = (client.sector || '').replace(/[<>&"]/g, '');
+            
             return `
                 <div class="client-item ${isActive ? 'active' : ''}" 
                      data-client-id="${client.id}">
                     <div class="client-avatar">${avatar}</div>
                     <div class="client-info">
-                        <div class="client-name">${escapeHtml(client.company || 'Без назви')}</div>
+                        <div class="client-name">${safeCompany}</div>
                         <div class="client-meta">
-                            ${client.sector ? escapeHtml(client.sector) + ' • ' : ''}
+                            ${safeSector ? safeSector + ' • ' : ''}
                             ${analysisCount} аналізів
                         </div>
                     </div>
@@ -665,7 +668,20 @@
         }).join('');
         
         // Set the HTML
+        console.log('🎨 CRITICAL DEBUG:');
+        console.log('🎨 state.clients:', JSON.stringify(state.clients, null, 2));
+        console.log('🎨 filtered.length:', filtered.length);
+        console.log('🎨 html.length:', html.length);
+        console.log('🎨 html preview:', html.substring(0, 500));
+        console.log('🎨 elements.clientList before:', elements.clientList);
+        console.log('🎨 elements.clientList.innerHTML before:', elements.clientList.innerHTML.length);
+        
         elements.clientList.innerHTML = html;
+        
+        console.log('🎨 elements.clientList.innerHTML after:', elements.clientList.innerHTML.length);
+        console.log('🎨 Actual DOM content:', elements.clientList.outerHTML.substring(0, 500));
+        console.log('🎨 Client list visibility:', window.getComputedStyle(elements.clientList).display);
+        console.log('🎨 Client list parent visibility:', elements.clientList.parentElement ? window.getComputedStyle(elements.clientList.parentElement).display : 'no parent');
         
         // Add event listeners to all client items
         const clientItems = elements.clientList.querySelectorAll('.client-item');
@@ -1135,8 +1151,15 @@
             // Force refresh the clients list to ensure it appears
             await loadClients(true); // Force refresh with cache busting
             
-            // Make sure the client appears in UI with delay for better UX
+            // IMMEDIATELY render after loadClients completes
+            console.log('🔥 IMMEDIATE renderClientsList after loadClients!');
+            console.log('🔥 state.clients after loadClients:', state.clients);
+            renderClientsList();
+            updateClientCount();
+            
+            // Also do it with delay as backup
             setTimeout(() => {
+                console.log('🔥 BACKUP renderClientsList after client creation!');
                 renderClientsList();
                 updateClientCount();
             }, 200);
