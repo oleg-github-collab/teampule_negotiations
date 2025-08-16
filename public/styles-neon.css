@@ -6585,3 +6585,158 @@ textarea:focus-visible {
         height: auto;
     }
 }
+
+/* ===== НОВІ СТИЛІ ДЛЯ ПРОСТОЇ СИСТЕМИ КЛІЄНТІВ ===== */
+
+/* Інформація про поточного клієнта в Dashboard */
+.current-client-info {
+    margin-bottom: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    overflow: hidden;
+}
+
+.client-card {
+    padding: var(--spacing-lg);
+}
+
+.client-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.client-avatar-large {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-lg);
+    background: var(--gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white;
+    box-shadow: var(--neon-glow);
+    text-transform: uppercase;
+}
+
+.client-details h2 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--gradient-primary);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.client-details p {
+    margin: var(--spacing-xs) 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.client-status {
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: center;
+    margin-top: var(--spacing-md);
+}
+
+/* Навігаційна інформація про клієнта */
+.nav-client-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px);
+}
+
+.nav-client-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--gradient-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: white;
+    text-transform: uppercase;
+}
+
+.nav-client-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.nav-client-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.nav-client-sector {
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+/* Покращення існуючих стилів клієнтів */
+.client-item.active {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: var(--neon-purple);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+    transform: translateX(4px);
+}
+
+.client-item.active .client-avatar {
+    background: var(--gradient-primary);
+    box-shadow: var(--neon-glow);
+}
+
+.client-item.active .client-name {
+    color: var(--neon-purple);
+    font-weight: 600;
+}
+
+/* Responsive для мобільних */
+@media (max-width: 768px) {
+    .current-client-info {
+        margin-bottom: var(--spacing-md);
+    }
+    
+    .client-header {
+        flex-direction: column;
+        text-align: center;
+        gap: var(--spacing-sm);
+    }
+    
+    .client-avatar-large {
+        width: 48px;
+        height: 48px;
+        font-size: 1.4rem;
+    }
+    
+    .client-details h2 {
+        font-size: 1.2rem;
+    }
+    
+    .nav-client-info {
+        display: none;
+    }
+}
