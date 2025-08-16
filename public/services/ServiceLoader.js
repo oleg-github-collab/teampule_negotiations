@@ -9,10 +9,12 @@ class ServiceLoader {
         this.isInitialized = false;
         this.dependencyGraph = {
             ClientService: [],
+            ResultsService: [],
+            BarometerService: [],
             AnalysisService: [],
             WorkspaceService: [],
             AdviceService: ['WorkspaceService'],
-            NavigationService: []
+            NavigationService: ['ResultsService']
         };
         
         console.log('⚡ ServiceLoader initialized');
@@ -214,6 +216,8 @@ class ServiceLoader {
         // Create service registry
         window.services = {
             client: this.services.get('ClientService'),
+            results: this.services.get('ResultsService'),
+            barometer: this.services.get('BarometerService'),
             analysis: this.services.get('AnalysisService'),
             workspace: this.services.get('WorkspaceService'),
             advice: this.services.get('AdviceService'),

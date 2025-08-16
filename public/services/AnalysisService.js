@@ -229,7 +229,9 @@ class AnalysisService {
                                     }
                                     break;
                                 case 'barometer':
-                                    if (window.barometerService) {
+                                    if (window.services?.barometer) {
+                                        window.services.barometer.updateBarometer(data);
+                                    } else if (window.barometerService) {
                                         window.barometerService.updateBarometer(data);
                                     }
                                     break;
@@ -245,9 +247,24 @@ class AnalysisService {
             }
             
             // Notify results display service
-            if (window.resultsService) {
+            if (window.services?.results) {
+                window.services.results.displayResults(highlights);
+            } else if (window.resultsService) {
                 window.resultsService.displayResults(highlights);
             }
+            
+            // Notify navigation service for filtering
+            if (window.services?.navigation) {
+                window.services.navigation.setResults(highlights);
+            }
+            
+            // Dispatch analysis complete event
+            window.dispatchEvent(new CustomEvent('analysisComplete', {
+                detail: { 
+                    results: highlights,
+                    clientId: this.lastAnalysisData?.clientId
+                }
+            }));
             
             return highlights;
             

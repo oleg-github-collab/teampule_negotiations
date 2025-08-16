@@ -336,14 +336,53 @@ class ClientService {
         // Update UI
         this.renderClientsList();
         this.updateNavClientInfo();
+        this.updateClientSelectDropdown();
         
         // Update global state for backward compatibility
         if (window.state) {
             window.state.currentClient = client;
         }
         
+        // Notify other services
+        this.notifyClientSelected(client);
+        
         // Show analysis dashboard
         this.showAnalysisDashboard();
+    }
+    
+    // Single Responsibility: Update client select dropdown for analysis
+    updateClientSelectDropdown() {
+        const clientSelect = document.getElementById('client-select');
+        if (!clientSelect) return;
+        
+        // Clear existing options
+        clientSelect.innerHTML = '<option value="">Оберіть клієнта...</option>';
+        
+        // Add all clients
+        this.clients.forEach(client => {
+            const option = document.createElement('option');
+            option.value = client.id;
+            option.textContent = client.company || 'Без назви';
+            option.selected = this.currentClient?.id === client.id;
+            clientSelect.appendChild(option);
+        });
+        
+        console.log('👥 Client select dropdown updated, current client:', this.currentClient?.id);
+    }
+    
+    // Single Responsibility: Notify other services about client selection
+    notifyClientSelected(client) {
+        // Dispatch custom event for other services
+        window.dispatchEvent(new CustomEvent('clientSelected', {
+            detail: { client }
+        }));
+        
+        // Update analysis manager if available
+        if (window.analysisManager && window.analysisManager.setCurrentClient) {
+            window.analysisManager.setCurrentClient(client);
+        }
+        
+        console.log('👥 Client selection notifications sent');
     }
     
     // Single Responsibility: Show client form
