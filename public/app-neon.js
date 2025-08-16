@@ -1832,6 +1832,38 @@
                 const url = isEdit ? `/api/clients/${clientId}` : '/api/clients';
                 const method = isEdit ? 'PUT' : 'POST';
 
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clientData)
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Помилка збереження');
+                }
+                savedClient = data.client;
+            }
+
+            showNotification(`Клієнта ${isEdit ? 'оновлено' : 'збережено'} успішно! 🎉`, 'success');
+
+            // Clear any client search filter so the new client is visible
+            if (elements.clientSearch) {
+                elements.clientSearch.value = '';
+            }
+
+            // Update local client list immediately so sidebar reflects the change
+            const existingIndex = state.clients.findIndex(c => c.id === savedClient.id);
+            if (existingIndex !== -1) {
+                state.clients[existingIndex] = savedClient;
+            } else {
+                state.clients.push(savedClient);
+            }
+
+            // Set current client to the newly saved one
+            state.currentClient = savedClient;
+
+
                 const response = await fetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
@@ -1856,6 +1888,7 @@
 
             // Set current client to the newly saved one
             state.currentClient = state.clients.find(c => c.id === savedClient.id) || savedClient;
+        main
 
             // Update UI with refreshed state
             renderClientsList();
@@ -1863,6 +1896,11 @@
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
 
+ 
+            // Refresh clients from API in background to ensure state sync
+            loadClients(true).catch(err => console.error('Failed to refresh clients:', err));
+
+        main
             // Show analysis dashboard for the client
             showSection('analysis-dashboard');
             clearAnalysisDisplay();
