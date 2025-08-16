@@ -9,14 +9,20 @@ const r = Router();
 r.get('/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
-    
+
+    // Ensure client exists before querying recommendations
+    const client = get('SELECT id FROM clients WHERE id = ?', [clientId]);
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
     const recommendations = all(
-      `SELECT * FROM recommendations 
-       WHERE client_id = ? 
+      `SELECT * FROM recommendations
+       WHERE client_id = ?
        ORDER BY created_at DESC`,
       [clientId]
     );
-    
+
     res.json({ recommendations });
   } catch (error) {
     logError('Get recommendations error:', error);
@@ -28,22 +34,28 @@ r.get('/:clientId', async (req, res) => {
 r.post('/', async (req, res) => {
   try {
     const { clientId, advice, fragmentsCount = 0 } = req.body;
-    
+
     if (!clientId || !advice) {
       return res.status(400).json({ error: 'Client ID and advice are required' });
     }
-    
+
+    // Verify client exists to maintain referential integrity
+    const client = get('SELECT id FROM clients WHERE id = ?', [clientId]);
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
     const result = run(
-      `INSERT INTO recommendations (client_id, advice, fragments_count, created_at) 
+      `INSERT INTO recommendations (client_id, advice, fragments_count, created_at)
        VALUES (?, ?, ?, datetime('now'))`,
       [clientId, advice, fragmentsCount]
     );
-    
+
     const recommendation = get(
       'SELECT * FROM recommendations WHERE id = ?',
       [result.lastID]
     );
-    
+
     res.json({ success: true, recommendation });
   } catch (error) {
     logError('Save recommendation error:', error);
@@ -73,9 +85,14 @@ r.delete('/:id', async (req, res) => {
 r.delete('/client/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
-    
+
+    const client = get('SELECT id FROM clients WHERE id = ?', [clientId]);
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
     const result = run('DELETE FROM recommendations WHERE client_id = ?', [clientId]);
-    
+
     res.json({ success: true, deletedCount: result.changes });
   } catch (error) {
     logError('Clear recommendations error:', error);
