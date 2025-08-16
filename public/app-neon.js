@@ -1795,31 +1795,22 @@
         const clientId = idInput ? idInput.value : null;
         const isEdit = !!clientId;
 
-        const clientData = {};
-        const inputs = $$('#client-form input, #client-form select, #client-form textarea');
-        
-        let hasRequired = false;
-        inputs.forEach(input => {
-            if (input.id && input.value.trim()) {
-                clientData[input.id] = input.value.trim();
-                if (input.id === 'company') hasRequired = true;
-            }
-        });
-
-        
         try {
             const clientData = {};
             const inputs = $$('#client-form input, #client-form select, #client-form textarea');
-            
-            let hasRequired = false;
+
             inputs.forEach(input => {
-                if (input.value.trim()) {
-                    clientData[input.id] = input.value.trim();
-                    if (input.id === 'company') hasRequired = true;
+                const value = input.value.trim();
+                if (!value) return;
+
+                if (input.id === 'goals') {
+                    clientData.goal = value; // Map to API field
+                } else {
+                    clientData[input.id] = value;
                 }
             });
 
-            if (!hasRequired) {
+            if (!clientData.company) {
                 showNotification('Назва компанії є обов\'язковою', 'warning');
                 return;
             }
@@ -1830,50 +1821,52 @@
                 elements.saveClientBtn.disabled = true;
             }
 
-            const url = isEdit ? `/api/clients/${clientId}` : '/api/clients';
-            const method = isEdit ? 'PUT' : 'POST';
+            let savedClient;
+            if (window.apiClient && typeof window.apiClient.saveClient === 'function') {
+                const result = await window.apiClient.saveClient({ ...clientData, id: clientId });
+                if (!result.success) {
+                    throw new Error(result.error || 'Помилка збереження');
+                }
+                savedClient = result.client;
+            } else {
+                const url = isEdit ? `/api/clients/${clientId}` : '/api/clients';
+                const method = isEdit ? 'PUT' : 'POST';
 
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(clientData)
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Помилка збереження');
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clientData)
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Помилка збереження');
+                }
+                savedClient = data.client;
             }
 
             showNotification(`Клієнта ${isEdit ? 'оновлено' : 'збережено'} успішно! 🎉`, 'success');
-            
-            if (isEdit) {
-                // Update client in state
-                const index = state.clients.findIndex(c => c.id === parseInt(clientId));
-                if (index !== -1) {
-                    state.clients[index] = data.client;
-                }
-                if (state.currentClient?.id === parseInt(clientId)) {
-                    state.currentClient = data.client;
-                }
-            } else {
-                // Add new client to state
-                state.clients.unshift(data.client);
-                state.currentClient = data.client;
+
+            // Clear any client search filter so the new client is visible
+            if (elements.clientSearch) {
+                elements.clientSearch.value = '';
             }
-            
-            // Update UI
+
+            // Refresh clients from API to ensure sidebar is up-to-date
+            await loadClients(true);
+
+            // Set current client to the newly saved one
+            state.currentClient = state.clients.find(c => c.id === savedClient.id) || savedClient;
+
+            // Update UI with refreshed state
             renderClientsList();
             updateClientCount();
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
-            
+
             // Show analysis dashboard for the client
             showSection('analysis-dashboard');
-            clearAnalysisDisplay(); // Ensure a clean slate for analysis
-            
+            clearAnalysisDisplay();
+
             // Save state
             scheduleStateSave();
 
@@ -1881,7 +1874,6 @@
             console.error('Save client error:', error);
             showNotification(error.message || 'Помилка при збереженні клієнта', 'error');
         } finally {
-            // Remove loading state
             if (elements.saveClientBtn) {
                 elements.saveClientBtn.classList.remove('btn-loading');
                 elements.saveClientBtn.disabled = false;
