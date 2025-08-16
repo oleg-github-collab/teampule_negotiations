@@ -581,9 +581,7 @@
     }
 
     function renderClientsList() {
-        console.log('🎨 renderClientsList called');
-        console.log('🎨 state.clients.length:', state.clients.length);
-        console.log('🎨 Current client:', state.currentClient ? state.currentClient.company : 'none');
+        console.log('🎨 renderClientsList called with', state.clients.length, 'clients');
         
         if (!elements.clientList) {
             console.warn('❌ Client list element not found');
@@ -591,7 +589,6 @@
         }
 
         const searchTerm = elements.clientSearch?.value.toLowerCase().trim() || '';
-        console.log('🎨 Search term:', searchTerm);
         
         const filtered = state.clients.filter(client => {
             if (!searchTerm) return true;
@@ -602,10 +599,7 @@
             );
         });
         
-        console.log('🎨 Filtered clients count:', filtered.length);
-
         if (filtered.length === 0) {
-            console.log('🎨 Showing empty state');
             const emptyMessage = searchTerm ? 'Нічого не знайдено' : 'Немає клієнтів';
             const emptyIcon = searchTerm ? 'fas fa-search' : 'fas fa-users';
             elements.clientList.innerHTML = `
@@ -636,15 +630,11 @@
         // Sort clients by name
         filtered.sort((a, b) => (a.company || '').localeCompare(b.company || ''));
 
-        console.log('🎨 Rendering', filtered.length, 'client items');
-
         // Render client items
-        elements.clientList.innerHTML = filtered.map(client => {
+        const html = filtered.map(client => {
             const isActive = state.currentClient?.id === client.id;
             const avatar = (client.company || 'C')[0].toUpperCase();
             const analysisCount = client.analyses_count || 0;
-            
-            console.log('🎨 Rendering client:', client.company, 'active:', isActive);
             
             return `
                 <div class="client-item ${isActive ? 'active' : ''}" 
@@ -668,6 +658,9 @@
                 </div>
             `;
         }).join('');
+        
+        // Set the HTML
+        elements.clientList.innerHTML = html;
         
         // Add event listeners to all client items
         const clientItems = elements.clientList.querySelectorAll('.client-item');
@@ -1339,7 +1332,7 @@
                                     
                                     // Update UI displays
                                     updateWorkspaceClientInfo(state.currentClient);
-                                    updateClientsList();
+                                    renderClientsList();
                                 }
                                 
                                 // Create proper analysis object with all needed data for history
