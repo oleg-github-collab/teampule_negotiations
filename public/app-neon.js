@@ -504,12 +504,19 @@
 
     // ===== Client Management =====
     async function loadClients(forceRefresh = false) {
-        console.log('🔄 Loading clients...', { forceRefresh, currentCount: state.clients?.length || 0 });
+        console.log('🔄 === LOAD CLIENTS DEBUG START ===');
+        console.log('🔄 forceRefresh:', forceRefresh);
+        console.log('🔄 current state.clients.length:', state.clients?.length || 0);
+        
         try {
             // Add cache busting if forcing refresh
             const cacheBuster = forceRefresh ? `?_=${Date.now()}` : '';
-            const response = await fetch(`/api/clients${cacheBuster}`);
-            console.log('📡 Response status:', response.status);
+            const url = `/api/clients${cacheBuster}`;
+            console.log('🔄 Fetching URL:', url);
+            
+            const response = await fetch(url);
+            console.log('🔄 Response status:', response.status);
+            console.log('🔄 Response headers:', Object.fromEntries(response.headers.entries()));
             
             if (response.status === 401) {
                 console.log('❌ Unauthorized, redirecting to login');
@@ -517,8 +524,23 @@
                 return;
             }
             
-            const data = await response.json();
-            console.log('📦 Received data:', data);
+            const rawText = await response.text();
+            console.log('🔄 Raw response text:', rawText);
+            
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseError) {
+                console.error('🔄 JSON parse error:', parseError);
+                console.error('🔄 Raw text that failed:', rawText);
+                throw new Error('Invalid JSON response from server');
+            }
+            
+            console.log('🔄 Parsed data:', data);
+            console.log('🔄 data.success:', data.success);
+            console.log('🔄 data.clients:', data.clients);
+            console.log('🔄 data.clients type:', typeof data.clients);
+            console.log('🔄 data.clients isArray:', Array.isArray(data.clients));
             
             if (!response.ok || !data.success) {
                 throw new Error(data.error || `HTTP Error: ${response.status}`);
@@ -526,7 +548,19 @@
             
             const previousCount = state.clients?.length || 0;
             state.clients = data.clients || [];
-            console.log('✅ Set state.clients:', state.clients.length, 'clients', { previousCount, newCount: state.clients.length });
+            
+            console.log('🔄 FINAL state.clients:', state.clients);
+            console.log('🔄 FINAL state.clients.length:', state.clients.length);
+            console.log('🔄 Each client in detail:');
+            state.clients.forEach((client, index) => {
+                console.log(`🔄 Client ${index}:`, {
+                    id: client.id,
+                    company: client.company,
+                    sector: client.sector,
+                    negotiator: client.negotiator,
+                    fullObject: client
+                });
+            });
             
             // Force immediate UI update with animation
             setTimeout(() => {
@@ -582,29 +616,56 @@
     }
 
     function renderClientsList() {
-        console.log('🎨 renderClientsList called with', state.clients.length, 'clients');
+        console.log('🔥 === RENDER CLIENTS DEBUG START ===');
+        console.log('🔥 state.clients:', state.clients);
+        console.log('🔥 state.clients.length:', state.clients.length);
+        console.log('🔥 state.clients type:', typeof state.clients);
+        console.log('🔥 state.clients isArray:', Array.isArray(state.clients));
         
         if (!elements.clientList) {
-            console.warn('❌ Client list element not found, trying to get it again...');
-            elements.clientList = document.getElementById('client-list');
-            if (!elements.clientList) {
-                console.error('❌ Client list element still not found! DOM might not be ready.');
-                return;
-            }
+            console.error('❌ Client list element not found');
+            return;
+        }
+
+        // FORCE check - ensure state.clients is valid array
+        if (!Array.isArray(state.clients)) {
+            console.error('🔥 state.clients is not array!', typeof state.clients);
+            state.clients = [];
         }
 
         const searchTerm = elements.clientSearch?.value.toLowerCase().trim() || '';
+        console.log('🔥 searchTerm:', searchTerm);
         
-        const filtered = state.clients.filter(client => {
-            if (!searchTerm) return true;
-            return (
-                client.company?.toLowerCase().includes(searchTerm) ||
-                client.sector?.toLowerCase().includes(searchTerm) ||
-                client.negotiator?.toLowerCase().includes(searchTerm)
-            );
-        });
+        // SIMPLE filter with debug
+        const filtered = [];
+        for (let i = 0; i < state.clients.length; i++) {
+            const client = state.clients[i];
+            console.log('🔥 Processing client', i, ':', client);
+            
+            if (!searchTerm) {
+                // No search term - include all clients
+                filtered.push(client);
+                console.log('🔥 Added client (no search):', client.company);
+            } else {
+                // Check search term
+                const matchCompany = client.company?.toLowerCase().includes(searchTerm);
+                const matchSector = client.sector?.toLowerCase().includes(searchTerm);
+                const matchNegotiator = client.negotiator?.toLowerCase().includes(searchTerm);
+                
+                console.log('🔥 Search matches:', { matchCompany, matchSector, matchNegotiator });
+                
+                if (matchCompany || matchSector || matchNegotiator) {
+                    filtered.push(client);
+                    console.log('🔥 Added client (search match):', client.company);
+                }
+            }
+        }
+        
+        console.log('🔥 filtered.length:', filtered.length);
+        console.log('🔥 filtered:', filtered);
         
         if (filtered.length === 0) {
+            console.log('🔥 Showing empty state');
             const emptyMessage = searchTerm ? 'Нічого не знайдено' : 'Немає клієнтів';
             const emptyIcon = searchTerm ? 'fas fa-search' : 'fas fa-users';
             elements.clientList.innerHTML = `
@@ -629,6 +690,7 @@
                     });
                 }
             }
+            console.log('🔥 === RENDER CLIENTS DEBUG END (EMPTY) ===');
             return;
         }
 
