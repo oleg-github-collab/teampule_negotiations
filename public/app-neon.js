@@ -1852,6 +1852,28 @@
                 elements.clientSearch.value = '';
             }
 
+
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clientData)
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Помилка збереження');
+                }
+                savedClient = data.client;
+            }
+
+            showNotification(`Клієнта ${isEdit ? 'оновлено' : 'збережено'} успішно! 🎉`, 'success');
+
+            // Clear any client search filter so the new client is visible
+            if (elements.clientSearch) {
+                elements.clientSearch.value = '';
+            }
+
+        main
             // Update local client list immediately so sidebar reflects the change
             const existingIndex = state.clients.findIndex(c => c.id === savedClient.id);
             if (existingIndex !== -1) {
@@ -1862,7 +1884,6 @@
 
             // Set current client to the newly saved one
             state.currentClient = savedClient;
-
 
                 const response = await fetch(url, {
                     method,
@@ -1890,16 +1911,23 @@
             state.currentClient = state.clients.find(c => c.id === savedClient.id) || savedClient;
         main
 
+        main
             // Update UI with refreshed state
             renderClientsList();
             updateClientCount();
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
 
+
+            // Refresh clients from API in background to ensure state sync
+            loadClients(true).catch(err => console.error('Failed to refresh clients:', err));
+
+
  
             // Refresh clients from API in background to ensure state sync
             loadClients(true).catch(err => console.error('Failed to refresh clients:', err));
 
+        main
         main
             // Show analysis dashboard for the client
             showSection('analysis-dashboard');
@@ -2101,6 +2129,9 @@
                 });
             });
         }, 100); // Small delay to ensure DOM is ready
+
+        // Update counters based on current highlights
+        updateCountersFromHighlights(highlights);
     }
 
     function updateSummaryDisplay(summary) {
@@ -2950,7 +2981,8 @@
         
         // Add the last highlight
         resolved.push(current);
-        return resolved;
+        // Ensure final order by start position
+        return resolved.sort((a, b) => a.char_start - b.char_start);
     }
 
     /**
@@ -3572,6 +3604,7 @@
             item.addEventListener('dragstart', (e) => {
                 const highlightId = e.target.dataset.highlightId;
                 e.dataTransfer.setData('text/plain', highlightId);
+                e.dataTransfer.effectAllowed = 'copy';
                 e.target.classList.add('dragging');
             });
 
@@ -3587,6 +3620,7 @@
 
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
             dropZone.classList.add('dragover');
         });
 
@@ -3607,32 +3641,39 @@
         });
     }
 
-    function addToWorkspace(highlightIndex) {
-        if (!state.currentAnalysis?.highlights?.[highlightIndex]) return;
-        
-        const highlight = state.currentAnalysis.highlights[highlightIndex];
-        
+    function addFragmentToWorkspace(fragment) {
         // Avoid duplicates
-        const exists = state.selectedFragments.some(f => f.id === highlight.id);
+        const exists = state.selectedFragments.some(f => f.id === fragment.id);
         if (exists) {
             showNotification('Цей фрагмент вже додано до робочої області', 'warning');
             return;
         }
-        
+
         state.selectedFragments.push({
-            id: highlight.id,
-            text: highlight.text,
-            category: highlight.category,
-            label: highlight.label,
-            explanation: highlight.explanation
+            id: fragment.id,
+            text: fragment.text,
+            category: fragment.category,
+            label: fragment.label,
+            explanation: fragment.explanation
         });
-        
+
         updateWorkspaceFragments();
         updateWorkspaceActions();
         showNotification('Фрагмент додано до робочої області', 'success');
-        
+
         // Save state
         scheduleStateSave();
+    }
+
+    function addToWorkspace(highlightIndex) {
+        if (!state.currentAnalysis?.highlights?.[highlightIndex]) return;
+        const highlight = state.currentAnalysis.highlights[highlightIndex];
+        addFragmentToWorkspace(highlight);
+    }
+
+    function addToSelectedFragments(fragment) {
+        if (!fragment) return;
+        addFragmentToWorkspace(fragment);
     }
 
     function updateWorkspaceFragments() {
