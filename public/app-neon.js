@@ -758,13 +758,18 @@
         console.log('🎨 renderClientsList called');
         console.log('🎨 state.clients.length:', state.clients.length);
         console.log('🎨 Current client:', state.currentClient ? state.currentClient.company : 'none');
-        
-        if (!elements.clientList) {
+
+        // Re-query DOM each time in case sidebar re-rendered
+        const clientList = document.getElementById('client-list');
+        if (!clientList) {
             console.warn('❌ Client list element not found');
             return;
         }
+        elements.clientList = clientList;
 
-        const searchTerm = elements.clientSearch?.value.toLowerCase().trim() || '';
+        const clientSearch = document.getElementById('client-search');
+        const searchTerm = clientSearch?.value.toLowerCase().trim() || '';
+        elements.clientSearch = clientSearch;
         console.log('🎨 Search term:', searchTerm);
         
         const filtered = state.clients.filter(client => {
@@ -1795,31 +1800,22 @@
         const clientId = idInput ? idInput.value : null;
         const isEdit = !!clientId;
 
-        const clientData = {};
-        const inputs = $$('#client-form input, #client-form select, #client-form textarea');
-        
-        let hasRequired = false;
-        inputs.forEach(input => {
-            if (input.id && input.value.trim()) {
-                clientData[input.id] = input.value.trim();
-                if (input.id === 'company') hasRequired = true;
-            }
-        });
-
-        
         try {
             const clientData = {};
             const inputs = $$('#client-form input, #client-form select, #client-form textarea');
-            
-            let hasRequired = false;
+
             inputs.forEach(input => {
-                if (input.value.trim()) {
-                    clientData[input.id] = input.value.trim();
-                    if (input.id === 'company') hasRequired = true;
+                const value = input.value.trim();
+                if (!value) return;
+
+                if (input.id === 'goals') {
+                    clientData.goal = value; // Map to API field
+                } else {
+                    clientData[input.id] = value;
                 }
             });
 
-            if (!hasRequired) {
+            if (!clientData.company) {
                 showNotification('Назва компанії є обов\'язковою', 'warning');
                 return;
             }
@@ -1830,50 +1826,60 @@
                 elements.saveClientBtn.disabled = true;
             }
 
-            const url = isEdit ? `/api/clients/${clientId}` : '/api/clients';
-            const method = isEdit ? 'PUT' : 'POST';
+            let savedClient;
+            if (window.apiClient && typeof window.apiClient.saveClient === 'function') {
+                const result = await window.apiClient.saveClient({ ...clientData, id: clientId });
+                if (!result.success) {
+                    throw new Error(result.error || 'Помилка збереження');
+                }
+                savedClient = result.client;
+            } else {
+                const url = isEdit ? `/api/clients/${clientId}` : '/api/clients';
+                const method = isEdit ? 'PUT' : 'POST';
 
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(clientData)
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Помилка збереження');
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clientData)
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Помилка збереження');
+                }
+                savedClient = data.client;
             }
 
             showNotification(`Клієнта ${isEdit ? 'оновлено' : 'збережено'} успішно! 🎉`, 'success');
-            
-            if (isEdit) {
-                // Update client in state
-                const index = state.clients.findIndex(c => c.id === parseInt(clientId));
-                if (index !== -1) {
-                    state.clients[index] = data.client;
-                }
-                if (state.currentClient?.id === parseInt(clientId)) {
-                    state.currentClient = data.client;
-                }
-            } else {
-                // Add new client to state
-                state.clients.unshift(data.client);
-                state.currentClient = data.client;
+
+            // Clear any client search filter so the new client is visible
+            if (elements.clientSearch) {
+                elements.clientSearch.value = '';
             }
-            
-            // Update UI
+
+            // Update local client list immediately so sidebar reflects the change
+            const existingIndex = state.clients.findIndex(c => c.id === savedClient.id);
+            if (existingIndex !== -1) {
+                state.clients[existingIndex] = savedClient;
+            } else {
+                state.clients.push(savedClient);
+            }
+
+            // Set current client to the newly saved one
+            state.currentClient = savedClient;
+
+            // Update UI with refreshed state
             renderClientsList();
             updateClientCount();
             updateNavClientInfo(state.currentClient);
             updateWorkspaceClientInfo(state.currentClient);
-            
+
+            // Refresh clients from API in background to ensure state sync
+            loadClients(true).catch(err => console.error('Failed to refresh clients:', err));
+
             // Show analysis dashboard for the client
             showSection('analysis-dashboard');
-            clearAnalysisDisplay(); // Ensure a clean slate for analysis
-            
+            clearAnalysisDisplay();
+
             // Save state
             scheduleStateSave();
 
@@ -1881,7 +1887,6 @@
             console.error('Save client error:', error);
             showNotification(error.message || 'Помилка при збереженні клієнта', 'error');
         } finally {
-            // Remove loading state
             if (elements.saveClientBtn) {
                 elements.saveClientBtn.classList.remove('btn-loading');
                 elements.saveClientBtn.disabled = false;
@@ -2071,6 +2076,9 @@
                 });
             });
         }, 100); // Small delay to ensure DOM is ready
+
+        // Update counters based on current highlights
+        updateCountersFromHighlights(highlights);
     }
 
     function updateSummaryDisplay(summary) {
@@ -2920,7 +2928,8 @@
         
         // Add the last highlight
         resolved.push(current);
-        return resolved;
+        // Ensure final order by start position
+        return resolved.sort((a, b) => a.char_start - b.char_start);
     }
 
     /**
@@ -3542,6 +3551,7 @@
             item.addEventListener('dragstart', (e) => {
                 const highlightId = e.target.dataset.highlightId;
                 e.dataTransfer.setData('text/plain', highlightId);
+                e.dataTransfer.effectAllowed = 'copy';
                 e.target.classList.add('dragging');
             });
 
@@ -3557,6 +3567,7 @@
 
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
             dropZone.classList.add('dragover');
         });
 
@@ -3577,32 +3588,39 @@
         });
     }
 
-    function addToWorkspace(highlightIndex) {
-        if (!state.currentAnalysis?.highlights?.[highlightIndex]) return;
-        
-        const highlight = state.currentAnalysis.highlights[highlightIndex];
-        
+    function addFragmentToWorkspace(fragment) {
         // Avoid duplicates
-        const exists = state.selectedFragments.some(f => f.id === highlight.id);
+        const exists = state.selectedFragments.some(f => f.id === fragment.id);
         if (exists) {
             showNotification('Цей фрагмент вже додано до робочої області', 'warning');
             return;
         }
-        
+
         state.selectedFragments.push({
-            id: highlight.id,
-            text: highlight.text,
-            category: highlight.category,
-            label: highlight.label,
-            explanation: highlight.explanation
+            id: fragment.id,
+            text: fragment.text,
+            category: fragment.category,
+            label: fragment.label,
+            explanation: fragment.explanation
         });
-        
+
         updateWorkspaceFragments();
         updateWorkspaceActions();
         showNotification('Фрагмент додано до робочої області', 'success');
-        
+
         // Save state
         scheduleStateSave();
+    }
+
+    function addToWorkspace(highlightIndex) {
+        if (!state.currentAnalysis?.highlights?.[highlightIndex]) return;
+        const highlight = state.currentAnalysis.highlights[highlightIndex];
+        addFragmentToWorkspace(highlight);
+    }
+
+    function addToSelectedFragments(fragment) {
+        if (!fragment) return;
+        addFragmentToWorkspace(fragment);
     }
 
     function updateWorkspaceFragments() {
@@ -6134,6 +6152,9 @@
 
     // Legacy initialization disabled - now handled by ApplicationManager
     console.log('🔐 Legacy app-neon.js loaded - SOLID managers will handle initialization');
+
+    // Expose initializer for ApplicationManager
+    window.initializeApp = init;
     
     // Keep some backward compatibility functions
     window.legacyShowNotification = showNotification;
