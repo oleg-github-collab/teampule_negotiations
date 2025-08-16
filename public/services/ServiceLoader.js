@@ -384,13 +384,26 @@ class ServiceLoader {
 // Auto-initialize service loader when script loads
 window.serviceLoader = new ServiceLoader();
 
-// Initialize services after a delay to allow main app to load first
-setTimeout(() => {
-    console.log('⚡ Starting delayed service initialization...');
-    window.serviceLoader.init().catch(error => {
-        console.error('⚡ Failed to initialize services:', error);
+// Initialize services IMMEDIATELY - no delay!
+console.log('⚡ Starting IMMEDIATE service initialization...');
+window.serviceLoader.init().catch(error => {
+    console.error('⚡ Failed to initialize services:', error);
+});
+
+// Also try after DOM is ready as backup
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!window.serviceLoader.isInitialized) {
+            console.log('⚡ Backup initialization on DOM ready...');
+            window.serviceLoader.init();
+        }
     });
-}, 1000);
+} else {
+    // DOM already ready, init immediately if not done
+    if (!window.serviceLoader.isInitialized) {
+        window.serviceLoader.init();
+    }
+}
 
 // Export for module use
 window.ServiceLoader = ServiceLoader;

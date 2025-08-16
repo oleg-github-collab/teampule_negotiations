@@ -372,7 +372,18 @@ class ClientButtonHandler extends IButtonHandler {
         
         console.log(`🎯 Delete client ${clientId}`);
         
-        if (!confirm(`❓ Видалити клієнта "${clientName}"? Ця дія незворотна.`)) return;
+        // Use NotificationService for confirmation or fallback to confirm
+        let confirmed = false;
+        if (window.notificationService) {
+            confirmed = await window.notificationService.showConfirm(`Видалити клієнта "${clientName}"? Ця дія незворотна.`);
+        } else {
+            confirmed = confirm(`❓ Видалити клієнта "${clientName}"? Ця дія незворотна.`);
+        }
+        
+        if (!confirmed) {
+            console.log('🎯 Delete cancelled by user');
+            return;
+        }
         
         try {
             const response = await fetch(`/api/clients/${clientId}`, {
