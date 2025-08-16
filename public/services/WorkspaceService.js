@@ -39,7 +39,11 @@ class WorkspaceService {
         }
         
         if (this.workspace.length >= this.maxWorkspaceItems) {
-            alert(`❌ Максимальна кількість елементів у робочому просторі: ${this.maxWorkspaceItems}`);
+            if (window.notificationService) {
+                window.notificationService.showAlert(`Максимальна кількість елементів у робочому просторі: ${this.maxWorkspaceItems}`, 'error');
+            } else {
+                alert(`❌ Максимальна кількість елементів у робочому просторі: ${this.maxWorkspaceItems}`);
+            }
             return false;
         }
         
@@ -90,12 +94,16 @@ class WorkspaceService {
     }
     
     // Single Responsibility: Clear entire workspace
-    clearWorkspace() {
+    async clearWorkspace() {
         if (this.workspace.length === 0) {
             return;
         }
         
-        if (confirm(`Очистити весь робочий простір? (${this.workspace.length} елементів)`)) {
+        const confirmed = window.notificationService 
+            ? await window.notificationService.showConfirm(`Очистити весь робочий простір? (${this.workspace.length} елементів)`)
+            : confirm(`Очистити весь робочий простір? (${this.workspace.length} елементів)`);
+            
+        if (confirmed) {
             this.workspace = [];
             this.selectedItems.clear();
             this.saveWorkspaceToStorage();
@@ -326,7 +334,11 @@ class WorkspaceService {
             const data = JSON.parse(text);
             
             if (data.workspace && Array.isArray(data.workspace)) {
-                if (confirm(`Імпортувати ${data.workspace.length} елементів? Поточний робочий простір буде замінено.`)) {
+                const confirmed = window.notificationService 
+                    ? await window.notificationService.showConfirm(`Імпортувати ${data.workspace.length} елементів? Поточний робочий простір буде замінено.`)
+                    : confirm(`Імпортувати ${data.workspace.length} елементів? Поточний робочий простір буде замінено.`);
+                    
+                if (confirmed) {
                     this.workspace = data.workspace;
                     this.selectedItems.clear();
                     this.saveWorkspaceToStorage();
@@ -340,7 +352,11 @@ class WorkspaceService {
             }
         } catch (error) {
             console.error('📝 Import error:', error);
-            alert('❌ Помилка імпорту: ' + error.message);
+            if (window.notificationService) {
+                window.notificationService.showAlert('Помилка імпорту: ' + error.message, 'error');
+            } else {
+                alert('❌ Помилка імпорту: ' + error.message);
+            }
             return false;
         }
     }

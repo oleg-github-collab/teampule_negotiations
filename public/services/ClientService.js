@@ -454,6 +454,12 @@ class ClientService {
     showNotification(message, type = 'info') {
         console.log(`👥 Notification [${type}]:`, message);
         
+        // Try to use NotificationService first
+        if (window.notificationService) {
+            window.notificationService.showAlert(message, type);
+            return;
+        }
+        
         // Try to use global notification system
         if (window.showNotification) {
             window.showNotification(message, type);
@@ -524,7 +530,11 @@ class ClientService {
         const client = this.clients.find(c => c.id == clientId);
         if (!client) return;
         
-        if (!confirm(`Видалити клієнта "${client.company}"?`)) {
+        const confirmed = window.notificationService 
+            ? await window.notificationService.showConfirm(`Видалити клієнта "${client.company}"?`)
+            : confirm(`Видалити клієнта "${client.company}"?`);
+            
+        if (!confirmed) {
             return;
         }
         

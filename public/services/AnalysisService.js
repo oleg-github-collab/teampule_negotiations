@@ -55,13 +55,21 @@ class AnalysisService {
         const clientSelect = document.getElementById('client-select');
         
         if (!textArea?.value?.trim()) {
-            alert('❌ Введіть текст для аналізу');
+            if (window.notificationService) {
+                window.notificationService.showAlert('Введіть текст для аналізу', 'error');
+            } else {
+                alert('❌ Введіть текст для аналізу');
+            }
             if (textArea) textArea.focus();
             return false;
         }
         
         if (!clientSelect?.value) {
-            alert('❌ Оберіть клієнта');
+            if (window.notificationService) {
+                window.notificationService.showAlert('Оберіть клієнта', 'error');
+            } else {
+                alert('❌ Оберіть клієнта');
+            }
             if (clientSelect) clientSelect.focus();
             return false;
         }
@@ -70,7 +78,11 @@ class AnalysisService {
         const clientId = parseInt(clientSelect.value);
         
         if (text.length < 20) {
-            alert('❌ Текст занадто короткий (мінімум 20 символів)');
+            if (window.notificationService) {
+                window.notificationService.showAlert('Текст занадто короткий (мінімум 20 символів)', 'error');
+            } else {
+                alert('❌ Текст занадто короткий (мінімум 20 символів)');
+            }
             textArea.focus();
             return false;
         }
@@ -88,7 +100,11 @@ class AnalysisService {
             return true;
         } catch (error) {
             console.error('📊 Analysis failed:', error);
-            alert('❌ Помилка аналізу: ' + error.message);
+            if (window.notificationService) {
+                window.notificationService.showAlert('Помилка аналізу: ' + error.message, 'error');
+            } else {
+                alert('❌ Помилка аналізу: ' + error.message);
+            }
             return false;
         } finally {
             this.isAnalyzing = false;

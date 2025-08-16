@@ -502,82 +502,13 @@
         loadTokenUsage();
     }
 
-    // ===== Client Management =====
+    // ===== DEPRECATED - Use ClientService instead =====
     async function loadClients(forceRefresh = false) {
-        console.log('🔄 === LOAD CLIENTS DEBUG START ===');
-        console.log('🔄 forceRefresh:', forceRefresh);
-        console.log('🔄 current state.clients.length:', state.clients?.length || 0);
-        
-        try {
-            // Add cache busting if forcing refresh
-            const cacheBuster = forceRefresh ? `?_=${Date.now()}` : '';
-            const url = `/api/clients${cacheBuster}`;
-            console.log('🔄 Fetching URL:', url);
-            
-            const response = await fetch(url);
-            console.log('🔄 Response status:', response.status);
-            console.log('🔄 Response headers:', Object.fromEntries(response.headers.entries()));
-            
-            if (response.status === 401) {
-                console.log('❌ Unauthorized, redirecting to login');
-                window.location.href = '/login';
-                return;
-            }
-            
-            const rawText = await response.text();
-            console.log('🔄 Raw response text:', rawText);
-            
-            let data;
-            try {
-                data = JSON.parse(rawText);
-            } catch (parseError) {
-                console.error('🔄 JSON parse error:', parseError);
-                console.error('🔄 Raw text that failed:', rawText);
-                throw new Error('Invalid JSON response from server');
-            }
-            
-            console.log('🔄 Parsed data:', data);
-            console.log('🔄 data.success:', data.success);
-            console.log('🔄 data.clients:', data.clients);
-            console.log('🔄 data.clients type:', typeof data.clients);
-            console.log('🔄 data.clients isArray:', Array.isArray(data.clients));
-            
-            if (!response.ok || !data.success) {
-                throw new Error(data.error || `HTTP Error: ${response.status}`);
-            }
-            
-            const previousCount = state.clients?.length || 0;
-            state.clients = data.clients || [];
-            
-            console.log('🔄 FINAL state.clients:', state.clients);
-            console.log('🔄 FINAL state.clients.length:', state.clients.length);
-            console.log('🔄 Each client in detail:');
-            state.clients.forEach((client, index) => {
-                console.log(`🔄 Client ${index}:`, {
-                    id: client.id,
-                    company: client.company,
-                    sector: client.sector,
-                    negotiator: client.negotiator,
-                    fullObject: client
-                });
-            });
-            
-            // Force immediate UI update with animation
-            setTimeout(() => {
-                console.log('🔄 Triggering UI update after loadClients');
-                renderClientsList();
-                updateClientCount();
-            }, 100);
-            
-            // Validate and fix data integrity
-            validateDataIntegrity();
-            
-            console.log('🎉 Clients loaded successfully');
-            
-        } catch (error) {
-            console.error('Failed to load clients:', error);
-            showNotification('Помилка завантаження клієнтів', 'error');
+        console.log('🔄 DEPRECATED: Use ClientService.loadClients() instead');
+        if (window.services?.client) {
+            return window.services.client.loadClients(forceRefresh);
         }
+        console.warn('🔄 ClientService not available');
     }
 
     async function validateDataIntegrity() {
@@ -832,6 +763,14 @@
     }
 
     async function selectClient(clientId) {
+        console.log('🔄 DEPRECATED: selectClient - Use ClientService.selectClient() instead');
+        
+        // Route to new ClientService
+        if (window.services?.client) {
+            return window.services.client.selectClient(clientId);
+        }
+        
+        // Fallback to old implementation
         console.log('🎯 selectClient called with ID:', clientId);
         console.log('🎯 Current state.clients:', state.clients.length, 'clients');
         
@@ -1168,6 +1107,14 @@
     }
 
     async function saveClient() {
+        console.log('🔄 DEPRECATED: saveClient - Use ClientService.saveClient() instead');
+        
+        // Route to new ClientService
+        if (window.services?.client) {
+            return window.services.client.saveClient();
+        }
+        
+        // Fallback to old implementation
         try {
             const clientData = {};
             const inputs = $$('#client-form input, #client-form select, #client-form textarea');
@@ -3508,8 +3455,12 @@
             // Event listeners
             modal.querySelector('.close-history').addEventListener('click', () => modal.remove());
             modal.querySelector('.close-history-btn').addEventListener('click', () => modal.remove());
-            modal.querySelector('.clear-history-btn').addEventListener('click', () => {
-                if (confirm('Ви впевнені, що хочете видалити всю історію порад?')) {
+            modal.querySelector('.clear-history-btn').addEventListener('click', async () => {
+                const confirmed = window.notificationService 
+                    ? await window.notificationService.showConfirm('Видалити всю історію порад?')
+                    : confirm('Ви впевнені, що хочете видалити всю історію порад?');
+                    
+                if (confirmed) {
                     localStorage.removeItem(historyKey);
                     modal.remove();
                     showNotification('Історію порад очищено', 'success');
@@ -3608,10 +3559,14 @@
         showNotification('Дані експортовано успішно! 📁', 'success');
     }
 
-    function clearWorkspace() {
+    async function clearWorkspace() {
         if (state.selectedFragments.length === 0) return;
 
-        if (confirm('Очистити робочу область? Всі обрані фрагменти будуть видалені.')) {
+        const confirmed = window.notificationService 
+            ? await window.notificationService.showConfirm('Очистити робочу область? Всі обрані фрагменти будуть видалені.')
+            : confirm('Очистити робочу область? Всі обрані фрагменти будуть видалені.');
+            
+        if (confirmed) {
             state.selectedFragments = [];
             updateWorkspaceFragments();
             updateWorkspaceActions();
@@ -3673,8 +3628,12 @@
 
         // Navigation actions
         $('#help-toggle')?.addEventListener('click', showOnboarding);
-        $('#logout-btn')?.addEventListener('click', () => {
-            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
+        $('#logout-btn')?.addEventListener('click', async () => {
+            const confirmed = window.notificationService 
+                ? await window.notificationService.showConfirm('Вийти із системи?')
+                : confirm('Ви впевнені, що хочете вийти із системи?');
+                
+            if (confirmed) {
                 console.log('🔐 Logout button clicked, calling logout function');
                 // Use the proper logout function from auth.js
                 if (window.logout) {
@@ -4042,7 +4001,11 @@
 
     async function confirmDeleteAnalysis(analysisId) {
         try {
-            if (!confirm('Видалити цей аналіз? Цю дію неможливо скасувати.')) {
+            const confirmed = window.notificationService 
+                ? await window.notificationService.showConfirm('Видалити цей аналіз? Цю дію неможливо скасувати.')
+                : confirm('Видалити цей аналіз? Цю дію неможливо скасувати.');
+                
+            if (!confirmed) {
                 return;
             }
 
@@ -4186,6 +4149,14 @@
     }
 
     async function editClient(clientId, event) {
+        console.log('🔄 DEPRECATED: editClient - Use ClientService.editClient() instead');
+        
+        // Route to new ClientService
+        if (window.services?.client) {
+            return window.services.client.editClient(clientId);
+        }
+        
+        // Fallback to old implementation
         console.log('✏️ editClient called with ID:', clientId);
         console.log('✏️ Event object:', event);
         
@@ -4275,6 +4246,15 @@
     }
 
     async function deleteClient(clientId, event) {
+        console.log('🔄 DEPRECATED: deleteClient - Use ClientService.deleteClient() instead');
+        
+        // Route to new ClientService
+        if (window.services?.client) {
+            if (event) event.stopPropagation();
+            return window.services.client.deleteClient(clientId);
+        }
+        
+        // Fallback to old implementation
         console.log('🗑️ deleteClient called with ID:', clientId);
         
         // Stop event propagation to prevent client selection

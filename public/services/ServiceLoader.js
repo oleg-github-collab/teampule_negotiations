@@ -8,6 +8,7 @@ class ServiceLoader {
         this.loadingPromises = new Map();
         this.isInitialized = false;
         this.dependencyGraph = {
+            NotificationService: [],
             ClientService: [],
             ResultsService: [],
             BarometerService: [],
@@ -215,6 +216,7 @@ class ServiceLoader {
     setupGlobalAccess() {
         // Create service registry
         window.services = {
+            notification: this.services.get('NotificationService'),
             client: this.services.get('ClientService'),
             results: this.services.get('ResultsService'),
             barometer: this.services.get('BarometerService'),
