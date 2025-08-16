@@ -300,11 +300,21 @@ class ClientButtonHandler extends IButtonHandler {
                 credentials: 'include',
                 body: JSON.stringify(clientData)
             });
-            
+
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                let message = response.statusText;
+                try {
+                    const err = await response.json();
+                    message = err.error || err.message || message;
+                    if (err.details?.length) {
+                        message += ': ' + err.details.map(d => `${d.field} ${d.message}`).join(', ');
+                    }
+                } catch (_) {
+                    // Ignore JSON parse errors
+                }
+                throw new Error(`HTTP ${response.status}: ${message}`);
             }
-            
+
             const result = await response.json();
             
             if (result.success) {
@@ -327,14 +337,20 @@ class ClientButtonHandler extends IButtonHandler {
         
         const data = {};
         fields.forEach(fieldName => {
-            const field = document.getElementById(fieldName) || 
+            const field = document.getElementById(fieldName) ||
                          document.querySelector(`[name="${fieldName}"]`);
-            
+
             if (field) {
-                data[fieldName.replace('-', '_')] = field.value.trim();
+                const value = field.value.trim();
+                if (value !== '') {
+                    const key = fieldName === 'goals'
+                        ? 'goal'
+                        : fieldName.replace('-', '_');
+                    data[key] = value;
+                }
             }
         });
-        
+
         return data;
     }
     
@@ -1163,19 +1179,21 @@ class UltimateButtonController {
         console.log('🎯 Attaching all buttons...');
         
         // Find all clickable elements
-        const clickableElements = document.querySelectorAll(`
-            button, 
-            [role="button"], 
-            .btn, 
-            .button, 
-            [onclick], 
-            [data-action],
-            .input-method,
-            .view-control,
-            .modal-close,
-            .nav-action,
-            .sidebar-toggle
-        `);
+        const selectorList = [
+            'button',
+            '[role="button"]',
+            '.btn',
+            '.button',
+            '[onclick]',
+            '[data-action]',
+            '.input-method',
+            '.view-control',
+            '.modal-close',
+            '.nav-action',
+            '.sidebar-toggle'
+        ].join(', ');
+
+        const clickableElements = document.querySelectorAll(selectorList);
         
         let attachedCount = 0;
         
