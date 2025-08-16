@@ -356,11 +356,14 @@ class ClientService {
         
         this.currentClient = client;
         console.log('👥 Client selected:', client.company);
+        console.log('👥 this.currentClient set to:', this.currentClient);
         
         // Update UI
         this.renderClientsList();
         this.updateNavClientInfo();
         this.updateClientSelectDropdown();
+        
+        console.log('👥 After dropdown update, client-select value:', document.getElementById('client-select')?.value);
         
         // Update global state for backward compatibility
         if (window.state) {

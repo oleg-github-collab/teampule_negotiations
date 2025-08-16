@@ -46,13 +46,14 @@ class AnalysisService {
     
     // Single Responsibility: Start analysis
     async startAnalysis() {
+        console.log('📊 ==> START ANALYSIS CALLED <==');
+        
         if (this.isAnalyzing) {
             console.warn('📊 Analysis already in progress');
             return false;
         }
         
         const textArea = document.getElementById('negotiation-text');
-        const clientSelect = document.getElementById('client-select');
         
         if (!textArea?.value?.trim()) {
             if (window.notificationService) {
@@ -64,18 +65,40 @@ class AnalysisService {
             return false;
         }
         
-        if (!clientSelect?.value) {
+        // Check for selected client (prioritize ClientService over dropdown)
+        let currentClient = null;
+        let clientId = null;
+        
+        if (window.clientService && window.clientService.currentClient) {
+            currentClient = window.clientService.currentClient;
+            clientId = currentClient.id;
+            console.log('📊 Using ClientService.currentClient:', currentClient.company);
+        } else {
+            // Fallback to dropdown
+            const clientSelect = document.getElementById('client-select');
+            if (clientSelect?.value) {
+                clientId = parseInt(clientSelect.value);
+                console.log('📊 Using client dropdown value:', clientId);
+            }
+        }
+        
+        if (!clientId) {
+            console.log('📊 ❌ NO CLIENT SELECTED!');
+            console.log('📊 ClientService exists:', !!window.clientService);
+            console.log('📊 ClientService.currentClient:', window.clientService?.currentClient);
+            console.log('📊 Dropdown value:', document.getElementById('client-select')?.value);
+            
             if (window.notificationService) {
                 window.notificationService.showAlert('Оберіть клієнта', 'error');
             } else {
                 alert('❌ Оберіть клієнта');
             }
-            if (clientSelect) clientSelect.focus();
             return false;
         }
         
+        console.log('📊 ✅ CLIENT FOUND! ID:', clientId);
+        
         const text = textArea.value.trim();
-        const clientId = parseInt(clientSelect.value);
         
         if (text.length < 20) {
             if (window.notificationService) {

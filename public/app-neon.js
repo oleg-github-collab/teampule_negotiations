@@ -3675,7 +3675,16 @@
                 }
             });
         }
-        elements.startAnalysisBtn?.addEventListener('click', startAnalysis);
+        // elements.startAnalysisBtn?.addEventListener('click', startAnalysis); // DISABLED: Now handled by AnalysisService
+        elements.startAnalysisBtn?.addEventListener('click', () => {
+            if (window.analysisService) {
+                window.analysisService.startAnalysis();
+            } else if (window.startAnalysis) {
+                window.startAnalysis();
+            } else {
+                console.error('❌ No analysis service available!');
+            }
+        });
         elements.newAnalysisBtn?.addEventListener('click', createNewAnalysis);
         elements.clearTextBtn?.addEventListener('click', () => {
             if (elements.negotiationText) {
