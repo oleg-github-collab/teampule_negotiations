@@ -300,11 +300,21 @@ class ClientButtonHandler extends IButtonHandler {
                 credentials: 'include',
                 body: JSON.stringify(clientData)
             });
-            
+
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                let message = response.statusText;
+                try {
+                    const err = await response.json();
+                    message = err.error || err.message || message;
+                    if (err.details?.length) {
+                        message += ': ' + err.details.map(d => `${d.field} ${d.message}`).join(', ');
+                    }
+                } catch (_) {
+                    // Ignore JSON parse errors
+                }
+                throw new Error(`HTTP ${response.status}: ${message}`);
             }
-            
+
             const result = await response.json();
             
             if (result.success) {
@@ -327,14 +337,20 @@ class ClientButtonHandler extends IButtonHandler {
         
         const data = {};
         fields.forEach(fieldName => {
-            const field = document.getElementById(fieldName) || 
+            const field = document.getElementById(fieldName) ||
                          document.querySelector(`[name="${fieldName}"]`);
-            
+
             if (field) {
-                data[fieldName.replace('-', '_')] = field.value.trim();
+                const value = field.value.trim();
+                if (value !== '') {
+                    const key = fieldName === 'goals'
+                        ? 'goal'
+                        : fieldName.replace('-', '_');
+                    data[key] = value;
+                }
             }
         });
-        
+
         return data;
     }
     
