@@ -681,7 +681,10 @@
                         <i class="fas fa-history"></i>
                         Історія рекомендацій
                         <span class="fragment-counter" id="recommendations-count">0</span>
-                        <button class="btn-micro" id="clear-recommendations-btn" onclick="clearRecommendationsHistory()" title="Очистити історію" style="margin-left: auto; display: none;">
+                        <button class="btn-micro" id="open-recommendations-modal" title="Управління рекомендаціями" style="margin-left: auto;">
+                            <i class="fas fa-table"></i>
+                        </button>
+                        <button class="btn-micro" id="clear-recommendations-btn" onclick="clearRecommendationsHistory()" title="Очистити історію" style="display: none;">
                             <i class="fas fa-trash"></i>
                         </button>
                     </h4>
@@ -887,6 +890,148 @@
 
     <!-- Notifications Container -->
     <div id="notifications" class="notifications"></div>
+
+    <!-- Recommendations Management Modal -->
+    <div id="recommendations-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container recommendations-modal">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-lightbulb"></i>
+                    Управління рекомендаціями
+                    <span class="client-name" id="modal-recommendations-client-name"></span>
+                </h2>
+                <button class="modal-close" id="close-recommendations-modal" title="Закрити">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-content">
+                <div class="recommendations-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="modal-total-recommendations">0</span>
+                        <span class="stat-label">Рекомендацій</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="modal-latest-recommendation">—</span>
+                        <span class="stat-label">Остання</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="modal-avg-replies">—</span>
+                        <span class="stat-label">Середньо відповідей</span>
+                    </div>
+                </div>
+                
+                <div class="recommendations-filters">
+                    <div class="filter-row">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="recommendations-search" placeholder="Пошук в рекомендаціях...">
+                        </div>
+                        <button class="btn-secondary" id="clear-all-recommendations-btn">
+                            <i class="fas fa-trash"></i>
+                            Очистити всі
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="recommendations-table-container">
+                    <table class="recommendations-table" id="recommendations-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Фрагменти</th>
+                                <th>Відповіді</th>
+                                <th>Ризики</th>
+                                <th>Коментар</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recommendations-table-body">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                    
+                    <div class="empty-state" id="recommendations-empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <p>Історія рекомендацій порожня</p>
+                        <small>Рекомендації з'являться після генерації порад для обраних фрагментів</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-secondary" id="close-recommendations-modal-btn">
+                    <i class="fas fa-times"></i>
+                    Закрити
+                </button>
+                <button class="btn-primary" id="export-recommendations-btn">
+                    <i class="fas fa-download"></i>
+                    Експорт
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendation Details Modal -->
+    <div id="recommendation-details-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container recommendation-details-modal">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-info-circle"></i>
+                    Деталі рекомендації
+                </h2>
+                <button class="modal-close" id="close-recommendation-details-modal" title="Закрити">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-content">
+                <div class="recommendation-details-content" id="recommendation-details-content">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-secondary" id="close-recommendation-details-btn">
+                    <i class="fas fa-times"></i>
+                    Закрити
+                </button>
+                <button class="btn-primary" id="save-recommendation-comment-btn">
+                    <i class="fas fa-save"></i>
+                    Зберегти коментар
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmation-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container confirmation-modal">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-question-circle"></i>
+                    <span id="confirmation-title">Підтвердження</span>
+                </h2>
+            </div>
+            
+            <div class="modal-content">
+                <p id="confirmation-message">Ви впевнені?</p>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-secondary" id="confirmation-cancel-btn">
+                    <i class="fas fa-times"></i>
+                    Скасувати
+                </button>
+                <button class="btn-danger" id="confirmation-confirm-btn">
+                    <i class="fas fa-check"></i>
+                    Підтвердити
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Client Analysis History Modal -->
     <div id="client-analysis-modal" class="modal-overlay" style="display: none;">

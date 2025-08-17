@@ -4061,3 +4061,415 @@ textarea:focus-visible {
         align-self: flex-end;
     }
 }
+
+/* ===== Recommendations Management Modal ===== */
+
+.recommendations-modal {
+    max-width: 1200px;
+    max-height: 90vh;
+}
+
+.recommendations-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-lg);
+}
+
+.recommendations-filters {
+    margin-bottom: var(--spacing-lg);
+}
+
+.filter-row {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.search-box {
+    position: relative;
+    flex: 1;
+}
+
+.search-box i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    z-index: 1;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 12px 10px 36px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-primary-alpha);
+}
+
+.recommendations-table-container {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--bg-primary);
+}
+
+.recommendations-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.recommendations-table thead {
+    background: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.recommendations-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.recommendations-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+}
+
+.recommendations-table tbody tr:hover {
+    background: var(--bg-secondary);
+}
+
+.recommendation-row {
+    cursor: pointer;
+}
+
+.recommendation-date {
+    color: var(--text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.recommendation-fragments {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+}
+
+.recommendation-replies {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recommendation-replies-count {
+    color: var(--accent-primary);
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.recommendation-risks {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+}
+
+.recommendation-comment {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.recommendation-comment.empty {
+    color: var(--text-muted);
+}
+
+.recommendation-actions {
+    display: flex;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.recommendation-actions .btn-micro {
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+/* ===== Recommendation Details Modal ===== */
+
+.recommendation-details-modal {
+    max-width: 800px;
+    max-height: 90vh;
+}
+
+.recommendation-details-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.recommendation-detail-section {
+    background: var(--bg-secondary);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--accent-primary);
+}
+
+.recommendation-detail-section h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.recommendation-detail-section h3 i {
+    color: var(--accent-primary);
+}
+
+.recommendation-fragments-detail {
+    margin-bottom: var(--spacing-md);
+}
+
+.recommendation-fragment-item {
+    background: var(--bg-primary);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-sm);
+    border-left: 3px solid var(--accent-secondary);
+}
+
+.recommendation-fragment-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-xs);
+}
+
+.recommendation-replies-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.recommendation-reply-item {
+    background: var(--bg-primary);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    border-left: 3px solid var(--success-color);
+}
+
+.recommendation-risks-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.recommendation-risk-item {
+    background: var(--bg-primary);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    border-left: 3px solid var(--warning-color);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+}
+
+.recommendation-risk-item i {
+    color: var(--warning-color);
+    margin-top: 2px;
+}
+
+.recommendation-comment-section {
+    background: var(--bg-secondary);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius);
+}
+
+.recommendation-comment-section textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.recommendation-comment-section textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-primary-alpha);
+}
+
+.recommendation-meta-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    background: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    font-size: 14px;
+}
+
+.recommendation-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.recommendation-meta-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.recommendation-meta-value {
+    color: var(--text-primary);
+}
+
+/* ===== Custom Confirmation Modal ===== */
+
+.confirmation-modal {
+    max-width: 400px;
+}
+
+.confirmation-modal .modal-content {
+    padding: var(--spacing-xl) var(--spacing-lg);
+    text-align: center;
+}
+
+.confirmation-modal .modal-content p {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.confirmation-modal .modal-footer {
+    justify-content: space-between;
+    gap: var(--spacing-md);
+}
+
+.confirmation-modal .modal-footer button {
+    flex: 1;
+}
+
+/* ===== Responsive Design for New Modals ===== */
+
+@media (max-width: 768px) {
+    .recommendations-modal {
+        max-width: 95vw;
+        margin: 20px;
+    }
+    
+    .recommendations-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .recommendations-table-container {
+        overflow-x: auto;
+    }
+    
+    .recommendations-table {
+        min-width: 800px;
+    }
+    
+    .recommendation-details-modal {
+        max-width: 95vw;
+        margin: 20px;
+    }
+    
+    .recommendation-meta-info {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== Table Scrollbars ===== */
+
+.recommendations-table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.recommendations-table-container::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.recommendations-table-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.recommendations-table-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* ===== Enhanced Empty State ===== */
+
+#recommendations-empty-state {
+    display: none;
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+}
+
+#recommendations-empty-state.show {
+    display: block;
+}
+
+#recommendations-empty-state .empty-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+#recommendations-empty-state p {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+#recommendations-empty-state small {
+    font-size: 14px;
+    opacity: 0.7;
+}
+}

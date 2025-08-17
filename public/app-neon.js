@@ -909,18 +909,18 @@
                         ${getTimeAgo(new Date(rec.created_at))}
                     </div>
                     <div class="recommendation-actions">
-                        <button class="btn-micro" onclick="expandRecommendation('${clientId}', ${index})" title="Переглянути повністю">
-                            <i class="fas fa-expand-alt"></i>
+                        <button class="btn-micro" onclick="openRecommendationDetails(${index})" title="Переглянути деталі">
+                            <i class="fas fa-eye"></i>
                         </button>
                         <button class="btn-micro" onclick="copyRecommendation('${clientId}', ${index})" title="Копіювати">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button class="btn-micro btn-danger" onclick="removeRecommendation('${clientId}', ${index})" title="Видалити рекомендацію">
+                        <button class="btn-micro btn-danger" onclick="confirmDeleteRecommendation(${index})" title="Видалити рекомендацію">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
-                <div class="recommendation-content" onclick="expandRecommendation('${clientId}', ${index})" style="cursor: pointer;">
+                <div class="recommendation-content" onclick="openRecommendationDetails(${index})" style="cursor: pointer;">
                     ${escapeHtml(shortContent)}
                 </div>
                 ${rec.fragments_count ? `
@@ -934,7 +934,7 @@
         }).join('');
     }
     
-    function saveRecommendation(clientId, advice, fragmentsCount = 0) {
+    function saveRecommendation(clientId, advice, fragmentsCount = 0, adviceData = null, fragments = null) {
         if (!state.recommendationsHistory[clientId]) {
             state.recommendationsHistory[clientId] = [];
         }
@@ -942,8 +942,11 @@
         const recommendation = {
             id: Date.now(),
             advice,
+            advice_data: adviceData, // Store structured data from API
+            fragments: fragments || state.selectedFragments.slice(), // Store selected fragments
             fragments_count: fragmentsCount,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            comment: '' // User comment field
         };
         
         state.recommendationsHistory[clientId].unshift(recommendation);
@@ -1106,6 +1109,414 @@
             scheduleStateSave();
             showNotification(`Видалено ${count} рекомендацій з історії`, 'success');
         }
+    }
+
+    // ===== Enhanced Recommendations Management =====
+
+    function openRecommendationsModal() {
+        if (!state.currentClient) {
+            showNotification('Спочатку оберіть клієнта', 'warning');
+            return;
+        }
+
+        const modal = $('#recommendations-modal');
+        const clientName = $('#modal-recommendations-client-name');
+        
+        if (clientName) {
+            clientName.textContent = state.currentClient.company || 'Невідомий клієнт';
+        }
+
+        updateRecommendationsModal();
+        modal.style.display = 'block';
+        
+        // Focus search input
+        const searchInput = $('#recommendations-search');
+        if (searchInput) {
+            setTimeout(() => searchInput.focus(), 100);
+        }
+    }
+
+    function closeRecommendationsModal() {
+        const modal = $('#recommendations-modal');
+        modal.style.display = 'none';
+    }
+
+    function updateRecommendationsModal() {
+        if (!state.currentClient) return;
+
+        const clientId = state.currentClient.id;
+        const recommendations = state.recommendationsHistory[clientId] || [];
+        
+        // Update stats
+        const totalCount = $('#modal-total-recommendations');
+        const latestDate = $('#modal-latest-recommendation');
+        const avgReplies = $('#modal-avg-replies');
+
+        if (totalCount) totalCount.textContent = recommendations.length;
+        
+        if (latestDate) {
+            if (recommendations.length > 0) {
+                const latest = new Date(recommendations[0].created_at);
+                latestDate.textContent = getTimeAgo(latest);
+            } else {
+                latestDate.textContent = '—';
+            }
+        }
+
+        if (avgReplies) {
+            if (recommendations.length > 0) {
+                const totalReplies = recommendations.reduce((sum, rec) => {
+                    return sum + (rec.advice_data?.recommended_replies?.length || 0);
+                }, 0);
+                const avg = Math.round(totalReplies / recommendations.length * 10) / 10;
+                avgReplies.textContent = avg || '—';
+            } else {
+                avgReplies.textContent = '—';
+            }
+        }
+
+        // Update table
+        updateRecommendationsTable(recommendations);
+    }
+
+    function updateRecommendationsTable(recommendations) {
+        const tableBody = $('#recommendations-table-body');
+        const emptyState = $('#recommendations-empty-state');
+        const table = $('#recommendations-table');
+
+        if (!tableBody) return;
+
+        if (recommendations.length === 0) {
+            table.style.display = 'none';
+            emptyState.classList.add('show');
+            return;
+        }
+
+        table.style.display = 'table';
+        emptyState.classList.remove('show');
+
+        const searchTerm = $('#recommendations-search')?.value.toLowerCase() || '';
+        const filteredRecommendations = recommendations.filter(rec => {
+            const searchableText = `
+                ${rec.advice_data?.recommended_replies?.join(' ') || ''}
+                ${rec.advice_data?.risks?.join(' ') || ''}
+                ${rec.advice_data?.notes || ''}
+                ${rec.comment || ''}
+            `.toLowerCase();
+            return searchableText.includes(searchTerm);
+        });
+
+        tableBody.innerHTML = filteredRecommendations.map((rec, index) => {
+            const originalIndex = recommendations.indexOf(rec);
+            const date = new Date(rec.created_at);
+            const fragmentsText = rec.fragments?.map(f => f.text).join(', ') || '';
+            const repliesText = rec.advice_data?.recommended_replies?.join('; ') || '';
+            const risksText = rec.advice_data?.risks?.join('; ') || '';
+            const repliesCount = rec.advice_data?.recommended_replies?.length || 0;
+            
+            return `
+                <tr class="recommendation-row" onclick="openRecommendationDetails(${originalIndex})">
+                    <td>
+                        <div class="recommendation-date">
+                            ${date.toLocaleDateString('uk-UA')}
+                            <br>
+                            <small>${date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="recommendation-fragments" title="${escapeHtml(fragmentsText)}">
+                            ${escapeHtml(fragmentsText.substring(0, 100))}${fragmentsText.length > 100 ? '...' : ''}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="recommendation-replies" title="${escapeHtml(repliesText)}">
+                            ${escapeHtml(repliesText.substring(0, 150))}${repliesText.length > 150 ? '...' : ''}
+                            <span class="recommendation-replies-count">(${repliesCount})</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="recommendation-risks" title="${escapeHtml(risksText)}">
+                            ${escapeHtml(risksText.substring(0, 100))}${risksText.length > 100 ? '...' : ''}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="recommendation-comment ${rec.comment ? '' : 'empty'}">
+                            ${rec.comment ? escapeHtml(rec.comment.substring(0, 50)) + (rec.comment.length > 50 ? '...' : '') : 'Немає коментаря'}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="recommendation-actions">
+                            <button class="btn-micro" onclick="event.stopPropagation(); openRecommendationDetails(${originalIndex})" title="Деталі">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-micro" onclick="event.stopPropagation(); copyRecommendation('${state.currentClient.id}', ${originalIndex})" title="Копіювати">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button class="btn-micro btn-danger" onclick="event.stopPropagation(); confirmDeleteRecommendation(${originalIndex})" title="Видалити">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function openRecommendationDetails(index) {
+        if (!state.currentClient) return;
+
+        const clientId = state.currentClient.id;
+        const recommendations = state.recommendationsHistory[clientId] || [];
+        const rec = recommendations[index];
+        
+        if (!rec) return;
+
+        const modal = $('#recommendation-details-modal');
+        const content = $('#recommendation-details-content');
+        
+        if (!content) return;
+
+        const date = new Date(rec.created_at);
+        const fragments = rec.fragments || [];
+        const replies = rec.advice_data?.recommended_replies || [];
+        const risks = rec.advice_data?.risks || [];
+        const notes = rec.advice_data?.notes || '';
+
+        content.innerHTML = `
+            <div class="recommendation-meta-info">
+                <div class="recommendation-meta-item">
+                    <div class="recommendation-meta-label">Дата створення</div>
+                    <div class="recommendation-meta-value">${date.toLocaleString('uk-UA')}</div>
+                </div>
+                <div class="recommendation-meta-item">
+                    <div class="recommendation-meta-label">Фрагментів</div>
+                    <div class="recommendation-meta-value">${fragments.length}</div>
+                </div>
+                <div class="recommendation-meta-item">
+                    <div class="recommendation-meta-label">Відповідей</div>
+                    <div class="recommendation-meta-value">${replies.length}</div>
+                </div>
+                <div class="recommendation-meta-item">
+                    <div class="recommendation-meta-label">Ризиків</div>
+                    <div class="recommendation-meta-value">${risks.length}</div>
+                </div>
+            </div>
+
+            ${fragments.length > 0 ? `
+                <div class="recommendation-detail-section">
+                    <h3><i class="fas fa-bookmark"></i> Проаналізовані фрагменти</h3>
+                    <div class="recommendation-fragments-detail">
+                        ${fragments.map(fragment => `
+                            <div class="recommendation-fragment-item">
+                                <div class="recommendation-fragment-meta">
+                                    ${fragment.category || 'Neutral'} • ${fragment.label || 'Без мітки'}
+                                </div>
+                                <div>${escapeHtml(fragment.text || '')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            ${replies.length > 0 ? `
+                <div class="recommendation-detail-section">
+                    <h3><i class="fas fa-comments"></i> Рекомендовані відповіді</h3>
+                    <div class="recommendation-replies-detail">
+                        ${replies.map((reply, i) => `
+                            <div class="recommendation-reply-item">
+                                <strong>Варіант ${i + 1}:</strong> ${escapeHtml(reply)}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            ${risks.length > 0 ? `
+                <div class="recommendation-detail-section">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Виявлені ризики</h3>
+                    <div class="recommendation-risks-detail">
+                        ${risks.map(risk => `
+                            <div class="recommendation-risk-item">
+                                <i class="fas fa-warning"></i>
+                                <span>${escapeHtml(risk)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            ${notes ? `
+                <div class="recommendation-detail-section">
+                    <h3><i class="fas fa-sticky-note"></i> Додаткові нотатки</h3>
+                    <div>${escapeHtml(notes).replace(/\n/g, '<br>')}</div>
+                </div>
+            ` : ''}
+
+            <div class="recommendation-comment-section">
+                <h3><i class="fas fa-comment"></i> Особистий коментар</h3>
+                <textarea id="recommendation-comment-input" placeholder="Додайте свій коментар до цієї рекомендації...">${escapeHtml(rec.comment || '')}</textarea>
+            </div>
+        `;
+
+        // Store current recommendation index for saving
+        modal.dataset.recommendationIndex = index;
+        modal.style.display = 'block';
+    }
+
+    function closeRecommendationDetails() {
+        const modal = $('#recommendation-details-modal');
+        modal.style.display = 'none';
+    }
+
+    function saveRecommendationComment() {
+        if (!state.currentClient) return;
+
+        const modal = $('#recommendation-details-modal');
+        const index = parseInt(modal.dataset.recommendationIndex);
+        const commentInput = $('#recommendation-comment-input');
+        
+        if (!commentInput || isNaN(index)) return;
+
+        const clientId = state.currentClient.id;
+        const recommendations = state.recommendationsHistory[clientId];
+        
+        if (!recommendations || !recommendations[index]) return;
+
+        const newComment = commentInput.value.trim();
+        recommendations[index].comment = newComment;
+        
+        scheduleStateSave();
+        updateRecommendationsModal();
+        updateRecommendationsHistory(clientId);
+        
+        showNotification('Коментар збережено', 'success');
+        closeRecommendationDetails();
+    }
+
+    function confirmDeleteRecommendation(index) {
+        if (!state.currentClient) return;
+
+        const clientId = state.currentClient.id;
+        const recommendations = state.recommendationsHistory[clientId];
+        
+        if (!recommendations || !recommendations[index]) return;
+
+        const rec = recommendations[index];
+        const date = new Date(rec.created_at).toLocaleDateString('uk-UA');
+        
+        showCustomConfirmation(
+            'Видалення рекомендації',
+            `Ви дійсно хочете видалити рекомендацію від ${date}? Цю дію неможливо скасувати.`,
+            () => {
+                recommendations.splice(index, 1);
+                updateRecommendationsHistory(clientId);
+                updateRecommendationsModal();
+                scheduleStateSave();
+                showNotification('Рекомендацію видалено', 'success');
+            }
+        );
+    }
+
+    function confirmClearAllRecommendations() {
+        if (!state.currentClient) return;
+
+        const clientId = state.currentClient.id;
+        const recommendations = state.recommendationsHistory[clientId] || [];
+        
+        if (recommendations.length === 0) {
+            showNotification('Історія рекомендацій вже порожня', 'info');
+            return;
+        }
+
+        showCustomConfirmation(
+            'Очищення історії рекомендацій',
+            `Ви дійсно хочете видалити всі ${recommendations.length} рекомендацій для цього клієнта? Цю дію неможливо скасувати.`,
+            () => {
+                const count = recommendations.length;
+                state.recommendationsHistory[clientId] = [];
+                updateRecommendationsHistory(clientId);
+                updateRecommendationsModal();
+                scheduleStateSave();
+                showNotification(`Видалено ${count} рекомендацій`, 'success');
+                closeRecommendationsModal();
+            }
+        );
+    }
+
+    function exportRecommendations() {
+        if (!state.currentClient) return;
+
+        const clientId = state.currentClient.id;
+        const recommendations = state.recommendationsHistory[clientId] || [];
+        
+        if (recommendations.length === 0) {
+            showNotification('Немає рекомендацій для експорту', 'warning');
+            return;
+        }
+
+        const exportData = {
+            client: state.currentClient.company || 'Невідомий клієнт',
+            exported_at: new Date().toISOString(),
+            total_recommendations: recommendations.length,
+            recommendations: recommendations.map(rec => ({
+                created_at: rec.created_at,
+                fragments_count: rec.fragments?.length || 0,
+                fragments: rec.fragments || [],
+                recommended_replies: rec.advice_data?.recommended_replies || [],
+                risks: rec.advice_data?.risks || [],
+                notes: rec.advice_data?.notes || '',
+                comment: rec.comment || ''
+            }))
+        };
+
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `recommendations_${state.currentClient.company || 'client'}_${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        
+        showNotification('Рекомендації експортовано', 'success');
+    }
+
+    // ===== Custom Confirmation Modal =====
+
+    function showCustomConfirmation(title, message, onConfirm, onCancel = null) {
+        const modal = $('#confirmation-modal');
+        const titleElement = $('#confirmation-title');
+        const messageElement = $('#confirmation-message');
+        const confirmBtn = $('#confirmation-confirm-btn');
+        const cancelBtn = $('#confirmation-cancel-btn');
+
+        if (!modal || !titleElement || !messageElement || !confirmBtn || !cancelBtn) return;
+
+        titleElement.textContent = title;
+        messageElement.textContent = message;
+
+        // Remove previous event listeners
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+        // Add new event listeners
+        newConfirmBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            if (onConfirm) onConfirm();
+        });
+
+        newCancelBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            if (onCancel) onCancel();
+        });
+
+        modal.style.display = 'block';
+    }
+
+    function closeConfirmationModal() {
+        const modal = $('#confirmation-modal');
+        modal.style.display = 'none';
     }
 
     async function saveClient() {
@@ -3226,7 +3637,13 @@
                 }
                 
                 if (adviceText) {
-                    saveRecommendation(state.currentClient.id, adviceText, state.selectedFragments.length);
+                    saveRecommendation(
+                        state.currentClient.id, 
+                        adviceText, 
+                        state.selectedFragments.length,
+                        advice, // Pass structured data
+                        state.selectedFragments.slice() // Pass current fragments
+                    );
                 }
             }
             
@@ -3443,11 +3860,15 @@
             modal.querySelector('.close-history').addEventListener('click', () => modal.remove());
             modal.querySelector('.close-history-btn').addEventListener('click', () => modal.remove());
             modal.querySelector('.clear-history-btn').addEventListener('click', () => {
-                if (confirm('Ви впевнені, що хочете видалити всю історію порад?')) {
-                    localStorage.removeItem(historyKey);
-                    modal.remove();
-                    showNotification('Історію порад очищено', 'success');
-                }
+                showCustomConfirmation(
+                    'Очищення історії порад',
+                    'Ви впевнені, що хочете видалити всю історію порад? Цю дію неможливо скасувати.',
+                    () => {
+                        localStorage.removeItem(historyKey);
+                        modal.remove();
+                        showNotification('Історію порад очищено', 'success');
+                    }
+                );
             });
             
             // Copy buttons
@@ -3545,12 +3966,16 @@
     function clearWorkspace() {
         if (state.selectedFragments.length === 0) return;
 
-        if (confirm('Очистити робочу область? Всі обрані фрагменти будуть видалені.')) {
-            state.selectedFragments = [];
-            updateWorkspaceFragments();
-            updateWorkspaceActions();
-            showNotification('Робочу область очищено', 'info');
-        }
+        showCustomConfirmation(
+            'Очищення робочої області',
+            'Очистити робочу область? Всі обрані фрагменти будуть видалені.',
+            () => {
+                state.selectedFragments = [];
+                updateWorkspaceFragments();
+                updateWorkspaceActions();
+                showNotification('Робочу область очищено', 'info');
+            }
+        );
     }
 
     // ===== Product Switcher =====
@@ -3608,7 +4033,10 @@
         // Navigation actions
         $('#help-toggle')?.addEventListener('click', showOnboarding);
         $('#logout-btn')?.addEventListener('click', () => {
-            if (confirm('Ви впевнені, що хочете вийти із системи?')) {
+            showCustomConfirmation(
+                'Вихід з системи',
+                'Ви впевнені, що хочете вийти із системи?',
+                () => {
                 console.log('🔐 Logout button clicked, calling logout function');
                 // Use the proper logout function from auth.js
                 if (window.logout) {
@@ -3622,6 +4050,7 @@
                     window.location.href = '/login.html';
                 }
             }
+        );
         });
 
         // Onboarding
@@ -3629,6 +4058,40 @@
         elements.skipOnboarding?.addEventListener('click', completeOnboarding);
         elements.nextStep?.addEventListener('click', nextOnboardingStep);
         elements.prevStep?.addEventListener('click', prevOnboardingStep);
+
+        // Enhanced Recommendations Modal
+        $('#open-recommendations-modal')?.addEventListener('click', openRecommendationsModal);
+        $('#close-recommendations-modal')?.addEventListener('click', closeRecommendationsModal);
+        $('#close-recommendations-modal-btn')?.addEventListener('click', closeRecommendationsModal);
+        $('#clear-all-recommendations-btn')?.addEventListener('click', confirmClearAllRecommendations);
+        $('#export-recommendations-btn')?.addEventListener('click', exportRecommendations);
+        
+        // Recommendations search
+        $('#recommendations-search')?.addEventListener('input', debounce(() => {
+            if (state.currentClient) {
+                const recommendations = state.recommendationsHistory[state.currentClient.id] || [];
+                updateRecommendationsTable(recommendations);
+            }
+        }, 300));
+
+        // Recommendation Details Modal
+        $('#close-recommendation-details-modal')?.addEventListener('click', closeRecommendationDetails);
+        $('#close-recommendation-details-btn')?.addEventListener('click', closeRecommendationDetails);
+        $('#save-recommendation-comment-btn')?.addEventListener('click', saveRecommendationComment);
+
+        // Custom Confirmation Modal
+        $('#confirmation-cancel-btn')?.addEventListener('click', closeConfirmationModal);
+
+        // Close modals on click outside
+        $('#recommendations-modal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'recommendations-modal') closeRecommendationsModal();
+        });
+        $('#recommendation-details-modal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'recommendation-details-modal') closeRecommendationDetails();
+        });
+        $('#confirmation-modal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'confirmation-modal') closeConfirmationModal();
+        });
 
         // Input methods
         elements.textMethod?.addEventListener('click', () => updateInputMethod('text'));
@@ -3993,36 +4456,38 @@
     }
 
     async function confirmDeleteAnalysis(analysisId) {
-        try {
-            if (!confirm('Видалити цей аналіз? Цю дію неможливо скасувати.')) {
-                return;
+        showCustomConfirmation(
+            'Видалення аналізу',
+            'Видалити цей аналіз? Цю дію неможливо скасувати.',
+            async () => {
+                try {
+                    const response = await fetch(`/api/analyses/${analysisId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.error || 'Помилка видалення аналізу');
+                    }
+
+                    // If deleted analysis was current, clear it
+                    if (state.currentAnalysis?.id === analysisId) {
+                        clearAnalysisDisplay();
+                    }
+
+                    // Reload analysis history for current client
+                    if (state.currentClient) {
+                        await loadAnalysisHistoryAndLatest(state.currentClient.id);
+                    }
+
+                    showNotification('Аналіз видалено успішно', 'success');
+
+                } catch (error) {
+                    console.error('Delete analysis error:', error);
+                    showNotification(error.message || 'Помилка при видаленні аналізу', 'error');
+                }
             }
-
-            const response = await fetch(`/api/analyses/${analysisId}`, {
-                method: 'DELETE'
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Помилка видалення аналізу');
-            }
-
-            // If deleted analysis was current, clear it
-            if (state.currentAnalysis?.id === analysisId) {
-                clearAnalysisDisplay();
-            }
-
-            // Reload analysis history for current client
-            if (state.currentClient) {
-                await loadAnalysisHistoryAndLatest(state.currentClient.id);
-            }
-
-            showNotification('Аналіз видалено успішно', 'success');
-
-        } catch (error) {
-            console.error('Delete analysis error:', error);
-            showNotification(error.message || 'Помилка при видаленні аналізу', 'error');
-        }
+        );
     }
 
     function formatDate(dateStr) {
@@ -4299,6 +4764,18 @@
     window.copyRecommendation = copyRecommendation;
     window.clearRecommendationsHistory = clearRecommendationsHistory;
     window.confirmClearRecommendations = confirmClearRecommendations;
+    
+    // Enhanced recommendations functions
+    window.openRecommendationsModal = openRecommendationsModal;
+    window.closeRecommendationsModal = closeRecommendationsModal;
+    window.openRecommendationDetails = openRecommendationDetails;
+    window.closeRecommendationDetails = closeRecommendationDetails;
+    window.saveRecommendationComment = saveRecommendationComment;
+    window.confirmDeleteRecommendation = confirmDeleteRecommendation;
+    window.confirmClearAllRecommendations = confirmClearAllRecommendations;
+    window.exportRecommendations = exportRecommendations;
+    window.showCustomConfirmation = showCustomConfirmation;
+    window.closeConfirmationModal = closeConfirmationModal;
     
     // ===== Debug Testing Functions =====
     window.testClientFunctions = function() {
@@ -4794,39 +5271,41 @@
     }
     
     async function deleteAnalysisFromModal(clientId, analysisId) {
-        if (!confirm('Ви впевнені, що хочете видалити цей аналіз? Цю дію неможливо скасувати.')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch(`/api/clients/${clientId}/analysis/${analysisId}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to delete analysis');
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showNotification('Аналіз видалено успішно', 'success');
-                
-                // Reload the analysis history
-                loadClientAnalysisHistory(clientId);
-                
-                // Refresh analyses list in sidebar
-                if (state.currentClient) {
-                    loadAnalysisHistory(state.currentClient.id);
+        showCustomConfirmation(
+            'Видалення аналізу',
+            'Ви впевнені, що хочете видалити цей аналіз? Цю дію неможливо скасувати.',
+            async () => {
+                try {
+                    const response = await fetch(`/api/clients/${clientId}/analysis/${analysisId}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to delete analysis');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showNotification('Аналіз видалено успішно', 'success');
+                        
+                        // Reload the analysis history
+                        loadClientAnalysisHistory(clientId);
+                        
+                        // Refresh analyses list in sidebar
+                        if (state.currentClient) {
+                            loadAnalysisHistory(state.currentClient.id);
+                        }
+                    } else {
+                        throw new Error(data.error || 'Failed to delete analysis');
+                    }
+                } catch (error) {
+                    console.error('Error deleting analysis:', error);
+                    showNotification('Помилка видалення аналізу', 'error');
                 }
-            } else {
-                throw new Error(data.error || 'Failed to delete analysis');
             }
-        } catch (error) {
-            console.error('Error deleting analysis:', error);
-            showNotification('Помилка видалення аналізу', 'error');
-        }
+        );
     }
     
     function formatDate(date) {
