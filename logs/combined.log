@@ -6706,3 +6706,125 @@
   service: 'teampulse-turbo',
   timestamp: '2025-08-17 07:56:31'
 }
+{
+  message: '🚀 TeamPulse Turbo v3.0 running on 0.0.0.0:3000 (production)',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:27:47'
+}
+{
+  message: '📊 Daily token limit: 512,000',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:27:47'
+}
+{
+  message: '🤖 AI Model: gpt-4o',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:27:47'
+}
+{
+  message: '🔒 Security features enabled: YES',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:27:47'
+}
+{
+  message: '📝 Logging level: info',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:27:47'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:17 +0000] "GET / HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:17'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:17 +0000] "GET /auth.js HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:17'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:17 +0000] "GET /styles-neon.css HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:17'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:17 +0000] "GET /app-neon.js HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:17'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:17 +0000] "GET /api/clients HTTP/1.1" 200 690 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:17'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:17 +0000] "GET /api/clients HTTP/1.1" 200 690 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:17'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-17&_=1755448098241',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 6,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-17 18:28:18'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:18 +0000] "GET /api/usage?date=2025-08-17&_=1755448098241 HTTP/1.1" 200 128 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:18'
+}
+{
+  service: 'teampulse-turbo',
+  method: 'GET',
+  url: '/api/usage?date=2025-08-17&_=1755448099922',
+  userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  ip: '127.0.0.1',
+  responseTime: 3,
+  statusCode: 200,
+  contentLength: undefined,
+  level: 'info',
+  message: 'API Request',
+  timestamp: '2025-08-17 18:28:19'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:19 +0000] "GET /api/usage?date=2025-08-17&_=1755448099922 HTTP/1.1" 200 128 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:19'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:19 +0000] "GET /api/clients HTTP/1.1" 200 690 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:19'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:22 +0000] "GET /api/clients/31 HTTP/1.1" 200 772 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:22'
+}
+{
+  message: '127.0.0.1 - - [17/Aug/2025:16:28:22 +0000] "GET /api/clients/31/analysis/16 HTTP/1.1" 200 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"',
+  level: 'info',
+  service: 'teampulse-turbo',
+  timestamp: '2025-08-17 18:28:22'
+}

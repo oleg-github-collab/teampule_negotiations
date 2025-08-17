@@ -154,9 +154,7 @@
         exportSelectedBtn: $('#export-selected-btn'),
         clearWorkspaceBtn: $('#clear-workspace-btn'),
         
-        // Analysis History
-        analysisHistory: $('#analysis-history'),
-        analysisCount: $('#analysis-count'),
+        // Analysis History (removed from sidebar, now only in modal)
         newAnalysisBtn: $('#new-analysis-btn'),
         
         // Notifications
@@ -4154,7 +4152,7 @@
         $('#close-analysis-modal-btn')?.addEventListener('click', closeAnalysisHistoryModal);
         $('#new-analysis-from-modal')?.addEventListener('click', () => {
             closeAnalysisHistoryModal();
-            showView('analysis-dashboard');
+            showSection('analysis-dashboard');
             createNewAnalysis();
         });
         
@@ -4330,95 +4328,10 @@
     }
 
     function renderAnalysisHistory(analyses) {
-        if (!elements.analysisHistory) return;
-
-        if (elements.analysisCount) {
-            elements.analysisCount.textContent = analyses.length;
-        }
-
-        if (analyses.length === 0) {
-            elements.analysisHistory.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <i class="fas fa-history"></i>
-                    </div>
-                    <p>Немає аналізів</p>
-                </div>
-            `;
-            return;
-        }
-
-        elements.analysisHistory.innerHTML = analyses.map((analysis, index) => {
-            const isLatest = index === 0;
-            const date = new Date(analysis.created_at);
-            const timeAgo = getTimeAgo(date);
-            
-            // Calculate issues count from highlights
-            let issuesCount = 0;
-            
-            // First try to get from analysis.issues_count
-            if (analysis.issues_count && analysis.issues_count > 0) {
-                issuesCount = analysis.issues_count;
-            } 
-            // Then try to parse highlights array
-            else if (analysis.highlights && Array.isArray(analysis.highlights)) {
-                issuesCount = analysis.highlights.length;
-            }
-            // Finally try to parse highlights_json string
-            else if (analysis.highlights_json) {
-                try {
-                    const highlights = JSON.parse(analysis.highlights_json);
-                    if (Array.isArray(highlights)) {
-                        issuesCount = highlights.length;
-                    }
-                } catch (e) {
-                    console.warn('Failed to parse highlights_json:', e);
-                }
-            }
-            
-            console.log(`📊 Analysis ${analysis.id}: calculated ${issuesCount} issues from`, {
-                issues_count: analysis.issues_count,
-                highlights: analysis.highlights?.length,
-                highlights_json: analysis.highlights_json ? 'present' : 'missing'
-            });
-            
-            // Calculate complexity score from barometer if not provided
-            let complexityScore = analysis.complexity_score || 0;
-            if (complexityScore === 0 && analysis.barometer?.score) {
-                complexityScore = analysis.barometer.score;
-            }
-            
-            console.log(`📊 Rendering analysis ${analysis.id}: ${issuesCount} issues, ${complexityScore}/100 complexity`);
-            
-            return `
-                <div class="analysis-history-item ${isLatest ? 'latest' : ''}" 
-                     onclick="window.loadAnalysis(${analysis.id})"
-                     title="Натисніть для перегляду аналізу">
-                    <div class="analysis-header">
-                        <div class="analysis-date">
-                            ${isLatest ? '<i class="fas fa-star" title="Останній"></i> ' : ''}
-                            ${timeAgo}
-                        </div>
-                        <div class="analysis-actions">
-                            <button class="btn-micro" onclick="event.stopPropagation(); confirmDeleteAnalysis(${analysis.id})" title="Видалити аналіз">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-preview">${escapeHtml(analysis.text_preview || 'Аналіз переговорів')}</div>
-                    <div class="analysis-stats">
-                        <span class="stat-item ${issuesCount > 0 ? 'has-issues' : ''}">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            ${issuesCount} проблем
-                        </span>
-                        <span class="stat-item complexity-${getComplexityLevel(complexityScore)}">
-                            <i class="fas fa-tachometer-alt"></i>
-                            ${complexityScore}/100
-                        </span>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        // Analysis history is now only displayed in modal, not in left sidebar
+        console.log('📊 Analysis history loaded:', analyses.length, 'analyses (sidebar display removed)');
+        // Store analyses in state for modal use
+        state.analyses = analyses;
     }
 
     function getTimeAgo(date) {
@@ -5093,7 +5006,7 @@
                     <div class="empty-analysis-state">
                         <i class="fas fa-chart-line"></i>
                         <p>Ще немає аналізів для цього клієнта</p>
-                        <button class="btn-primary btn-sm" onclick="closeAnalysisHistoryModal(); showNewAnalysis();">
+                        <button class="btn-primary btn-sm" onclick="closeAnalysisHistoryModal(); showSection('analysis-dashboard'); createNewAnalysis();">
                             <i class="fas fa-plus"></i>
                             Створити перший аналіз
                         </button>

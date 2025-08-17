@@ -384,7 +384,7 @@ body::before {
     position: absolute;
     top: 100%;
     left: 0;
-    background: var(--card);
+    background: var(--bg-primary);
     backdrop-filter: blur(20px);
     border: 1px solid var(--border);
     border-radius: 12px;
