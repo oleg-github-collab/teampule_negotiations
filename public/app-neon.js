@@ -780,11 +780,21 @@
 
     function showClientForm(clientId = null) {
         const isEdit = clientId !== null;
-        
+
         if (elements.clientFormTitle) {
             elements.clientFormTitle.textContent = isEdit ? 'Редагувати клієнта' : 'Новий клієнт';
         }
-        
+
+        // Store editing client ID in form data attribute
+        const clientForm = $('#client-form');
+        if (clientForm) {
+            if (isEdit) {
+                clientForm.dataset.editingClientId = clientId;
+            } else {
+                delete clientForm.dataset.editingClientId;
+            }
+        }
+
         if (isEdit) {
             const client = state.clients.find(c => c.id === clientId);
             if (client) {
@@ -793,7 +803,7 @@
         } else {
             clearClientForm();
         }
-        
+
         showSection('client-form');
     }
 
@@ -1602,7 +1612,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         try {
             const clientData = {};
             const inputs = $$('#client-form input, #client-form select, #client-form textarea');
-            
+
             let hasRequired = false;
             inputs.forEach(input => {
                 if (input.value.trim()) {
@@ -1616,53 +1626,79 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                 return;
             }
 
-            // Add loading state
-            if (elements.saveClientBtn) {
-                elements.saveClientBtn.classList.add('btn-loading');
-                elements.saveClientBtn.disabled = true;
+            // Check if this is edit or create mode
+            const clientForm = $('#client-form');
+            const editingClientId = clientForm?.dataset.editingClientId;
+            const isEdit = !!editingClientId;
+
+            // Prepare callbacks for enhanced operations
+            const callbacks = {
+                showNotification,
+                renderClientsList,
+                updateClientCount,
+                updateNavClientInfo,
+                updateWorkspaceClientInfo,
+                showSection,
+                setLoadingState: (loading) => {
+                    if (elements.saveClientBtn) {
+                        elements.saveClientBtn.classList.toggle('btn-loading', loading);
+                        elements.saveClientBtn.disabled = loading;
+                    }
+                }
+            };
+
+            let result;
+            if (isEdit && window.ClientOperations) {
+                // Use enhanced update operation with optimistic updates
+                result = await window.ClientOperations.update(
+                    parseInt(editingClientId),
+                    clientData,
+                    state,
+                    callbacks
+                );
+            } else if (window.ClientOperations) {
+                // Use enhanced create operation
+                result = await window.ClientOperations.create(
+                    clientData,
+                    state,
+                    callbacks
+                );
+            } else {
+                // Fallback to legacy implementation if ClientOperations not loaded
+                callbacks.setLoadingState(true);
+
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clientData)
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Помилка збереження');
+
+                showNotification('Клієнта збережено успішно! 🎉', 'success');
+                state.currentClient = data.client;
+                await loadClients(true);
+                setTimeout(() => {
+                    renderClientsList();
+                    updateClientCount();
+                }, 200);
+                updateNavClientInfo(state.currentClient);
+                updateWorkspaceClientInfo(state.currentClient);
+                showSection('analysis-dashboard');
+
+                callbacks.setLoadingState(false);
+                result = { success: true };
             }
 
-            const response = await fetch('/api/clients', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(clientData)
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Помилка збереження');
+            // Save state if successful
+            if (result?.success) {
+                scheduleStateSave();
             }
-
-            showNotification('Клієнта збережено успішно! 🎉', 'success');
-            
-            // Set the new client as current and show analysis dashboard
-            state.currentClient = data.client;
-            
-            // Force refresh the clients list to ensure it appears
-            await loadClients(true); // Force refresh with cache busting
-            
-            // Make sure the client appears in UI with delay for better UX
-            setTimeout(() => {
-                renderClientsList();
-                updateClientCount();
-            }, 200);
-            updateNavClientInfo(state.currentClient);
-            updateWorkspaceClientInfo(state.currentClient);
-            
-            // Show analysis dashboard
-            showSection('analysis-dashboard');
-            
-            // Save state
-            scheduleStateSave();
 
         } catch (error) {
             console.error('Save client error:', error);
             showNotification(error.message || 'Помилка при збереженні клієнта', 'error');
-        } finally {
-            // Remove loading state
             if (elements.saveClientBtn) {
                 elements.saveClientBtn.classList.remove('btn-loading');
                 elements.saveClientBtn.disabled = false;
@@ -2567,7 +2603,11 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             const comment = getHumorousBarometerComment(score, label, clientName);
             elements.barometerComment.textContent = comment;
         }
-        
+
+        // Enhanced barometer features
+        renderBarometerFactors(barometer);
+        renderBarometerRecommendations(barometer);
+
         // Update gauge with smooth animation
         const gaugeCircle = $('#gauge-circle');
         if (gaugeCircle) {
@@ -2606,6 +2646,106 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             
             animateGauge();
         }
+    }
+
+    // Enhanced barometer rendering functions
+    function renderBarometerFactors(barometer) {
+        const factorsContainer = $('#barometer-factors');
+        const factorsContent = $('#factors-content');
+        const toggleBtn = $('#toggle-factors-btn');
+
+        if (!factorsContainer || !factorsContent || !toggleBtn || !barometer.factors) return;
+
+        factorsContainer.style.display = 'block';
+
+        // Factor name mapping with icons
+        const factorMeta = {
+            company_size_impact: { name: 'Розмір компанії', icon: 'fa-building', max: 25 },
+            sector_complexity: { name: 'Складність галузі', icon: 'fa-industry', max: 25 },
+            client_profile: { name: 'Профіль угоди', icon: 'fa-handshake', max: 20 },
+            manipulation_density: { name: 'Щільність маніпуляцій', icon: 'fa-compress', max: 25 },
+            manipulation_frequency: { name: 'Різноманітність маніпуляцій', icon: 'fa-chart-bar', max: 10 },
+            manipulation_severity: { name: 'Серйозність маніпуляцій', icon: 'fa-exclamation-triangle', max: 30 },
+            communication_style: { name: 'Стиль комунікації', icon: 'fa-comments', max: 20 },
+            negotiation_type: { name: 'Тип переговорів', icon: 'fa-briefcase', max: 20 },
+            stakes_level: { name: 'Рівень ставок', icon: 'fa-star', max: 25 },
+            time_pressure: { name: 'Тиск часу', icon: 'fa-clock', max: 15 },
+            risk_indicators: { name: 'Індикатори ризиків', icon: 'fa-shield-alt', max: 20 },
+            power_dynamics: { name: 'Динаміка влади', icon: 'fa-balance-scale', max: 10 }
+        };
+
+        const factorsHTML = Object.entries(barometer.factors)
+            .filter(([_, value]) => value > 0)
+            .sort(([_, a], [__, b]) => b - a)
+            .map(([key, value]) => {
+                const meta = factorMeta[key] || { name: key, icon: 'fa-info-circle', max: 20 };
+                const percentage = Math.min(100, (value / meta.max) * 100);
+                let severity = 'low';
+                if (percentage > 66) severity = 'high';
+                else if (percentage > 33) severity = 'medium';
+
+                return `
+                    <div class="factor-item">
+                        <div class="factor-header">
+                            <div class="factor-name">
+                                <i class="fas ${meta.icon} factor-icon"></i>
+                                ${meta.name}
+                            </div>
+                            <div class="factor-value ${severity}">${Math.round(value)}</div>
+                        </div>
+                        <div class="factor-bar-container">
+                            <div class="factor-bar ${severity}" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+            })
+            .join('');
+
+        factorsContent.innerHTML = factorsHTML;
+
+        // Toggle functionality
+        toggleBtn.onclick = () => {
+            const isExpanded = factorsContent.style.display !== 'none';
+            factorsContent.style.display = isExpanded ? 'none' : 'block';
+            toggleBtn.classList.toggle('expanded', !isExpanded);
+            toggleBtn.setAttribute('aria-label', isExpanded ? 'Розгорнути' : 'Згорнути');
+        };
+    }
+
+    function renderBarometerRecommendations(barometer) {
+        const recommendationsContainer = $('#barometer-recommendations');
+
+        if (!recommendationsContainer || !barometer.recommendations || barometer.recommendations.length === 0) {
+            if (recommendationsContainer) recommendationsContainer.style.display = 'none';
+            return;
+        }
+
+        recommendationsContainer.style.display = 'block';
+
+        const recommendationsHTML = `
+            <div class="recommendations-header">
+                <i class="fas fa-lightbulb"></i>
+                <span>Стратегічні рекомендації</span>
+            </div>
+            <div class="recommendation-list">
+                ${barometer.recommendations.map(rec => {
+                    let className = 'recommendation-item';
+                    if (rec.includes('🚨') || rec.includes('💀') || rec.includes('Критично')) {
+                        className += ' critical';
+                    } else if (rec.includes('⚠️') || rec.includes('⚖️')) {
+                        className += ' warning';
+                    }
+
+                    return `
+                        <div class="${className}">
+                            <div class="recommendation-text">${rec}</div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        recommendationsContainer.innerHTML = recommendationsHTML;
     }
 
     function displayAnalysisResults(analysis) {
@@ -4794,6 +4934,28 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
 
     async function performDeleteClient(clientId) {
         console.log('🗑️ performDeleteClient called with ID:', clientId);
+
+        // Use enhanced delete operation if available
+        if (window.ClientOperations) {
+            const callbacks = {
+                showNotification,
+                renderClientsList,
+                updateClientCount,
+                updateNavClientInfo,
+                updateWorkspaceClientInfo,
+                showSection
+            };
+
+            const result = await window.ClientOperations.delete(clientId, state, callbacks);
+
+            if (result?.success) {
+                scheduleStateSave();
+            }
+
+            return result;
+        }
+
+        // Fallback to legacy implementation
         try {
             const client = state.clients.find(c => c.id === clientId);
             console.log('🗑️ Found client for deletion:', client ? client.company : 'NOT FOUND');
@@ -4812,7 +4974,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
 
             // Update state
             state.clients = state.clients.filter(c => c.id !== clientId);
-            
+
             // Cascade delete: Remove all recommendations for this client
             if (state.recommendationsHistory[clientId]) {
                 const recommendationsCount = state.recommendationsHistory[clientId].length;
@@ -4820,7 +4982,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                 console.log(`🗑️ Cascade delete: Removed ${recommendationsCount} recommendations for client ${clientId}`);
                 scheduleStateSave();
             }
-            
+
             // Cascade delete: Remove all analyses for this client
             if (state.analysisHistory[clientId]) {
                 const analysesCount = state.analysisHistory[clientId].length;
@@ -4828,7 +4990,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                 console.log(`🗑️ Cascade delete: Removed ${analysesCount} analyses for client ${clientId}`);
                 scheduleStateSave();
             }
-            
+
             // If deleted client was current, clear selection
             if (state.currentClient?.id === clientId) {
                 state.currentClient = null;

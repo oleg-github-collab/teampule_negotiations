@@ -539,6 +539,25 @@
                                 <div class="barometer-score" id="barometer-score">—</div>
                                 <div class="barometer-label" id="barometer-label">Очікування аналізу...</div>
                                 <div class="barometer-comment" id="barometer-comment"></div>
+
+                                <!-- Barometer Factor Breakdown -->
+                                <div class="barometer-factors" id="barometer-factors" style="display: none;">
+                                    <div class="factors-header">
+                                        <i class="fas fa-chart-pie"></i>
+                                        <span>Детальний розклад факторів</span>
+                                        <button class="toggle-factors-btn" id="toggle-factors-btn" aria-label="Розгорнути">
+                                            <i class="fas fa-chevron-down"></i>
+                                        </button>
+                                    </div>
+                                    <div class="factors-content" id="factors-content" style="display: none;">
+                                        <!-- Factors will be dynamically populated -->
+                                    </div>
+                                </div>
+
+                                <!-- Barometer Recommendations -->
+                                <div class="barometer-recommendations" id="barometer-recommendations" style="display: none;">
+                                    <!-- Recommendations will be dynamically populated -->
+                                </div>
                             </div>
 
                             <!-- Highlights Section -->
@@ -1118,6 +1137,7 @@
     <!-- Scripts -->
     <script src="/auth.js"></script>
     <script src="/participant-filter.js"></script>
+    <script src="/client-operations.js"></script>
     <script src="/app-neon.js"></script>
 </body>
 </html>
