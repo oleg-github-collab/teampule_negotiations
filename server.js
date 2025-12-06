@@ -196,33 +196,33 @@ app.post('/api/logout', (req, res) => {
 // Token usage endpoint
 app.get('/api/usage', authMiddleware, async (req, res) => {
   try {
-    const { get: dbGet } = await import('./utils/db.js');
-    
+    const { get: dbGet } = await import('./utils/db-postgres.js');
+
     // Get today's usage
     const today = new Date().toISOString().slice(0, 10);
-    const usageRow = dbGet(`SELECT * FROM usage_daily WHERE day = ?`, [today]);
-    
+    const usageRow = await dbGet(`SELECT * FROM usage_daily WHERE day = $1`, [today]);
+
     const usedTokens = usageRow?.tokens_used || 0;
     const totalTokens = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
     const percentage = Math.min((usedTokens / totalTokens) * 100, 100);
-    
+
     // Calculate reset date (tomorrow at midnight)
     const resetDate = new Date();
     resetDate.setDate(resetDate.getDate() + 1);
     resetDate.setHours(0, 0, 0, 0);
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      used_tokens: usedTokens, 
-      total_tokens: totalTokens, 
+      used_tokens: usedTokens,
+      total_tokens: totalTokens,
       percentage: Math.round(percentage * 10) / 10,
       reset_date: resetDate.toISOString(),
       day: today
     });
   } catch (error) {
     logError('Failed to get token usage', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Failed to retrieve token usage',
       used_tokens: 0,
       total_tokens: Number(process.env.DAILY_TOKEN_LIMIT || 512000),
@@ -249,27 +249,28 @@ app.post('/api/log-error', (req, res) => {
 app.post('/api/admin/cleanup-database', authMiddleware, async (req, res) => {
   try {
     const { confirmCode } = req.body;
-    
+
     // Require confirmation code for safety
     if (confirmCode !== 'CLEANUP_TEST_DATA_2024') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid confirmation code',
         required: 'CLEANUP_TEST_DATA_2024'
       });
     }
 
     // Import database functions
-    const { run } = await import('./utils/db.js');
-    
+    const { run } = await import('./utils/db-postgres.js');
+
     // Delete all analyses first (due to foreign key constraints)
-    const analysesDeleted = run('DELETE FROM analyses');
-    
+    const analysesDeleted = await run('DELETE FROM analyses');
+
     // Delete all clients
-    const clientsDeleted = run('DELETE FROM clients');
-    
-    // Reset auto-increment counters
-    run('DELETE FROM sqlite_sequence WHERE name IN ("clients", "analyses")');
-    
+    const clientsDeleted = await run('DELETE FROM clients');
+
+    // Reset auto-increment counters for PostgreSQL
+    await run('ALTER SEQUENCE clients_id_seq RESTART WITH 1');
+    await run('ALTER SEQUENCE analyses_id_seq RESTART WITH 1');
+
     // Log the cleanup
     logSecurity('Database cleanup performed', {
       ip: req.ip,
@@ -278,7 +279,7 @@ app.post('/api/admin/cleanup-database', authMiddleware, async (req, res) => {
       clientsDeleted: clientsDeleted.changes,
       timestamp: new Date().toISOString()
     });
-    
+
     res.json({
       success: true,
       message: 'База даних очищена успішно',
@@ -287,7 +288,7 @@ app.post('/api/admin/cleanup-database', authMiddleware, async (req, res) => {
         analyses: analysesDeleted.changes
       }
     });
-    
+
   } catch (error) {
     logError(error, { endpoint: 'POST /api/admin/cleanup-database', ip: req.ip });
     res.status(500).json({
@@ -317,9 +318,10 @@ app.get('/health', async (req, res) => {
 
   // Check database connectivity
   try {
-    const { get } = await import('./utils/db.js');
-    get('SELECT 1 as test');
-    healthStatus.checks.database = 'healthy';
+    const { healthCheck } = await import('./utils/db-postgres.js');
+    const dbHealthy = await healthCheck();
+    healthStatus.checks.database = dbHealthy ? 'healthy' : 'unhealthy';
+    if (!dbHealthy) healthStatus.status = 'degraded';
   } catch (dbError) {
     healthStatus.checks.database = 'unhealthy';
     healthStatus.status = 'degraded';
@@ -374,9 +376,13 @@ app.get('/ping', (_req, res) => res.send('pong'));
 app.get('/ready', async (_req, res) => {
   try {
     // Basic functionality test
-    const { get } = await import('./utils/db.js');
-    get('SELECT 1');
-    res.status(200).json({ ready: true, timestamp: new Date().toISOString() });
+    const { healthCheck } = await import('./utils/db-postgres.js');
+    const isHealthy = await healthCheck();
+    if (isHealthy) {
+      res.status(200).json({ ready: true, timestamp: new Date().toISOString() });
+    } else {
+      res.status(503).json({ ready: false, error: 'Database not ready' });
+    }
   } catch (error) {
     res.status(503).json({ ready: false, error: 'Database not ready' });
   }
@@ -490,24 +496,37 @@ app.use((req, res) => {
 });
 
 // Enhanced graceful shutdown
-const gracefulShutdown = (signal) => {
+const gracefulShutdown = async (signal) => {
   logger.info(`Received ${signal}, starting graceful shutdown...`);
-  
-  server.close((err) => {
-    if (err) {
-      logger.error('Error during server shutdown:', err);
+
+  const server = global.server;
+  if (server) {
+    server.close(async (err) => {
+      if (err) {
+        logger.error('Error during server shutdown:', err);
+      }
+
+      // Close database pool
+      try {
+        const { closePool } = await import('./utils/db-postgres.js');
+        await closePool();
+        logger.info('✅ Database pool closed');
+      } catch (dbErr) {
+        logger.error('Error closing database pool:', dbErr);
+      }
+
+      logger.info('✅ TeamPulse Turbo shutdown complete');
+      process.exit(err ? 1 : 0);
+    });
+
+    // Force shutdown after 30 seconds
+    setTimeout(() => {
+      logger.error('⚠️ Forced shutdown after timeout');
       process.exit(1);
-    }
-    
-    logger.info('✅ TeamPulse Turbo shutdown complete');
+    }, 30000);
+  } else {
     process.exit(0);
-  });
-  
-  // Force shutdown after 30 seconds
-  setTimeout(() => {
-    logger.error('⚠️ Forced shutdown after timeout');
-    process.exit(1);
-  }, 30000);
+  }
 };
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
@@ -602,28 +621,48 @@ setInterval(() => {
   }
 }, 60000); // Check every minute
 
-// Start server with enhanced production features
-const server = app.listen(PORT, HOST, () => {
-  const env = process.env.NODE_ENV || 'development';
-  logger.info(`🚀 TeamPulse Turbo v3.0 running on ${HOST}:${PORT} (${env})`);
-  logger.info(`📊 Daily token limit: ${Number(process.env.DAILY_TOKEN_LIMIT || 512000).toLocaleString()}`);
-  logger.info(`🤖 AI Model: ${process.env.OPENAI_MODEL || 'gpt-4o'}`);
-  logger.info(`🔒 Security features enabled: ${isProduction ? 'YES' : 'NO'}`);
-  logger.info(`📝 Logging level: ${process.env.LOG_LEVEL || 'info'}`);
-  
-  // Log Railway deployment info
-  if (process.env.RAILWAY_ENVIRONMENT) {
-    logRailwayDeploy('server-start', {
-      host: HOST,
-      port: PORT,
-      environment: env,
-      serviceId: process.env.RAILWAY_SERVICE_ID,
-      deploymentId: process.env.RAILWAY_DEPLOYMENT_ID
-    });
-  }
-});
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Initialize PostgreSQL database
+    const { initializeDatabase } = await import('./utils/db-postgres.js');
+    await initializeDatabase();
+    logger.info('✅ PostgreSQL database initialized');
 
-// Server timeout configuration
-server.timeout = 120000; // 2 minutes
-server.keepAliveTimeout = 65000; // 65 seconds
-server.headersTimeout = 66000; // 66 seconds
+    // Start server with enhanced production features
+    const server = app.listen(PORT, HOST, () => {
+      const env = process.env.NODE_ENV || 'development';
+      logger.info(`🚀 TeamPulse Turbo v3.0 running on ${HOST}:${PORT} (${env})`);
+      logger.info(`💾 Database: PostgreSQL`);
+      logger.info(`📊 Daily token limit: ${Number(process.env.DAILY_TOKEN_LIMIT || 512000).toLocaleString()}`);
+      logger.info(`🤖 AI Model: ${process.env.OPENAI_MODEL || 'gpt-4o'}`);
+      logger.info(`🔒 Security features enabled: ${isProduction ? 'YES' : 'NO'}`);
+      logger.info(`📝 Logging level: ${process.env.LOG_LEVEL || 'info'}`);
+
+      // Log Railway deployment info
+      if (process.env.RAILWAY_ENVIRONMENT) {
+        logRailwayDeploy('server-start', {
+          host: HOST,
+          port: PORT,
+          environment: env,
+          serviceId: process.env.RAILWAY_SERVICE_ID,
+          deploymentId: process.env.RAILWAY_DEPLOYMENT_ID
+        });
+      }
+    });
+
+    // Server timeout configuration
+    server.timeout = 120000; // 2 minutes
+    server.keepAliveTimeout = 65000; // 65 seconds
+    server.headersTimeout = 66000; // 66 seconds
+
+    // Make server available for graceful shutdown
+    global.server = server;
+  } catch (error) {
+    logger.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();

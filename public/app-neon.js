@@ -231,11 +231,56 @@
     }
 
     // ===== Token Management =====
+    let tokenUsageLoadInProgress = false;
+    let lastTokenUsageLoad = 0;
+    const TOKEN_USAGE_RATE_LIMIT = 60000; // 1 minute minimum between requests
+
+    // Debounced version of loadTokenUsage to prevent rapid calls
+    const debouncedLoadTokenUsage = debounce(loadTokenUsage, 2000);
+
     async function loadTokenUsage() {
+        // Rate limiting: prevent requests more frequent than once per minute
+        const now = Date.now();
+        if (now - lastTokenUsageLoad < TOKEN_USAGE_RATE_LIMIT) {
+            console.log('📊 Token usage request rate limited, using cached data');
+            return;
+        }
+
+        // Prevent concurrent requests
+        if (tokenUsageLoadInProgress) {
+            console.log('📊 Token usage request already in progress');
+            return;
+        }
+
+        tokenUsageLoadInProgress = true;
+        lastTokenUsageLoad = now;
+
         try {
             // Add timestamp and cache busting for reliable daily updates
             const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
             const response = await fetch(`/api/usage?date=${today}&_=${Date.now()}`);
+            
+            if (response.status === 429) {
+                console.warn('📊 Token usage API rate limited (429), using cached data');
+                // Use cached data instead of failing
+                const cached = localStorage.getItem('teampulse-token-usage');
+                if (cached) {
+                    try {
+                        const cachedData = JSON.parse(cached);
+                        state.tokenUsage = { ...state.tokenUsage, ...cachedData };
+                        updateTokenDisplay();
+                        console.log('📊 Using cached token data due to rate limit');
+                    } catch (e) {
+                        console.error('Error parsing cached token data:', e);
+                    }
+                } else {
+                    console.warn('📊 No cached token data available');
+                }
+                // Schedule next attempt in 2 minutes
+                lastTokenUsageLoad = now + 60000; // Add extra delay for rate limited requests
+                return;
+            }
+
             const data = await response.json();
             
             if (data.success) {
@@ -285,6 +330,8 @@
             
             // Show user-friendly error notification
             showNotification('Помилка завантаження даних про токени. Використовуємо кеш.', 'warning');
+        } finally {
+            tokenUsageLoadInProgress = false;
         }
     }
 
@@ -497,7 +544,7 @@
         
         // Load initial data
         loadClients();
-        loadTokenUsage();
+        debouncedLoadTokenUsage();
     }
 
     // ===== Client Management =====
@@ -907,18 +954,18 @@
                         ${getTimeAgo(new Date(rec.created_at))}
                     </div>
                     <div class="recommendation-actions">
-                        <button class="btn-micro" onclick="openRecommendationDetails(${index})" title="Переглянути деталі">
+                        <button class="btn-micro recommendation-detail-btn" data-action="view-recommendation" data-recommendation-id="${index}" title="Переглянути деталі">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn-micro" onclick="copyRecommendation('${clientId}', ${index})" title="Копіювати">
+                        <button class="btn-micro recommendation-copy-btn" data-action="copy-recommendation" data-recommendation-id="${index}" title="Копіювати">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button class="btn-micro btn-danger" onclick="confirmDeleteRecommendation(${index})" title="Видалити рекомендацію">
+                        <button class="btn-micro btn-danger recommendation-delete-btn" data-action="delete-recommendation" data-recommendation-id="${index}" title="Видалити рекомендацію">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
-                <div class="recommendation-content" onclick="openRecommendationDetails(${index})" style="cursor: pointer;">
+                <div class="recommendation-content recommendation-content-clickable" data-action="expand-recommendation" data-recommendation-id="${index}" style="cursor: pointer;">
                     ${escapeHtml(shortContent)}
                 </div>
                 ${rec.fragments_count ? `
@@ -987,7 +1034,7 @@
                         <span><i class="fas fa-clock"></i> ${getTimeAgo(new Date(rec.created_at))}</span>
                         ${rec.fragments_count ? `<span><i class="fas fa-bookmark"></i> ${rec.fragments_count} фрагментів</span>` : ''}
                     </div>
-                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
+                    <button class="btn-icon close-advice" data-action="close-expanded-recommendation">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -997,10 +1044,10 @@
                     </div>
                 </div>
                 <div class="advice-footer">
-                    <button class="btn-secondary" onclick="copyRecommendation('${clientId}', ${index})">
+                    <button class="btn-secondary" data-action="copy-recommendation" data-recommendation-id="${index}">
                         <i class="fas fa-copy"></i> Копіювати
                     </button>
-                    <button class="btn-danger" onclick="removeRecommendation('${clientId}', ${index}); this.closest('.advice-modal').remove();">
+                    <button class="btn-danger" data-action="delete-recommendation" data-recommendation-id="${index}">
                         <i class="fas fa-trash"></i> Видалити
                     </button>
                 </div>
@@ -1072,7 +1119,7 @@
                         <i class="fas fa-exclamation-triangle" style="color: var(--neon-pink);"></i> 
                         Підтвердження
                     </h3>
-                    <button class="btn-icon close-advice" onclick="this.closest('.advice-modal').remove()">
+                    <button class="btn-icon close-advice" data-action="close-expanded-recommendation">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1081,10 +1128,10 @@
                     <p>Буде видалено <strong>${recommendations.length}</strong> рекомендацій. Цю дію неможливо скасувати.</p>
                 </div>
                 <div class="advice-footer">
-                    <button class="btn-secondary" onclick="this.closest('.advice-modal').remove()">
+                    <button class="btn-secondary" data-action="close-expanded-recommendation">
                         <i class="fas fa-times"></i> Скасувати
                     </button>
-                    <button class="btn-danger" onclick="confirmClearRecommendations('${clientId}'); this.closest('.advice-modal').remove();">
+                    <button class="btn-danger" data-action="clear-all-recommendations">
                         <i class="fas fa-trash"></i> Видалити все
                     </button>
                 </div>
@@ -1213,7 +1260,7 @@
             const repliesCount = rec.advice_data?.recommended_replies?.length || 0;
             
             return `
-                <tr class="recommendation-row" onclick="openRecommendationDetails(${originalIndex})">
+                <tr class="recommendation-row recommendation-row-clickable" data-index="${originalIndex}">
                     <td>
                         <div class="recommendation-date">
                             ${date.toLocaleDateString('uk-UA')}
@@ -1244,13 +1291,13 @@
                     </td>
                     <td>
                         <div class="recommendation-actions">
-                            <button class="btn-micro" onclick="event.stopPropagation(); openRecommendationDetails(${originalIndex})" title="Деталі">
+                            <button class="btn-micro recommendation-detail-btn" data-action="view-recommendation" data-recommendation-id="${originalIndex}" title="Деталі">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn-micro" onclick="event.stopPropagation(); copyRecommendation('${state.currentClient.id}', ${originalIndex})" title="Копіювати">
+                            <button class="btn-micro recommendation-copy-btn" data-action="copy-recommendation" data-recommendation-id="${originalIndex}" title="Копіювати">
                                 <i class="fas fa-copy"></i>
                             </button>
-                            <button class="btn-micro btn-danger" onclick="event.stopPropagation(); confirmDeleteRecommendation(${originalIndex})" title="Видалити">
+                            <button class="btn-micro btn-danger recommendation-delete-btn" data-action="delete-recommendation" data-recommendation-id="${originalIndex}" title="Видалити">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -1478,6 +1525,40 @@
         showNotification('Рекомендації експортовано', 'success');
     }
 
+    function copyRecommendationToClipboard(index) {
+        if (!state.currentClient) return;
+
+        const clientId = state.currentClient.id;
+        const recommendations = state.recommendationsHistory[clientId] || [];
+        const rec = recommendations[index];
+        
+        if (!rec) return;
+
+        const date = new Date(rec.created_at);
+        const replies = rec.advice_data?.recommended_replies || [];
+        const risks = rec.advice_data?.risks || [];
+        const notes = rec.advice_data?.notes || '';
+        
+        const copyText = `Рекомендації TeamPulse (${date.toLocaleString('uk-UA')})
+
+РЕКОМЕНДОВАНІ ВІДПОВІДІ:
+${replies.map((reply, i) => `${i + 1}. ${reply}`).join('\n')}
+
+РИЗИКИ:
+${risks.map((risk, i) => `• ${risk}`).join('\n')}
+
+ДОДАТКОВІ ПОРАДИ:
+${notes}
+
+${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
+
+        navigator.clipboard.writeText(copyText).then(() => {
+            showNotification('Рекомендацію скопійовано в буфер обміну', 'success');
+        }).catch(() => {
+            showNotification('Не вдалося скопіювати в буфер обміну', 'error');
+        });
+    }
+
     // ===== Custom Confirmation Modal =====
 
     function showCustomConfirmation(title, message, onConfirm, onCancel = null) {
@@ -1689,6 +1770,15 @@
             formData.append('text', text);
             formData.append('client_id', state.currentClient.id);
 
+            // Add participant filter if available
+            if (window.ParticipantFilter) {
+                const selectedParticipants = window.ParticipantFilter.get();
+                if (selectedParticipants && selectedParticipants.length > 0) {
+                    formData.append('participants', JSON.stringify(selectedParticipants));
+                    console.log('👥 Filtering by participants:', selectedParticipants);
+                }
+            }
+
             // Start streaming analysis
             const response = await fetch('/api/analyze', {
                 method: 'POST',
@@ -1884,8 +1974,8 @@
                 }
             }
 
-            // Update token usage
-            await loadTokenUsage();
+            // Update token usage (debounced to prevent rate limiting)
+            debouncedLoadTokenUsage();
             updateAnalysisSteps('completed');
             
             // Update analysis history in sidebar if we have all the data
@@ -1999,7 +2089,7 @@
                 <div class="empty-state">
                     <div class="empty-icon"><i class="fas fa-filter"></i></div>
                     <p>Жодних результатів не знайдено за вашими фільтрами</p>
-                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
+                    <button class="btn-secondary btn-sm" data-action="clear-filters">Очистити фільтри</button>
                 </div>
             `;
             return;
@@ -2648,10 +2738,10 @@
                 <div class="highlight-header">
                     <div class="highlight-type ${highlight.category}">${highlight.category_label || 'Проблема'}</div>
                     <div class="highlight-actions">
-                        <button class="btn-icon" onclick="window.addToWorkspace(${index})" title="Додати до робочої області">
+                        <button class="btn-icon" data-action="add-to-workspace" data-highlight-id="${index}" title="Додати до робочої області">
                             <i class="fas fa-plus"></i>
                         </button>
-                        <button class="btn-icon" onclick="window.shareHighlight(${index})" title="Поділитися">
+                        <button class="btn-icon" data-action="share-highlight" data-highlight-id="${index}" title="Поділитися">
                             <i class="fas fa-share"></i>
                         </button>
                     </div>
@@ -3092,7 +3182,7 @@
                 <div class="empty-state">
                     <div class="empty-icon"><i class="fas fa-filter"></i></div>
                     <p>Жодних фрагментів не знайдено за вашими фільтрами</p>
-                    <button class="btn-secondary btn-sm" onclick="clearFilters()">Очистити фільтри</button>
+                    <button class="btn-secondary btn-sm" data-action="clear-filters">Очистити фільтри</button>
                 </div>
             `;
             return;
@@ -3410,10 +3500,10 @@
         
         // Load initial data
         loadClients();
-        loadTokenUsage();
+        debouncedLoadTokenUsage();
         
-        // Auto-refresh token usage
-        setInterval(loadTokenUsage, 30000);
+        // Auto-refresh token usage (less frequent to avoid rate limiting)
+        setInterval(debouncedLoadTokenUsage, 120000); // 2 minutes instead of 30 seconds
     }
 
     function nextOnboardingStep() {
@@ -3548,7 +3638,7 @@
             <div class="fragment-item">
                 <div class="highlight-type ${fragment.category}">${fragment.label}</div>
                 <div class="fragment-text">"${fragment.text}"</div>
-                <button class="fragment-remove" onclick="removeFromWorkspace(${index})" title="Видалити">
+                <button class="fragment-remove" data-action="remove-from-workspace" data-fragment-index="${index}" title="Видалити">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -3647,7 +3737,7 @@
             
             // Show advice in a modal or notification
             showAdviceModal(advice);
-            await loadTokenUsage();
+            debouncedLoadTokenUsage();
 
         } catch (error) {
             console.error('Advice error:', error);
@@ -4163,11 +4253,97 @@
             }
         });
 
+        // Recommendations Event Delegation
+        document.addEventListener('click', handleRecommendationActions);
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
         
         // Window resize
         window.addEventListener('resize', debounce(handleResize, 100));
+    }
+
+    function handleRecommendationActions(e) {
+        const action = e.target.dataset.action || e.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+
+        switch (action) {
+            case 'clear-recommendations':
+                clearRecommendationsHistory();
+                break;
+            case 'open-recommendations-modal':
+                openRecommendationsModal();
+                break;
+            case 'close-recommendations-modal':
+                closeRecommendationsModal();
+                break;
+            case 'clear-all-recommendations':
+                confirmClearAllRecommendations();
+                break;
+            case 'export-recommendations':
+                exportRecommendations();
+                break;
+            case 'view-recommendation':
+                const recId = e.target.dataset.recommendationId || e.target.closest('[data-recommendation-id]')?.dataset.recommendationId;
+                if (recId) openRecommendationDetails(parseInt(recId));
+                break;
+            case 'delete-recommendation':
+                const delId = e.target.dataset.recommendationId || e.target.closest('[data-recommendation-id]')?.dataset.recommendationId;
+                if (delId) confirmDeleteRecommendation(parseInt(delId));
+                break;
+            case 'expand-recommendation':
+                const expId = e.target.dataset.recommendationId || e.target.closest('[data-recommendation-id]')?.dataset.recommendationId;
+                if (expId && state.currentClient?.id) expandRecommendation(state.currentClient.id, parseInt(expId));
+                break;
+            case 'close-recommendation-details':
+                closeRecommendationDetails();
+                break;
+            case 'save-recommendation-comment':
+                saveRecommendationComment();
+                break;
+            case 'copy-recommendation':
+                const copyId = e.target.dataset.recommendationId || e.target.closest('[data-recommendation-id]')?.dataset.recommendationId;
+                if (copyId) copyRecommendationToClipboard(parseInt(copyId));
+                break;
+            case 'close-expanded-recommendation':
+                const modal = e.target.closest('.advice-modal');
+                if (modal) modal.remove();
+                break;
+            case 'clear-filters':
+                clearFilters();
+                break;
+            case 'add-to-workspace':
+                const highlightId = e.target.dataset.highlightId || e.target.closest('[data-highlight-id]')?.dataset.highlightId;
+                if (highlightId) addToWorkspace(parseInt(highlightId));
+                break;
+            case 'share-highlight':
+                const shareId = e.target.dataset.highlightId || e.target.closest('[data-highlight-id]')?.dataset.highlightId;
+                if (shareId && window.shareHighlight) window.shareHighlight(parseInt(shareId));
+                break;
+            case 'remove-from-workspace':
+                const fragmentIndex = e.target.dataset.fragmentIndex || e.target.closest('[data-fragment-index]')?.dataset.fragmentIndex;
+                if (fragmentIndex !== undefined) removeFromWorkspace(parseInt(fragmentIndex));
+                break;
+            case 'create-first-analysis':
+                closeAnalysisHistoryModal();
+                showSection('analysis-dashboard');
+                createNewAnalysis();
+                break;
+            case 'view-analysis-from-modal':
+                const viewClientId = e.target.dataset.clientId || e.target.closest('[data-client-id]')?.dataset.clientId;
+                const viewAnalysisId = e.target.dataset.analysisId || e.target.closest('[data-analysis-id]')?.dataset.analysisId;
+                if (viewClientId && viewAnalysisId) viewAnalysisFromModal(viewClientId, viewAnalysisId);
+                break;
+            case 'delete-analysis-from-modal':
+                const delClientId = e.target.dataset.clientId || e.target.closest('[data-client-id]')?.dataset.clientId;
+                const delAnalysisId = e.target.dataset.analysisId || e.target.closest('[data-analysis-id]')?.dataset.analysisId;
+                if (delClientId && delAnalysisId) deleteAnalysisFromModal(delClientId, delAnalysisId);
+                break;
+            case 'reload-analysis-history':
+                const reloadClientId = e.target.dataset.clientId || e.target.closest('[data-client-id]')?.dataset.clientId;
+                if (reloadClientId && window.loadClientAnalysisHistory) window.loadClientAnalysisHistory(reloadClientId);
+                break;
+        }
     }
 
     function handleKeyboardShortcuts(e) {
@@ -4637,6 +4813,22 @@
             // Update state
             state.clients = state.clients.filter(c => c.id !== clientId);
             
+            // Cascade delete: Remove all recommendations for this client
+            if (state.recommendationsHistory[clientId]) {
+                const recommendationsCount = state.recommendationsHistory[clientId].length;
+                delete state.recommendationsHistory[clientId];
+                console.log(`🗑️ Cascade delete: Removed ${recommendationsCount} recommendations for client ${clientId}`);
+                scheduleStateSave();
+            }
+            
+            // Cascade delete: Remove all analyses for this client
+            if (state.analysisHistory[clientId]) {
+                const analysesCount = state.analysisHistory[clientId].length;
+                delete state.analysisHistory[clientId];
+                console.log(`🗑️ Cascade delete: Removed ${analysesCount} analyses for client ${clientId}`);
+                scheduleStateSave();
+            }
+            
             // If deleted client was current, clear selection
             if (state.currentClient?.id === clientId) {
                 state.currentClient = null;
@@ -5006,7 +5198,7 @@
                     <div class="empty-analysis-state">
                         <i class="fas fa-chart-line"></i>
                         <p>Ще немає аналізів для цього клієнта</p>
-                        <button class="btn-primary btn-sm" onclick="closeAnalysisHistoryModal(); showSection('analysis-dashboard'); createNewAnalysis();">
+                        <button class="btn-primary btn-sm" data-action="create-first-analysis">
                             <i class="fas fa-plus"></i>
                             Створити перший аналіз
                         </button>
@@ -5037,10 +5229,10 @@
                             </div>
                         </div>
                         <div class="analysis-actions">
-                            <button class="action-btn view" onclick="viewAnalysisFromModal(${client.id}, ${analysis.id})" title="Переглянути аналіз">
+                            <button class="action-btn view" data-action="view-analysis-from-modal" data-client-id="${client.id}" data-analysis-id="${analysis.id}" title="Переглянути аналіз">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="action-btn delete" onclick="deleteAnalysisFromModal(${client.id}, ${analysis.id})" title="Видалити аналіз">
+                            <button class="action-btn delete" data-action="delete-analysis-from-modal" data-client-id="${client.id}" data-analysis-id="${analysis.id}" title="Видалити аналіз">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -5099,10 +5291,10 @@
                         </div>
                     </div>
                     <div class="analysis-actions">
-                        <button class="action-btn view" onclick="viewAnalysisFromModal(${state.currentClient?.id}, ${analysis.id})" title="Переглянути аналіз">
+                        <button class="action-btn view" data-action="view-analysis-from-modal" data-client-id="${state.currentClient?.id}" data-analysis-id="${analysis.id}" title="Переглянути аналіз">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="action-btn delete" onclick="deleteAnalysisFromModal(${state.currentClient?.id}, ${analysis.id})" title="Видалити аналіз">
+                        <button class="action-btn delete" data-action="delete-analysis-from-modal" data-client-id="${state.currentClient?.id}" data-analysis-id="${analysis.id}" title="Видалити аналіз">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -5118,7 +5310,7 @@
                 <div class="empty-analysis-state">
                     <i class="fas fa-exclamation-triangle"></i>
                     <p>${escapeHtml(message)}</p>
-                    <button class="btn-secondary btn-sm" onclick="loadClientAnalysisHistory(${state.currentClient?.id})">
+                    <button class="btn-secondary btn-sm" data-action="reload-analysis-history" data-client-id="${state.currentClient?.id}">
                         <i class="fas fa-refresh"></i>
                         Спробувати знову
                     </button>
@@ -5222,8 +5414,10 @@
     }
     
     function formatDate(date) {
+        // Ensure date is a Date object
+        const dateObj = date instanceof Date ? date : new Date(date);
         const now = new Date();
-        const diffMs = now - date;
+        const diffMs = now - dateObj;
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         
         if (diffDays === 0) {
@@ -5233,7 +5427,7 @@
         } else if (diffDays < 7) {
             return `${diffDays} дн. тому`;
         } else {
-            return date.toLocaleDateString('uk-UA');
+            return dateObj.toLocaleDateString('uk-UA');
         }
     }
 
@@ -5278,7 +5472,7 @@
         console.log('🚀 Starting loadClients...');
         loadClients().then(() => {
             console.log('🚀 loadClients completed, clients loaded:', state.clients.length);
-            loadTokenUsage();
+            debouncedLoadTokenUsage();
             
             // Try to restore previous app state
             console.log('🚀 Restoring app state...');

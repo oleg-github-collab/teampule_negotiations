@@ -417,6 +417,41 @@
                                 </div>
                             </div>
 
+                            <!-- Participant Filter Section -->
+                            <div class="participant-filter-section" id="participant-filter-section" style="display: none;">
+                                <div class="section-header">
+                                    <i class="fas fa-users section-icon"></i>
+                                    <h3>Фільтр учасників бесіди</h3>
+                                    <small>Оберіть, чиї повідомлення потрібно аналізувати</small>
+                                </div>
+
+                                <div class="filter-mode">
+                                    <label class="radio-label">
+                                        <input type="radio" name="participant-mode" value="all" checked>
+                                        <span class="radio-text">
+                                            <strong>Всі учасники</strong>
+                                            <small>Аналізувати всю розмову повністю</small>
+                                        </span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="participant-mode" value="custom">
+                                        <span class="radio-text">
+                                            <strong>Обрані учасники</strong>
+                                            <small>Вибрати конкретних людей для аналізу</small>
+                                        </span>
+                                    </label>
+                                </div>
+
+                                <div class="participants-checkboxes" id="participants-checkboxes" style="display: none;">
+                                    <!-- Auto-populated by JavaScript -->
+                                </div>
+
+                                <div class="filter-info" id="filter-info" style="display: none;">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span id="filter-info-text">Виявлено учасників: <strong id="participants-count">0</strong></span>
+                                </div>
+                            </div>
+
                             <!-- Analysis Action -->
                             <div class="analysis-action">
                                 <button class="btn-primary btn-large btn-full" id="start-analysis-btn" disabled>
@@ -670,10 +705,10 @@
                         <i class="fas fa-history"></i>
                         Історія рекомендацій
                         <span class="fragment-counter" id="recommendations-count">0</span>
-                        <button class="btn-micro" id="open-recommendations-modal" title="Управління рекомендаціями" style="margin-left: auto;">
+                        <button class="btn-micro" data-action="open-recommendations-modal" title="Управління рекомендаціями" style="margin-left: auto;">
                             <i class="fas fa-table"></i>
                         </button>
-                        <button class="btn-micro" id="clear-recommendations-btn" onclick="clearRecommendationsHistory()" title="Очистити історію" style="display: none;">
+                        <button class="btn-micro" id="clear-recommendations-btn" data-action="clear-recommendations" title="Очистити історію" style="display: none;">
                             <i class="fas fa-trash"></i>
                         </button>
                     </h4>
@@ -889,7 +924,7 @@
                     Управління рекомендаціями
                     <span class="client-name" id="modal-recommendations-client-name"></span>
                 </h2>
-                <button class="modal-close" id="close-recommendations-modal" title="Закрити">
+                <button class="modal-close" data-action="close-recommendations-modal" title="Закрити">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -916,7 +951,7 @@
                             <i class="fas fa-search"></i>
                             <input type="text" id="recommendations-search" placeholder="Пошук в рекомендаціях...">
                         </div>
-                        <button class="btn-secondary" id="clear-all-recommendations-btn">
+                        <button class="btn-secondary" data-action="clear-all-recommendations">
                             <i class="fas fa-trash"></i>
                             Очистити всі
                         </button>
@@ -951,11 +986,11 @@
             </div>
             
             <div class="modal-footer">
-                <button class="btn-secondary" id="close-recommendations-modal-btn">
+                <button class="btn-secondary" data-action="close-recommendations-modal">
                     <i class="fas fa-times"></i>
                     Закрити
                 </button>
-                <button class="btn-primary" id="export-recommendations-btn">
+                <button class="btn-primary" data-action="export-recommendations">
                     <i class="fas fa-download"></i>
                     Експорт
                 </button>
@@ -971,7 +1006,7 @@
                     <i class="fas fa-info-circle"></i>
                     Деталі рекомендації
                 </h2>
-                <button class="modal-close" id="close-recommendation-details-modal" title="Закрити">
+                <button class="modal-close" data-action="close-recommendation-details" title="Закрити">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -983,11 +1018,11 @@
             </div>
             
             <div class="modal-footer">
-                <button class="btn-secondary" id="close-recommendation-details-btn">
+                <button class="btn-secondary" data-action="close-recommendation-details">
                     <i class="fas fa-times"></i>
                     Закрити
                 </button>
-                <button class="btn-primary" id="save-recommendation-comment-btn">
+                <button class="btn-primary" data-action="save-recommendation-comment">
                     <i class="fas fa-save"></i>
                     Зберегти коментар
                 </button>
@@ -1082,6 +1117,7 @@
 
     <!-- Scripts -->
     <script src="/auth.js"></script>
+    <script src="/participant-filter.js"></script>
     <script src="/app-neon.js"></script>
 </body>
 </html>

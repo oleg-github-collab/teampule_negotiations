@@ -1,22 +1,22 @@
-// routes/advice.js - Production AI advice engine
+// routes/advice.js - Production AI advice engine (PostgreSQL)
 import { Router } from 'express';
 import { client as openaiClient, estimateTokens } from '../utils/openAIClient.js';
 import { validateAdviceRequest } from '../middleware/validators.js';
 import { logError, logAIUsage, logPerformance } from '../utils/logger.js';
-import { run, get } from '../utils/db.js';
+import { run, get } from '../utils/db-postgres.js';
 import { performance } from 'perf_hooks';
 
 const r = Router();
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
 
-// Daily limit helpers - FIXED: using sync DB calls like analyze.js
+// Daily limit helpers - PostgreSQL async version
 async function getUsageRow() {
   const day = new Date().toISOString().slice(0, 10);
-  let row = get(`SELECT * FROM usage_daily WHERE day=?`, [day]); // Fixed: removed await
+  let row = await get(`SELECT * FROM usage_daily WHERE day = $1`, [day]);
   if (!row) {
-    run(`INSERT INTO usage_daily(day, tokens_used) VALUES(?,0)`, [day]); // Fixed: removed await
-    row = get(`SELECT * FROM usage_daily WHERE day=?`, [day]); // Fixed: removed await
+    await run(`INSERT INTO usage_daily(day, tokens_used) VALUES($1, 0)`, [day]);
+    row = await get(`SELECT * FROM usage_daily WHERE day = $1`, [day]);
   }
   return { row, day };
 }
@@ -31,13 +31,13 @@ async function addTokensAndCheck(tokensToAdd) {
   const newTotal = (row.tokens_used || 0) + tokensToAdd;
   if (newTotal >= DAILY_TOKEN_LIMIT) {
     const lock = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    run( // Fixed: removed await
-      `UPDATE usage_daily SET tokens_used=?, locked_until=? WHERE day=?`,
+    await run(
+      `UPDATE usage_daily SET tokens_used = $1, locked_until = $2 WHERE day = $3`,
       [newTotal, lock, day]
     );
     throw new Error(`Досягнуто денний ліміт токенів. Блокування до ${lock}`);
   } else {
-    run(`UPDATE usage_daily SET tokens_used=? WHERE day=?`, [ // Fixed: removed await
+    await run(`UPDATE usage_daily SET tokens_used = $1 WHERE day = $2`, [
       newTotal,
       day,
     ]);
