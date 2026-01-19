@@ -258,8 +258,8 @@
                             </div>
                             
                             <div class="form-field">
-                                <label for="company-size">Розмір компанії</label>
-                                <select id="company-size">
+                                <label for="company_size">Розмір компанії</label>
+                                <select id="company_size">
                                     <option value="">Оберіть розмір...</option>
                                     <option value="startup">Стартап (1-10 осіб)</option>
                                     <option value="small">Мала (11-50 осіб)</option>
@@ -277,8 +277,8 @@
                             </div>
                             
                             <div class="form-field full-width">
-                                <label for="negotiation-type">Тип переговорів</label>
-                                <select id="negotiation-type">
+                                <label for="negotiation_type">Тип переговорів</label>
+                                <select id="negotiation_type">
                                     <option value="">Оберіть тип...</option>
                                     <option value="sales">Продажі послуг/продуктів</option>
                                     <option value="partnership">Партнерська угода</option>
@@ -291,13 +291,13 @@
                             </div>
                             
                             <div class="form-field full-width">
-                                <label for="goals">Ваші цілі</label>
-                                <textarea id="goals" rows="3" placeholder="Опишіть ваші ключові цілі у переговорах..."></textarea>
+                                <label for="goal">Ваші цілі</label>
+                                <textarea id="goal" rows="3" placeholder="Опишіть ваші ключові цілі у переговорах..."></textarea>
                             </div>
                             
                             <div class="form-field full-width">
-                                <label for="deal-value">Очікувана вартість</label>
-                                <input type="text" id="deal-value" placeholder="$10,000, €50K, 1M грн...">
+                                <label for="deal_value">Очікувана вартість</label>
+                                <input type="text" id="deal_value" placeholder="$10,000, €50K, 1M грн...">
                                 <small>Приблизна вартість або бюджет проекту</small>
                             </div>
                         </div>
@@ -1146,6 +1146,35 @@
                 <button class="btn-primary" id="new-analysis-from-modal">
                     <i class="fas fa-plus"></i>
                     Новий аналіз
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Editor Modal (compatibility) -->
+    <div id="team-editor-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container team-editor-modal">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-users"></i>
+                    <span>Редактор команди</span>
+                </h2>
+                <button class="modal-close" id="close-team-editor-modal" title="Закрити">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-content">
+                <p>Створення команди виконується через форму клієнта.</p>
+                <p>Натисніть кнопку нижче, щоб відкрити форму та створити нову команду.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancel-team-editor">
+                    <i class="fas fa-times"></i>
+                    Скасувати
+                </button>
+                <button class="btn-primary" id="open-client-form-from-team-modal">
+                    <i class="fas fa-user-tie"></i>
+                    Відкрити форму клієнта
                 </button>
             </div>
         </div>

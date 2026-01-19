@@ -94,6 +94,12 @@
         clientFormTitle: $('#client-form-title'),
         saveClientBtn: $('#save-client-btn'),
         cancelClientBtn: $('#cancel-client-btn'),
+
+        // Team Editor Modal (compatibility)
+        teamEditorModal: $('#team-editor-modal'),
+        closeTeamEditorModal: $('#close-team-editor-modal'),
+        cancelTeamEditor: $('#cancel-team-editor'),
+        openClientFormFromTeamModal: $('#open-client-form-from-team-modal'),
         
         // Analysis
         textMethod: $('#text-method'),
@@ -803,6 +809,32 @@
         }
     }
 
+    const CLIENT_FIELD_ALIASES = {
+        'company-size': 'company_size',
+        'negotiation-type': 'negotiation_type',
+        'deal-value': 'deal_value',
+        goals: 'goal',
+        user_goals: 'goal'
+    };
+
+    function normalizeClientFieldId(fieldId) {
+        return CLIENT_FIELD_ALIASES[fieldId] || fieldId;
+    }
+
+    function resolveClientInput(fieldId) {
+        const direct = document.getElementById(fieldId);
+        if (direct) return direct;
+        const fallback = document.getElementById(fieldId.replace(/_/g, '-'));
+        return fallback || null;
+    }
+
+    function setClientFieldValue(fieldId, value) {
+        const input = resolveClientInput(fieldId);
+        if (!input) return;
+        if (value === undefined || value === null) return;
+        input.value = String(value);
+    }
+
     function showClientForm(clientId = null) {
         const isEdit = clientId !== null;
 
@@ -844,12 +876,72 @@
     }
 
     function populateClientForm(client) {
+        if (!client) return;
+
+        setClientFieldValue('company', client.company);
+        setClientFieldValue('negotiator', client.negotiator);
+        setClientFieldValue('sector', client.sector);
+        setClientFieldValue('company_size', client.company_size);
+        setClientFieldValue('negotiation_type', client.negotiation_type);
+        setClientFieldValue('deal_value', client.deal_value);
+        setClientFieldValue('goal', client.goal || client.user_goals);
+
         Object.keys(client).forEach(key => {
-            const input = $(`#${key}`);
-            if (input && client[key]) {
-                input.value = client[key];
+            if ([
+                'company',
+                'negotiator',
+                'sector',
+                'company_size',
+                'negotiation_type',
+                'deal_value',
+                'goal',
+                'user_goals'
+            ].includes(key)) {
+                return;
             }
+            setClientFieldValue(key, client[key]);
         });
+    }
+
+    function showTeamEditorModal() {
+        if (!elements.teamEditorModal) {
+            showClientForm();
+            return;
+        }
+        elements.teamEditorModal.style.display = 'flex';
+    }
+
+    function hideTeamEditorModal() {
+        if (!elements.teamEditorModal) return;
+        elements.teamEditorModal.style.display = 'none';
+    }
+
+    function installTeamEditorModalShim() {
+        if (!window.SimpleModal || typeof window.SimpleModal.open !== 'function') return;
+        if (window.SimpleModal._teampulsePatched) return;
+
+        const originalOpen = window.SimpleModal.open.bind(window.SimpleModal);
+        const originalClose = typeof window.SimpleModal.close === 'function'
+            ? window.SimpleModal.close.bind(window.SimpleModal)
+            : null;
+        window.SimpleModal.open = (modalId, ...args) => {
+            if (modalId === 'team-editor-modal') {
+                showTeamEditorModal();
+                return;
+            }
+            return originalOpen(modalId, ...args);
+        };
+
+        if (originalClose) {
+            window.SimpleModal.close = (modalId, ...args) => {
+                if (modalId === 'team-editor-modal') {
+                    hideTeamEditorModal();
+                    return;
+                }
+                return originalClose(modalId, ...args);
+            };
+        }
+        window.SimpleModal._teampulsePatched = true;
     }
 
     async function selectClient(clientId) {
@@ -1641,14 +1733,19 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             let hasRequired = false;
             inputs.forEach(input => {
                 if (input.value.trim()) {
-                    clientData[input.id] = input.value.trim();
-                    if (input.id === 'company') hasRequired = true;
+                    const normalizedId = normalizeClientFieldId(input.id);
+                    clientData[normalizedId] = input.value.trim();
+                    if (normalizedId === 'company') hasRequired = true;
                 }
             });
 
             if (!hasRequired) {
                 showNotification('Назва компанії є обов\'язковою', 'warning');
                 return;
+            }
+
+            if (clientData.goal && !clientData.user_goals) {
+                clientData.user_goals = clientData.goal;
             }
 
             // Check if this is edit or create mode
@@ -2500,8 +2597,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         }
         
         // Factor 6: Enhanced Stakes Analysis (0-25 points)
-        if (clientData?.goals || clientData?.user_goals) {
-            const goalsText = (clientData.goals || clientData.user_goals || '').toLowerCase();
+        if (clientData?.goal || clientData?.goals || clientData?.user_goals) {
+            const goalsText = (clientData.goal || clientData.user_goals || clientData.goals || '').toLowerCase();
             
             // Critical business keywords
             const criticalWords = ['критично', 'важливо', 'стратегічно', 'ключово', 'пріоритет', 'життєво'];
@@ -4565,6 +4662,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
     window.addToWorkspace = addToWorkspace;
     window.removeFromWorkspace = removeFromWorkspace;
     window.copyAdviceToClipboard = copyAdviceToClipboard;
+    window.showTeamEditorModal = showTeamEditorModal;
 
     // ===== Event Handlers =====
     function bindEvents() {
@@ -4641,6 +4739,17 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         $('#close-recommendation-details-modal')?.addEventListener('click', closeRecommendationDetails);
         $('#close-recommendation-details-btn')?.addEventListener('click', closeRecommendationDetails);
         $('#save-recommendation-comment-btn')?.addEventListener('click', saveRecommendationComment);
+
+        // Team editor modal (compatibility)
+        elements.openClientFormFromTeamModal?.addEventListener('click', () => {
+            hideTeamEditorModal();
+            showClientForm();
+        });
+        elements.cancelTeamEditor?.addEventListener('click', hideTeamEditorModal);
+        elements.closeTeamEditorModal?.addEventListener('click', hideTeamEditorModal);
+        elements.teamEditorModal?.addEventListener('click', (e) => {
+            if (e.target === elements.teamEditorModal) hideTeamEditorModal();
+        });
 
         // Custom Confirmation Modal
         $('#confirmation-cancel-btn')?.addEventListener('click', closeConfirmationModal);
@@ -5984,6 +6093,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         
         // Bind events
         bindEvents();
+        installTeamEditorModalShim();
         
         // Initialize displays
         updateTextStats();
