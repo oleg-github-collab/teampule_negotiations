@@ -16,7 +16,7 @@
 
 ### 🛠️ Технологічний стек
 
-- **Backend**: Node.js, Express.js, SQLite
+- **Backend**: Node.js, Express.js, PostgreSQL
 - **AI**: OpenAI GPT-4o API
 - **Security**: Helmet, CORS, Rate Limiting
 - **Logging**: Winston з ротацією логів
@@ -47,13 +47,15 @@ OPENAI_TEMPERATURE=0.2
 # Token Management
 DAILY_TOKEN_LIMIT=512000
 MAX_HIGHLIGHTS_PER_1000_WORDS=12
+MAX_FILE_SIZE=50mb
+ALLOWED_FILE_TYPES=.txt,.docx
 
 # Security
 NODE_ENV=production
 SESSION_SECRET=your_super_secure_session_secret_here
 
 # Database
-DB_PATH=./data/teampulse_production.db
+DATABASE_URL=postgresql://user:password@host:port/database
 
 # Server Configuration  
 PORT=3000
@@ -71,7 +73,7 @@ DB_POOL_SIZE=10
 ### 3. Створення необхідних папок
 
 ```bash
-mkdir -p data logs
+mkdir -p logs
 ```
 
 ## 🚀 Запуск

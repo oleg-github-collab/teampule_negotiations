@@ -4511,6 +4511,18 @@ textarea:focus-visible {
     flex-wrap: wrap;
 }
 
+.participant-actions {
+    display: flex;
+    gap: 12px;
+    margin: 4px 0 12px 0;
+    flex-wrap: wrap;
+}
+
+.participant-actions .btn-secondary {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
 .radio-label {
     display: flex;
     align-items: flex-start;

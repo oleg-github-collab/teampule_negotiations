@@ -311,9 +311,9 @@ curl https://your-app.railway.app/health
 | migrate-to-postgres.js | ✨ NEW | Auto-migration script |
 | nixpacks.toml | ✨ NEW | Railway config |
 | .env.example | ✨ NEW | Environment template |
-| public/index.html | ⏳ TODO | Participant filter UI |
-| public/app-neon.js | ⏳ TODO | Participant filter JS |
-| public/styles-neon.css | ⏳ TODO | Participant filter CSS |
+| public/index.html | ✅ | Participant filter UI |
+| public/app-neon.js | ✅ | Participant filter JS |
+| public/styles-neon.css | ✅ | Participant filter CSS |
 
 ## 🎓 Key Improvements
 

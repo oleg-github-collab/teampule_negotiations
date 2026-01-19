@@ -2,6 +2,23 @@
 import { body, param, query, validationResult } from 'express-validator';
 import { logSecurity } from '../utils/logger.js';
 
+const parseSizeToBytes = (value, fallback) => {
+  if (!value) return fallback;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const raw = String(value).trim().toLowerCase();
+  const match = raw.match(/^(\d+(?:\.\d+)?)(kb|mb|gb)?$/);
+  if (!match) return fallback;
+  const number = Number(match[1]);
+  const unit = match[2] || 'b';
+  const multipliers = {
+    b: 1,
+    kb: 1024,
+    mb: 1024 * 1024,
+    gb: 1024 * 1024 * 1024,
+  };
+  return Math.round(number * (multipliers[unit] || 1));
+};
+
 // Helper to handle validation results
 export const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -192,7 +209,7 @@ export const validateFileUpload = (req, res, next) => {
   }
   
   if (req.file) {
-    const allowedTypes = (process.env.ALLOWED_FILE_TYPES || '.txt,.docx,.doc').split(',');
+    const allowedTypes = (process.env.ALLOWED_FILE_TYPES || '.txt,.docx').split(',');
     const fileExt = '.' + req.file.originalname.split('.').pop().toLowerCase();
     
     if (!allowedTypes.includes(fileExt)) {
@@ -208,7 +225,7 @@ export const validateFileUpload = (req, res, next) => {
       });
     }
     
-    const maxSize = parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024; // 50MB default
+    const maxSize = parseSizeToBytes(process.env.MAX_FILE_SIZE, 50 * 1024 * 1024);
     if (req.file.size > maxSize) {
       return res.status(400).json({
         error: `Файл занадто великий. Максимальний розмір: ${Math.round(maxSize / 1024 / 1024)}MB`

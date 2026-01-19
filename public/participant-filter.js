@@ -6,6 +6,7 @@
     const elements = {
         filterSection: document.getElementById('participant-filter-section'),
         checkboxesContainer: document.getElementById('participants-checkboxes'),
+        actionsContainer: document.getElementById('participant-actions'),
         filterInfo: document.getElementById('filter-info'),
         participantsCount: document.getElementById('participants-count'),
         negotiationText: document.getElementById('negotiation-text'),
@@ -71,6 +72,9 @@
 
         // Show filter section
         elements.filterSection.style.display = 'block';
+        if (elements.actionsContainer) {
+            elements.actionsContainer.style.display = 'none';
+        }
 
         // Update count
         if (elements.participantsCount) {
@@ -99,6 +103,14 @@
             elements.checkboxesContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', updateSelectedParticipants);
             });
+        }
+
+        const isCustom = document.querySelector('input[name="participant-mode"]:checked')?.value === 'custom';
+        if (elements.checkboxesContainer) {
+            elements.checkboxesContainer.style.display = isCustom ? 'grid' : 'none';
+        }
+        if (elements.actionsContainer) {
+            elements.actionsContainer.style.display = isCustom ? 'flex' : 'none';
         }
 
         // Initialize selected
@@ -147,6 +159,9 @@
         if (elements.checkboxesContainer) {
             elements.checkboxesContainer.innerHTML = '';
         }
+        if (elements.actionsContainer) {
+            elements.actionsContainer.style.display = 'none';
+        }
         if (elements.filterInfo) {
             elements.filterInfo.style.display = 'none';
         }
@@ -175,6 +190,9 @@
                     if (elements.checkboxesContainer) {
                         const isCustom = e.target.value === 'custom';
                         elements.checkboxesContainer.style.display = isCustom ? 'grid' : 'none';
+                        if (elements.actionsContainer) {
+                            elements.actionsContainer.style.display = isCustom ? 'flex' : 'none';
+                        }
                     }
                 });
             });

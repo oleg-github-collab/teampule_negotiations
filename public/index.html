@@ -393,14 +393,14 @@
                                     <div class="dropzone-text">
                                         <h4>Перетягніть файл сюди</h4>
                                         <p>або натисніть для вибору файлу</p>
-                                        <small>Підтримувані формати: TXT, DOC, DOCX (до 10MB)</small>
+                                        <small>Підтримувані формати: TXT, DOCX (до 50MB)</small>
                                     </div>
                                     <button type="button" class="btn-secondary" id="choose-file-btn">
                                         <i class="fas fa-folder-open"></i>
                                         Обрати файл
                                     </button>
                                 </div>
-                                <input type="file" id="file-input" accept=".txt,.docx,.doc" hidden>
+                                <input type="file" id="file-input" accept=".txt,.docx" hidden>
                                 
                                 <!-- File Preview -->
                                 <div id="file-preview" class="file-preview" style="display: none;">
@@ -440,6 +440,15 @@
                                             <small>Вибрати конкретних людей для аналізу</small>
                                         </span>
                                     </label>
+                                </div>
+
+                                <div class="participant-actions" id="participant-actions" style="display: none;">
+                                    <button type="button" class="btn-secondary" id="select-all-participants">
+                                        Обрати всіх
+                                    </button>
+                                    <button type="button" class="btn-secondary" id="deselect-all-participants">
+                                        Зняти вибір
+                                    </button>
                                 </div>
 
                                 <div class="participants-checkboxes" id="participants-checkboxes" style="display: none;">
@@ -508,7 +517,7 @@
                                     <div class="stat-label">Софізми</div>
                                 </div>
                                 <div class="stat-card">
-                                    <div class="stat-number" id="recommendations-count">0</div>
+                                    <div class="stat-number" id="analysis-recommendations-count">0</div>
                                     <div class="stat-label">Рекомендації</div>
                                 </div>
                             </div>
@@ -723,8 +732,8 @@
                     <h4>
                         <i class="fas fa-history"></i>
                         Історія рекомендацій
-                        <span class="fragment-counter" id="recommendations-count">0</span>
-                        <button class="btn-micro" data-action="open-recommendations-modal" title="Управління рекомендаціями" style="margin-left: auto;">
+                        <span class="fragment-counter" id="workspace-recommendations-count">0</span>
+                        <button class="btn-micro" id="open-recommendations-modal" data-action="open-recommendations-modal" title="Управління рекомендаціями" style="margin-left: auto;">
                             <i class="fas fa-table"></i>
                         </button>
                         <button class="btn-micro" id="clear-recommendations-btn" data-action="clear-recommendations" title="Очистити історію" style="display: none;">
@@ -808,6 +817,9 @@
     <!-- Onboarding Modal -->
     <div id="onboarding-modal" class="onboarding-modal" style="display: none;">
         <div class="onboarding-content">
+            <button class="onboarding-close" id="onboarding-close" title="Закрити онбординг">
+                <i class="fas fa-times"></i>
+            </button>
             
             <div class="onboarding-progress">
                 <div class="progress-bar">
@@ -943,7 +955,7 @@
                     Управління рекомендаціями
                     <span class="client-name" id="modal-recommendations-client-name"></span>
                 </h2>
-                <button class="modal-close" data-action="close-recommendations-modal" title="Закрити">
+                <button class="modal-close" id="close-recommendations-modal" data-action="close-recommendations-modal" title="Закрити">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -970,7 +982,7 @@
                             <i class="fas fa-search"></i>
                             <input type="text" id="recommendations-search" placeholder="Пошук в рекомендаціях...">
                         </div>
-                        <button class="btn-secondary" data-action="clear-all-recommendations">
+                        <button class="btn-secondary" id="clear-all-recommendations-btn" data-action="clear-all-recommendations">
                             <i class="fas fa-trash"></i>
                             Очистити всі
                         </button>
@@ -1005,11 +1017,11 @@
             </div>
             
             <div class="modal-footer">
-                <button class="btn-secondary" data-action="close-recommendations-modal">
+                <button class="btn-secondary" id="close-recommendations-modal-btn" data-action="close-recommendations-modal">
                     <i class="fas fa-times"></i>
                     Закрити
                 </button>
-                <button class="btn-primary" data-action="export-recommendations">
+                <button class="btn-primary" id="export-recommendations-btn" data-action="export-recommendations">
                     <i class="fas fa-download"></i>
                     Експорт
                 </button>
@@ -1025,7 +1037,7 @@
                     <i class="fas fa-info-circle"></i>
                     Деталі рекомендації
                 </h2>
-                <button class="modal-close" data-action="close-recommendation-details" title="Закрити">
+                <button class="modal-close" id="close-recommendation-details-modal" data-action="close-recommendation-details" title="Закрити">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1037,11 +1049,11 @@
             </div>
             
             <div class="modal-footer">
-                <button class="btn-secondary" data-action="close-recommendation-details">
+                <button class="btn-secondary" id="close-recommendation-details-btn" data-action="close-recommendation-details">
                     <i class="fas fa-times"></i>
                     Закрити
                 </button>
-                <button class="btn-primary" data-action="save-recommendation-comment">
+                <button class="btn-primary" id="save-recommendation-comment-btn" data-action="save-recommendation-comment">
                     <i class="fas fa-save"></i>
                     Зберегти коментар
                 </button>

@@ -17,14 +17,14 @@ import fs from 'fs';
 // Import custom middleware and utilities
 import logger, { logError, logSecurity, logAPI, logDetailedError, logClientError, logRailwayDeploy } from './utils/logger.js';
 import { apiLimiter, loginLimiter, analysisLimiter } from './middleware/rateLimiter.js';
-import { validateSecurityHeaders } from './middleware/validators.js';
+import { validateSecurityHeaders, validateLogin } from './middleware/validators.js';
 
 import analyzeRoutes from './routes/analyze.js';
 import clientsRoutes from './routes/clients.js';
 import adviceRoutes from './routes/advice.js';
 
 // Validate required environment variables
-const requiredEnvVars = ['OPENAI_API_KEY', 'NODE_ENV'];
+const requiredEnvVars = ['OPENAI_API_KEY', 'NODE_ENV', 'DATABASE_URL'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -175,12 +175,14 @@ const authMiddleware = (req, res, next) => {
 app.use('/api/', apiLimiter);
 
 // Auth routes with enhanced security
-app.post('/api/login', loginLimiter, (req, res) => {
+app.post('/api/login', loginLimiter, validateLogin, (req, res) => {
   const { username, password } = req.body;
   if (username === 'janeDVDops' && password === 'jane2210') {
     res.cookie('auth', 'authorized', {
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: 'lax',
+      secure: isProduction,
     });
     res.json({ success: true });
   } else {
@@ -189,7 +191,10 @@ app.post('/api/login', loginLimiter, (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  res.clearCookie('auth');
+  res.clearCookie('auth', {
+    sameSite: 'lax',
+    secure: isProduction,
+  });
   res.json({ success: true });
 });
 

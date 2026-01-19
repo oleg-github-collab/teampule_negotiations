@@ -16,6 +16,11 @@ const MAX_HIGHLIGHTS_PER_1000_WORDS = Number(
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
 const MAX_TEXT_LENGTH = 200000; // 200k characters max (~30 pages A4, ~400-500 words per page)
 const MIN_TEXT_LENGTH = 20; // Minimum text length
+const DEFAULT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_FILE_TYPES = (process.env.ALLOWED_FILE_TYPES || '.txt,.docx')
+  .split(',')
+  .map((type) => type.trim().toLowerCase())
+  .filter(Boolean);
 
 // ===== Helpers =====
 function normalizeText(s) {
@@ -162,6 +167,23 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function parseSizeToBytes(value, fallback) {
+  if (!value) return fallback;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const raw = String(value).trim().toLowerCase();
+  const match = raw.match(/^(\d+(?:\.\d+)?)(kb|mb|gb)?$/);
+  if (!match) return fallback;
+  const number = Number(match[1]);
+  const unit = match[2] || 'b';
+  const multipliers = {
+    b: 1,
+    kb: 1024,
+    mb: 1024 * 1024,
+    gb: 1024 * 1024 * 1024,
+  };
+  return Math.round(number * (multipliers[unit] || 1));
+}
+
 function getCategoryClass(category) {
   const categoryMap = {
     'manipulation': 'manipulation',
@@ -295,20 +317,58 @@ function filterTextByParticipants(text, selectedParticipants) {
 
 function parseMultipart(req) {
   return new Promise((resolve, reject) => {
-    const busboy = Busboy({ headers: req.headers });
+    const maxFileSize = parseSizeToBytes(process.env.MAX_FILE_SIZE, DEFAULT_MAX_FILE_SIZE);
+    const busboy = Busboy({
+      headers: req.headers,
+      limits: { fileSize: maxFileSize },
+    });
     let text = '';
     let fileName = '';
     let profile = null;
     let clientId = null;
     let fileBuffer = null;
     let selectedParticipants = null;
+    let fileTooLarge = false;
+    let invalidFileType = false;
+    let fileSize = 0;
 
     busboy.on('file', (_name, file, info) => {
       fileName = info.filename || 'upload';
+      const lower = fileName.toLowerCase();
+      const ext = lower.includes('.') ? `.${lower.split('.').pop()}` : '';
+      if (!ext) {
+        invalidFileType = true;
+        file.resume();
+        return;
+      }
+      if (ext === '.doc') {
+        invalidFileType = true;
+        file.resume();
+        return;
+      }
+      if (ext && ALLOWED_FILE_TYPES.length > 0 && !ALLOWED_FILE_TYPES.includes(ext)) {
+        invalidFileType = true;
+        file.resume();
+        return;
+      }
       const chunks = [];
-      file.on('data', (d) => chunks.push(d));
+      file.on('data', (d) => {
+        fileSize += d.length;
+        if (fileSize > maxFileSize) {
+          fileTooLarge = true;
+          file.resume();
+          return;
+        }
+        chunks.push(d);
+      });
+      file.on('limit', () => {
+        fileTooLarge = true;
+        file.resume();
+      });
       file.on('end', () => {
-        fileBuffer = Buffer.concat(chunks);
+        if (!fileTooLarge && !invalidFileType) {
+          fileBuffer = Buffer.concat(chunks);
+        }
       });
     });
 
@@ -333,6 +393,16 @@ function parseMultipart(req) {
 
     busboy.on('finish', async () => {
       try {
+        if (invalidFileType) {
+          const err = new Error('Непідтримуваний тип файлу. Дозволені: TXT, DOCX');
+          err.status = 400;
+          return reject(err);
+        }
+        if (fileTooLarge) {
+          const err = new Error(`Файл занадто великий. Максимальний розмір: ${Math.round(maxFileSize / 1024 / 1024)}MB`);
+          err.status = 413;
+          return reject(err);
+        }
         if (fileBuffer) {
           const lower = (fileName || '').toLowerCase();
           if (lower.endsWith('.docx')) {
@@ -932,7 +1002,7 @@ r.post('/', validateFileUpload, async (req, res) => {
         title,
         fileName ? 'file' : 'text',
         fileName || null,
-        text.substring(0, 1000), // Save first 1000 chars for preview
+        text,
         totalTokensUsed,
         JSON.stringify(merged),
         JSON.stringify(summaryObj || null),
@@ -974,7 +1044,7 @@ r.post('/', validateFileUpload, async (req, res) => {
     try {
       if (!res.headersSent) {
         const isRateLimit = err.message.includes('Ліміт');
-        const statusCode = isRateLimit ? 429 : 500;
+        const statusCode = err.status || (isRateLimit ? 429 : 500);
         
         res.status(statusCode).json({ 
           error: err.message || 'Помилка обробки аналізу',

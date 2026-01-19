@@ -9,7 +9,7 @@ const dbConfig = {
   ssl: process.env.NODE_ENV === 'production' ? {
     rejectUnauthorized: false // Railway requires this
   } : false,
-  max: 20, // Maximum number of clients in the pool
+  max: Number(process.env.DB_POOL_SIZE) || 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
 };

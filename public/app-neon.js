@@ -11,6 +11,7 @@
         selectedFragments: [],
         recommendationsHistory: {}, // clientId -> array of recommendations
         originalText: null,
+        selectedFile: null,
         onboardingCompleted: false,
         onboardingStep: 1,
         tokenUsage: {
@@ -23,6 +24,7 @@
             rightSidebarCollapsed: false,
             currentView: 'welcome',
             analysisStep: 1,
+            inputMethod: 'text',
             highlightsView: 'list', // list, text, filter
             filters: {
                 showManipulation: true,
@@ -120,7 +122,7 @@
         manipulationsCount: $('#manipulations-count'),
         biasesCount: $('#biases-count'),
         fallaciesCount: $('#fallacies-count'),
-        recommendationsCount: $('#recommendations-count'),
+        analysisRecommendationsCount: $('#analysis-recommendations-count'),
         barometerScore: $('#barometer-score'),
         barometerLabel: $('#barometer-label'),
         barometerComment: $('#barometer-comment'),
@@ -146,7 +148,7 @@
         workspaceClientInfo: $('#workspace-client-info'),
         recommendationsHistorySection: $('#recommendations-history-section'),
         recommendationsHistory: $('#recommendations-history'),
-        recommendationsCount: $('#recommendations-count'),
+        workspaceRecommendationsCount: $('#workspace-recommendations-count'),
         fragmentsCount: $('#fragments-count'),
         fragmentsDropZone: $('#fragments-drop-zone'),
         selectedFragments: $('#selected-fragments'),
@@ -391,25 +393,42 @@
 
     // ===== Layout Management =====
     function toggleSidebar(side) {
-        // Left sidebar is now always visible, only right sidebar can be toggled
+        const isMobile = window.innerWidth <= 1024;
+
+        if (side === 'left') {
+            if (isMobile) {
+                elements.sidebarLeft?.classList.toggle('active');
+            } else {
+                state.ui.leftSidebarCollapsed = !state.ui.leftSidebarCollapsed;
+                elements.sidebarLeft?.classList.toggle('collapsed', state.ui.leftSidebarCollapsed);
+                localStorage.setItem('teampulse-ui-state', JSON.stringify(state.ui));
+            }
+            return;
+        }
+
         if (side === 'right') {
             const sidebar = elements.sidebarRight;
-            state.ui.rightSidebarCollapsed = !state.ui.rightSidebarCollapsed;
-            sidebar.classList.toggle('collapsed', state.ui.rightSidebarCollapsed);
-            
-            // Update main content margin
-            if (window.innerWidth > 1024) {
-                elements.mainContent.style.marginRight = state.ui.rightSidebarCollapsed ? '0' : 'var(--right-panel-width)';
+            if (!sidebar) return;
+            if (isMobile) {
+                sidebar.classList.toggle('active');
+            } else {
+                state.ui.rightSidebarCollapsed = !state.ui.rightSidebarCollapsed;
+                sidebar.classList.toggle('collapsed', state.ui.rightSidebarCollapsed);
+                
+                // Update main content margin
+                if (elements.mainContent) {
+                    elements.mainContent.style.marginRight = state.ui.rightSidebarCollapsed ? '0' : 'var(--right-panel-width)';
+                }
+                
+                // Update toggle icon
+                const icon = elements.sidebarRightToggle?.querySelector('i');
+                if (icon) {
+                    icon.className = state.ui.rightSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
+                }
+                
+                // Save state
+                localStorage.setItem('teampulse-ui-state', JSON.stringify(state.ui));
             }
-            
-            // Update toggle icon
-            const icon = elements.sidebarRightToggle?.querySelector('i');
-            if (icon) {
-                icon.className = state.ui.rightSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
-            }
-            
-            // Save state
-            localStorage.setItem('teampulse-ui-state', JSON.stringify(state.ui));
         }
     }
 
@@ -433,6 +452,7 @@
         // Update buttons
         elements.textMethod?.classList.toggle('active', method === 'text');
         elements.fileMethod?.classList.toggle('active', method === 'file');
+        state.ui.inputMethod = method;
         
         // Update content
         if (elements.textInputContent) {
@@ -459,6 +479,8 @@
                 }
             }, 100);
         }
+
+        updateTextStats();
     }
 
     // ===== Onboarding System =====
@@ -927,8 +949,8 @@
         
         const recommendations = state.recommendationsHistory[clientId] || [];
         
-        if (elements.recommendationsCount) {
-            elements.recommendationsCount.textContent = recommendations.length;
+        if (elements.workspaceRecommendationsCount) {
+            elements.workspaceRecommendationsCount.textContent = recommendations.length;
         }
         
         // Show/hide clear button
@@ -1712,22 +1734,28 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         const chars = text.length;
         const words = text.split(/\s+/).filter(w => w.length > 0).length;
         const tokens = estimateTokens(text);
+        const hasText = chars > 0;
+        const hasFile = !!state.selectedFile;
+        const hasUploadFile = hasFile && state.selectedFile && !state.selectedFile.name.toLowerCase().endsWith('.txt');
         
         if (elements.charCount) elements.charCount.textContent = `${formatNumber(chars)} символів`;
         if (elements.wordCount) elements.wordCount.textContent = `${formatNumber(words)} слів`;
         if (elements.estimatedTokens) elements.estimatedTokens.textContent = `≈ ${formatNumber(tokens)} токенів`;
         
         // Enable/disable analysis button
-        const hasText = chars > 0;
+        const hasInput = state.ui.inputMethod === 'file' ? (hasText || hasUploadFile) : hasText;
         const hasClient = state.currentClient !== null;
         
         if (elements.startAnalysisBtn) {
-            elements.startAnalysisBtn.disabled = !hasText || !hasClient;
+            elements.startAnalysisBtn.disabled = !hasInput || !hasClient;
             
             if (!hasClient) {
                 elements.startAnalysisBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Спочатку оберіть клієнта</span>';
-            } else if (!hasText) {
-                elements.startAnalysisBtn.innerHTML = '<i class="fas fa-edit"></i> <span>Введіть текст для аналізу</span>';
+            } else if (!hasInput) {
+                const label = state.ui.inputMethod === 'file'
+                    ? 'Оберіть файл для аналізу'
+                    : 'Введіть текст для аналізу';
+                elements.startAnalysisBtn.innerHTML = `<i class="fas fa-edit"></i> <span>${label}</span>`;
             } else {
                 elements.startAnalysisBtn.innerHTML = '<i class="fas fa-brain"></i> <span>Розпочати аналіз</span>';
             }
@@ -1743,13 +1771,15 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             return;
         }
 
-        const text = elements.negotiationText?.value?.trim();
-        if (!text) {
-            showNotification('Введіть текст для аналізу', 'warning');
+        const text = elements.negotiationText?.value?.trim() || '';
+        const file = state.ui.inputMethod === 'file' ? state.selectedFile : null;
+        const shouldUploadFile = file && !file.name.toLowerCase().endsWith('.txt');
+        if (!text && !shouldUploadFile) {
+            showNotification('Додайте текст або оберіть файл для аналізу', 'warning');
             return;
         }
 
-        // Store original text for highlighting
+        // Store original text for highlighting (file content will arrive from server)
         state.originalText = text;
 
         try {
@@ -1803,7 +1833,12 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
 
             // Prepare form data for streaming analysis
             const formData = new FormData();
-            formData.append('text', text);
+            if (text) {
+                formData.append('text', text);
+            }
+            if (shouldUploadFile) {
+                formData.append('file', file, file.name);
+            }
             formData.append('client_id', state.currentClient.id);
 
             // Add participant filter if available
@@ -1877,6 +1912,13 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                                 updateBarometerDisplay(data);
                             } else if (data.type === 'analysis_saved') {
                                 state.currentAnalysis = { id: data.id, ...analysisData };
+                                if (data.original_text) {
+                                    state.originalText = data.original_text;
+                                    if (elements.negotiationText) {
+                                        elements.negotiationText.value = data.original_text;
+                                        updateTextStats();
+                                    }
+                                }
                                 
                                 // Increment client analysis count
                                 if (state.currentClient) {
@@ -2186,8 +2228,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         
         // Calculate total recommendations
         const totalCount = (counts.manipulation || 0) + (counts.cognitive_bias || 0) + (counts.rhetological_fallacy || 0);
-        if (elements.recommendationsCount) {
-            animateNumber(elements.recommendationsCount, totalCount);
+        if (elements.analysisRecommendationsCount) {
+            animateNumber(elements.analysisRecommendationsCount, totalCount);
         }
         
         // Show patterns
@@ -2219,8 +2261,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         
         // Calculate total recommendations
         const totalCount = highlights.length;
-        if (elements.recommendationsCount) {
-            animateNumber(elements.recommendationsCount, totalCount);
+        if (elements.analysisRecommendationsCount) {
+            animateNumber(elements.analysisRecommendationsCount, totalCount);
         }
         
         console.log('Updated counters:', counts, 'Total:', totalCount);
@@ -2792,8 +2834,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         
         // Calculate total for recommendations count
         const totalCount = (categoryCounts.manipulation || 0) + (categoryCounts.cognitive_bias || 0) + (categoryCounts.rhetological_fallacy || 0);
-        if (elements.recommendationsCount) {
-            animateNumber(elements.recommendationsCount, totalCount);
+        if (elements.analysisRecommendationsCount) {
+            animateNumber(elements.analysisRecommendationsCount, totalCount);
         }
 
         // Update barometer
@@ -3556,36 +3598,56 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         if (!file) return;
 
         // Validate file
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        const allowedTypes = ['.txt', '.doc', '.docx'];
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        const allowedTypes = ['.txt', '.docx'];
         const fileExt = '.' + file.name.split('.').pop().toLowerCase();
 
         if (file.size > maxSize) {
-            showNotification('Файл занадто великий. Максимальний розмір: 10MB', 'error');
+            showNotification('Файл занадто великий. Максимальний розмір: 50MB', 'error');
+            state.selectedFile = null;
+            if (elements.fileInput) elements.fileInput.value = '';
             return;
         }
 
         if (!allowedTypes.includes(fileExt)) {
-            showNotification('Непідтримуваний формат файлу. Дозволені: TXT, DOC, DOCX', 'error');
+            showNotification('Непідтримуваний формат файлу. Дозволені: TXT, DOCX', 'error');
+            state.selectedFile = null;
+            if (elements.fileInput) elements.fileInput.value = '';
             return;
         }
+
+        // Store file for upload
+        state.selectedFile = file;
+        updateInputMethod('file');
 
         // Show file preview
         showFilePreview(file);
 
-        // Read file
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            if (elements.negotiationText) {
-                elements.negotiationText.value = e.target.result;
+        if (fileExt === '.txt') {
+            // Read text files for preview
+            const reader = new FileReader();
+            reader.onload = (loadEvent) => {
+                if (elements.negotiationText) {
+                    elements.negotiationText.value = loadEvent.target.result;
+                }
                 updateTextStats();
+                if (window.ParticipantFilter) {
+                    window.ParticipantFilter.show(loadEvent.target.result);
+                }
+                showNotification('Файл завантажено успішно! ✅', 'success');
+            };
+            reader.onerror = () => {
+                showNotification('Помилка читання файлу', 'error');
+            };
+            reader.readAsText(file);
+        } else {
+            // For DOCX, rely on server-side parsing
+            if (elements.negotiationText) {
+                elements.negotiationText.value = '';
             }
-            showNotification('Файл завантажено успішно! ✅', 'success');
-        };
-        reader.onerror = () => {
-            showNotification('Помилка читання файлу', 'error');
-        };
-        reader.readAsText(file);
+            updateTextStats();
+            showNotification('DOCX буде оброблено на сервері під час аналізу', 'info', 3000);
+        }
     }
 
     function showFilePreview(file) {
@@ -3597,9 +3659,13 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
     function clearFile() {
         if (elements.fileInput) elements.fileInput.value = '';
         if (elements.filePreview) elements.filePreview.style.display = 'none';
+        state.selectedFile = null;
         if (elements.negotiationText) {
             elements.negotiationText.value = '';
             updateTextStats();
+        }
+        if (window.ParticipantFilter) {
+            window.ParticipantFilter.reset();
         }
     }
 
@@ -3609,87 +3675,6 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    // ===== Sidebar Management =====
-    function toggleSidebar(side) {
-        if (side === 'left') {
-            state.ui.leftSidebarCollapsed = !state.ui.leftSidebarCollapsed;
-            if (elements.sidebarLeft) {
-                elements.sidebarLeft.classList.toggle('collapsed', state.ui.leftSidebarCollapsed);
-            }
-        } else if (side === 'right') {
-            state.ui.rightSidebarCollapsed = !state.ui.rightSidebarCollapsed;
-            if (elements.sidebarRight) {
-                elements.sidebarRight.classList.toggle('collapsed', state.ui.rightSidebarCollapsed);
-            }
-        }
-    }
-
-    function showOnboarding() {
-        if (elements.onboardingModal) {
-            elements.onboardingModal.style.display = 'flex';
-        }
-    }
-
-    function completeOnboarding() {
-        state.onboardingCompleted = true;
-        if (elements.onboardingModal) {
-            elements.onboardingModal.style.display = 'none';
-        }
-        
-        // Load initial data
-        loadClients();
-        debouncedLoadTokenUsage();
-        
-        // Auto-refresh token usage (less frequent to avoid rate limiting)
-        setInterval(debouncedLoadTokenUsage, 120000); // 2 minutes instead of 30 seconds
-    }
-
-    function nextOnboardingStep() {
-        if (state.onboardingStep < 4) {
-            state.onboardingStep++;
-            updateOnboardingStep();
-        } else {
-            completeOnboarding();
-        }
-    }
-
-    function prevOnboardingStep() {
-        if (state.onboardingStep > 1) {
-            state.onboardingStep--;
-            updateOnboardingStep();
-        }
-    }
-
-    function updateOnboardingStep() {
-        // Hide all steps
-        $$('.onboarding-step').forEach(step => step.classList.remove('active'));
-        
-        // Show current step
-        const currentStep = $(`#onboarding-step-${state.onboardingStep}`);
-        if (currentStep) {
-            currentStep.classList.add('active');
-        }
-        
-        // Update progress
-        const progress = (state.onboardingStep / 4) * 100;
-        if (elements.onboardingProgress) {
-            elements.onboardingProgress.style.width = `${progress}%`;
-        }
-        if (elements.progressText) {
-            elements.progressText.textContent = `Крок ${state.onboardingStep} з 4`;
-        }
-        
-        // Update buttons
-        if (elements.prevStep) {
-            elements.prevStep.style.display = state.onboardingStep > 1 ? 'block' : 'none';
-        }
-        if (elements.nextStep) {
-            elements.nextStep.innerHTML = state.onboardingStep < 4 ? 
-                'Далі <i class="fas fa-arrow-right"></i>' : 
-                'Завершити <i class="fas fa-check"></i>';
-        }
     }
 
     // ===== Drag & Drop Functions =====
@@ -4238,6 +4223,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         // Sidebar toggles (only right sidebar can be toggled now)
         elements.sidebarRightToggle?.addEventListener('click', () => toggleSidebar('right'));
         elements.workspaceToggle?.addEventListener('click', () => toggleSidebar('right'));
+        elements.mobileMenuToggle?.addEventListener('click', () => toggleSidebar('left'));
         
         // Product switcher
         elements.productDropdownBtn?.addEventListener('click', toggleProductDropdown);
@@ -4283,6 +4269,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
 
         // Onboarding
         elements.welcomeHelp?.addEventListener('click', showOnboarding);
+        elements.onboardingClose?.addEventListener('click', completeOnboarding);
         elements.skipOnboarding?.addEventListener('click', completeOnboarding);
         elements.nextStep?.addEventListener('click', nextOnboardingStep);
         elements.prevStep?.addEventListener('click', prevOnboardingStep);
@@ -4605,6 +4592,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             elements.negotiationText.value = '';
             updateTextStats();
         }
+        clearFile();
         
         // Hide results section
         if (elements.resultsSection) {
@@ -4624,7 +4612,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         }
         
         // Reset counters
-        const counters = ['manipulations-count', 'biases-count', 'fallacies-count', 'recommendations-count'];
+        const counters = ['manipulations-count', 'biases-count', 'fallacies-count', 'analysis-recommendations-count'];
         counters.forEach(counterId => {
             const element = $(`#${counterId}`);
             if (element) element.textContent = '0';
@@ -4805,6 +4793,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             elements.negotiationText.value = '';
             updateTextStats();
         }
+        clearFile();
         if (elements.resultsSection) {
             elements.resultsSection.style.display = 'none';
         }
@@ -5627,7 +5616,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         
         // Initialize displays
         updateTextStats();
-        updateInputMethod('text');
+        updateInputMethod(state.ui.inputMethod || 'text');
         switchHighlightsView('list');
         
         // Always load initial data
