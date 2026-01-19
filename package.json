@@ -1,7 +1,7 @@
 {
     "name": "teampulse-turbo",
     "version": "2.0.0",
-    "description": "TeamPulse Turbo — Advanced Negotiation Analysis (Kaminskyi AI)",
+    "description": "Teampulse Negotiations AI — Advanced Negotiation Analysis",
     "type": "module",
     "scripts": {
         "start": "NODE_ENV=production node server.js",
@@ -48,7 +48,7 @@
         "manipulation-detection",
         "business-intelligence"
     ],
-    "author": "Kaminskyi AI",
+    "author": "Teampulse Negotiations AI",
     "license": "MIT",
     "repository": {
         "type": "git",

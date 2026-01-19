@@ -320,7 +320,7 @@ railway add postgresql
 railway variables set OPENAI_API_KEY="sk-..."
 railway variables set NODE_ENV="production"
 railway variables set DAILY_TOKEN_LIMIT="512000"
-railway variables set OPENAI_MODEL="gpt-4o"
+railway variables set OPENAI_MODEL="o4-mini"
 
 # 6. Get DATABASE_URL (automatically set by Railway)
 railway variables

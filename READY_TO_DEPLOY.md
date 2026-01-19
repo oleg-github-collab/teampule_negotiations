@@ -73,7 +73,7 @@ railway add postgresql
 railway variables set OPENAI_API_KEY="sk-proj-your-key-here"
 railway variables set NODE_ENV="production"
 railway variables set DAILY_TOKEN_LIMIT="512000"
-railway variables set OPENAI_MODEL="gpt-4o"
+railway variables set OPENAI_MODEL="o4-mini"
 
 # Перевірити
 railway variables
@@ -85,7 +85,7 @@ DATABASE_URL=postgresql://... (вже є)
 OPENAI_API_KEY=sk-...
 NODE_ENV=production
 DAILY_TOKEN_LIMIT=512000
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=o4-mini
 ```
 
 ### Крок 5: Deploy

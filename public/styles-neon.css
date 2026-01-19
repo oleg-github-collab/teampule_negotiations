@@ -1321,6 +1321,29 @@ body::before {
     border-left-color: var(--neon-purple);
 }
 
+.highlight-item.manipulation {
+    border-left-color: var(--neon-pink);
+}
+
+.highlight-item.cognitive_bias {
+    border-left-color: var(--neon-yellow);
+}
+
+.highlight-item.rhetological_fallacy,
+.highlight-item.fallacy {
+    border-left-color: var(--neon-green);
+}
+
+.highlight-item.selected {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 20px rgba(255, 255, 255, 0.08);
+    transform: translateX(2px);
+}
+
+.highlight-item.selected .highlight-actions {
+    opacity: 1;
+}
+
 .highlight-header {
     display: flex;
     justify-content: space-between;
@@ -2219,6 +2242,13 @@ mark.cognitive {
     color: var(--neon-green);
 }
 
+.fragment-severity {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
 .fragment-text {
     font-size: 1.1rem;
     line-height: 1.6;
@@ -2235,6 +2265,30 @@ mark.cognitive {
     color: var(--text-secondary);
     line-height: 1.5;
     margin-top: var(--spacing-sm);
+}
+
+.fragment-context {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px dashed var(--border);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.fragment-context .context-highlight {
+    color: var(--text);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 0.05rem 0.2rem;
+    border-radius: 4px;
+}
+
+.fragment-item.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), var(--shadow-md);
 }
 
 .fragment-actions {
@@ -2998,6 +3052,18 @@ textarea:focus-visible {
     }
 }
 
+@keyframes highlightPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    }
+}
+
 /* ===== Text Highlighting ===== */
 .fulltext-container {
     line-height: 1.8;
@@ -3040,6 +3106,15 @@ textarea:focus-visible {
 .text-highlight:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.text-highlight.selected {
+    outline: 2px solid rgba(255, 255, 255, 0.35);
+    outline-offset: 2px;
+}
+
+.text-highlight.focus {
+    animation: highlightPulse 1.2s ease;
 }
 
 .text-highlight.manipulation:hover {

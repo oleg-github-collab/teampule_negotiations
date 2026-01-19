@@ -7,7 +7,7 @@ import { run, get } from '../utils/db-postgres.js';
 import { performance } from 'perf_hooks';
 
 const r = Router();
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
+const MODEL = process.env.OPENAI_MODEL || 'o4-mini';
 const DAILY_TOKEN_LIMIT = Number(process.env.DAILY_TOKEN_LIMIT || 512000);
 
 // Daily limit helpers - PostgreSQL async version
@@ -141,8 +141,7 @@ ${JSON.stringify(
       top_p: 0.9
     };
 
-    // Only add temperature if supported
-    if (!/^gpt-5($|[-:])/i.test(MODEL)) {
+    if (process.env.OPENAI_DISABLE_TEMPERATURE !== 'true') {
       reqPayload.temperature = 0.2;
     }
 

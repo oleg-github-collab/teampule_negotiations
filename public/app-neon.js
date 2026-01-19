@@ -1,4 +1,4 @@
-// TeamPulse Turbo - Neon Enhanced Frontend
+// Teampulse Negotiations AI - Neon Enhanced Frontend
 (() => {
     'use strict';
 
@@ -12,6 +12,7 @@
         recommendationsHistory: {}, // clientId -> array of recommendations
         originalText: null,
         selectedFile: null,
+        filteredHighlights: [],
         onboardingCompleted: false,
         onboardingStep: 1,
         tokenUsage: {
@@ -150,6 +151,8 @@
         recommendationsHistory: $('#recommendations-history'),
         workspaceRecommendationsCount: $('#workspace-recommendations-count'),
         fragmentsCount: $('#fragments-count'),
+        addAllFragmentsBtn: $('#add-all-fragments-btn'),
+        addTopFragmentsBtn: $('#add-top-fragments-btn'),
         fragmentsDropZone: $('#fragments-drop-zone'),
         selectedFragments: $('#selected-fragments'),
         getAdviceBtn: $('#get-advice-btn'),
@@ -562,7 +565,7 @@
             elements.onboardingModal.style.display = 'none';
         }
         
-        showNotification('Ласкаво просимо до TeamPulse Turbo! 🚀', 'success');
+        showNotification('Ласкаво просимо до Teampulse Negotiations AI! 🚀', 'success');
         
         // Load initial data
         loadClients();
@@ -1571,7 +1574,7 @@
         const risks = rec.advice_data?.risks || [];
         const notes = rec.advice_data?.notes || '';
         
-        const copyText = `Рекомендації TeamPulse (${date.toLocaleString('uk-UA')})
+        const copyText = `Рекомендації Teampulse Negotiations AI (${date.toLocaleString('uk-UA')})
 
 РЕКОМЕНДОВАНІ ВІДПОВІДІ:
 ${replies.map((reply, i) => `${i + 1}. ${reply}`).join('\n')}
@@ -1884,10 +1887,12 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                             
                             if (data.type === 'highlight') {
                                 analysisData.highlights.push(data);
+                                ensureHighlightMetaForItem(data, analysisData.highlights.length - 1);
                                 updateHighlightsDisplay(analysisData.highlights);
                                 updateCountersFromHighlights(analysisData.highlights);
                             } else if (data.type === 'merged_highlights') {
                                 analysisData.highlights = data.items;
+                                ensureHighlightsMeta(analysisData.highlights);
                                 updateHighlightsDisplay(analysisData.highlights);
                                 updateCountersFromHighlights(analysisData.highlights);
                                 
@@ -2146,10 +2151,103 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
     }
 
     // Streaming update functions
+    function buildHighlightKey(highlight, index) {
+        const parts = [
+            highlight.paragraph_index ?? '',
+            highlight.char_start ?? '',
+            highlight.char_end ?? '',
+            highlight.category ?? '',
+            highlight.label ?? '',
+            highlight.text ?? ''
+        ];
+        const base = parts.map(part => String(part).trim()).join('|');
+        return base.length ? base : `idx:${index}`;
+    }
+
+    function ensureHighlightMetaForItem(highlight, index) {
+        if (!highlight) return highlight;
+        if (highlight._index == null) highlight._index = index;
+        if (!highlight._key) highlight._key = buildHighlightKey(highlight, index);
+        if (!highlight.id) highlight.id = highlight._key;
+        if (!highlight.severity) highlight.severity = Number(highlight.severity) || 1;
+        return highlight;
+    }
+
+    function ensureHighlightsMeta(highlights) {
+        if (!Array.isArray(highlights)) return [];
+        highlights.forEach((highlight, index) => {
+            ensureHighlightMetaForItem(highlight, index);
+        });
+        return highlights;
+    }
+
+    function isFragmentKeySelected(key) {
+        if (!key) return false;
+        return state.selectedFragments.some(fragment => fragment.key === key);
+    }
+
+    function isFragmentSelected(highlight) {
+        const key = highlight?._key || highlight?.id;
+        return isFragmentKeySelected(key);
+    }
+
+    function getSourceText() {
+        return state.originalText || state.currentAnalysis?.original_text || '';
+    }
+
+    function resolveHighlightRange(highlight, sourceText) {
+        if (!sourceText) return null;
+        const start = Number(
+            highlight?.global_start ?? highlight?.char_start
+        );
+        const end = Number(
+            highlight?.global_end ?? highlight?.char_end
+        );
+        if (Number.isFinite(start) && Number.isFinite(end) && start >= 0 && end > start && end <= sourceText.length) {
+            return { start, end, mode: 'indexed' };
+        }
+
+        const searchText = (highlight?.text || '').trim();
+        if (!searchText) return null;
+
+        let index = sourceText.indexOf(searchText);
+        if (index === -1) {
+            index = sourceText.toLowerCase().indexOf(searchText.toLowerCase());
+        }
+        if (index === -1) return null;
+
+        return { start: index, end: index + searchText.length, mode: 'search' };
+    }
+
+    function buildContextSnippet(highlight, options = {}) {
+        const sourceText = getSourceText();
+        const range = resolveHighlightRange(highlight, sourceText);
+        if (!range) return '';
+
+        const radius = Number(options.radius) || 90;
+        const contextStart = Math.max(0, range.start - radius);
+        const contextEnd = Math.min(sourceText.length, range.end + radius);
+
+        const prefix = contextStart > 0 ? '…' : '';
+        const suffix = contextEnd < sourceText.length ? '…' : '';
+        const before = escapeHtml(sourceText.slice(contextStart, range.start));
+        const match = escapeHtml(sourceText.slice(range.start, range.end));
+        const after = escapeHtml(sourceText.slice(range.end, contextEnd));
+
+        return `${prefix}${before}<span class="context-highlight">${match}</span>${after}${suffix}`;
+    }
+
+    function getHighlightItemClass(category) {
+        return getCategoryClass(category);
+    }
+
     function updateHighlightsDisplay(highlights) {
         if (!elements.highlightsList) return;
         
+        ensureHighlightsMeta(highlights);
+
         if (!highlights || highlights.length === 0) {
+            state.filteredHighlights = [];
             elements.highlightsList.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon"><i class="fas fa-search"></i></div>
@@ -2161,6 +2259,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         
         // Apply filters if they exist
         const filteredHighlights = filterHighlights(highlights);
+        state.filteredHighlights = filteredHighlights;
+        state.filteredHighlights = filteredHighlights;
         
         if (filteredHighlights.length === 0) {
             elements.highlightsList.innerHTML = `
@@ -2173,22 +2273,31 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             return;
         }
         
-        elements.highlightsList.innerHTML = filteredHighlights.map((highlight, filteredIndex) => {
-            // Find original index in the full highlights array
-            const originalIndex = highlights.findIndex(h => h.id === highlight.id || 
-                (h.text === highlight.text && h.category === highlight.category));
+        elements.highlightsList.innerHTML = filteredHighlights.map((highlight) => {
+            const originalIndex = highlight._index ?? highlights.indexOf(highlight);
+            const isSelected = isFragmentSelected(highlight);
+            const actionLabel = isSelected ? 'Видалити з робочої області' : 'Додати до робочої області';
+            const actionIcon = isSelected ? 'fa-check' : 'fa-plus';
+            const itemClass = getHighlightItemClass(highlight.category);
             
+            const safeLabel = escapeHtml(highlight.label || 'Проблема');
+            const safeText = escapeHtml(highlight.text || '');
+            const safeExplanation = escapeHtml(highlight.explanation || '');
+            const safeKey = escapeHtml(highlight._key || '');
             return `
-            <div class="highlight-item" data-highlight-id="${originalIndex}" draggable="true">
+            <div class="highlight-item ${itemClass} ${isSelected ? 'selected' : ''}" data-highlight-id="${originalIndex}" data-highlight-index="${originalIndex}" data-highlight-key="${safeKey}" draggable="true">
                 <div class="highlight-header">
-                    <div class="highlight-type ${highlight.category || 'manipulation'}">${highlight.label || 'Проблема'}</div>
+                    <div class="highlight-type ${highlight.category || 'manipulation'}">${safeLabel}</div>
                     <div class="highlight-severity">Рівень: ${highlight.severity || 1}</div>
                 </div>
-                <div class="highlight-text">"${highlight.text}"</div>
-                <div class="highlight-explanation">${highlight.explanation || ''}</div>
+                <div class="highlight-text">"${safeText}"</div>
+                <div class="highlight-explanation">${safeExplanation}</div>
                 <div class="highlight-actions">
-                    <button class="btn-icon add-to-workspace-btn" data-highlight-index="${originalIndex}" title="Додати до робочої області">
-                        <i class="fas fa-plus"></i>
+                    <button class="btn-icon toggle-workspace-btn" data-action="toggle-workspace" data-highlight-index="${originalIndex}" title="${actionLabel}">
+                        <i class="fas ${actionIcon}"></i>
+                    </button>
+                    <button class="btn-icon focus-highlight-btn" data-action="focus-highlight" data-highlight-index="${originalIndex}" data-highlight-key="${safeKey}" title="Показати у тексті">
+                        <i class="fas fa-crosshairs"></i>
                     </button>
                 </div>
             </div>
@@ -2197,18 +2306,6 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         
         // Enable drag functionality
         enableHighlightDrag();
-        
-        // Add event listeners for workspace buttons
-        setTimeout(() => {
-            $$('.add-to-workspace-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = parseInt(btn.dataset.highlightIndex);
-                    console.log('🔘 Adding highlight to workspace via + button:', index);
-                    addToWorkspace(index);
-                });
-            });
-        }, 100); // Small delay to ensure DOM is ready
     }
 
     function updateSummaryDisplay(summary) {
@@ -2799,6 +2896,9 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             barometer: !!analysis.barometer
         });
 
+        // Normalize highlight metadata for consistent selection
+        ensureHighlightsMeta(analysis.highlights);
+
         // Process highlights to extract categories
         let categoryCounts = { manipulation: 0, cognitive_bias: 0, rhetological_fallacy: 0 };
         
@@ -2939,9 +3039,13 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         if (elements.fulltextContent) {
             if (highlightedText && highlightedText.trim() !== '') {
                 console.log('🔍 Updating full text view with highlighted content, length:', highlightedText.length);
+                let renderText = highlightedText;
+                if (state.originalText && state.currentAnalysis?.highlights && !highlightedText.includes('data-highlight-index')) {
+                    renderText = generateHighlightedText(state.originalText, state.currentAnalysis.highlights);
+                }
                 elements.fulltextContent.innerHTML = `
                     <div class="fulltext-container">
-                        ${highlightedText}
+                        ${renderText}
                     </div>
                 `;
             } else if (state.currentAnalysis?.highlights && state.originalText) {
@@ -2971,6 +3075,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                     </div>
                 `;
             }
+            updateFullTextSelection();
         }
     }
 
@@ -2978,6 +3083,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         if (!originalText || !highlights || highlights.length === 0) {
             return escapeHtml(originalText || '');
         }
+
+        ensureHighlightsMeta(highlights);
 
         console.log('🔍 Generating highlighted text, originalText length:', originalText.length);
         console.log('🔍 Number of highlights:', highlights.length);
@@ -2992,6 +3099,9 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                 console.warn('🔍 Empty highlight text, skipping:', highlight);
                 continue;
             }
+
+            const highlightKey = highlight._key || highlight.id;
+            const highlightIndex = highlight._index;
             
             console.log('🔍 Searching for highlight text:', searchText);
             
@@ -3007,6 +3117,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                     start: index,
                     end: index + searchText.length,
                     highlight: highlight,
+                    highlightKey: highlightKey,
+                    highlightIndex: highlightIndex,
                     matchType: 'exact',
                     priority: 1
                 });
@@ -3021,6 +3133,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                         start: index,
                         end: index + normalizedSearch.length,
                         highlight: highlight,
+                        highlightKey: highlightKey,
+                        highlightIndex: highlightIndex,
                         matchType: 'normalized',
                         priority: 2
                     });
@@ -3038,6 +3152,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                         start: index,
                         end: index + searchText.length,
                         highlight: highlight,
+                        highlightKey: highlightKey,
+                        highlightIndex: highlightIndex,
                         matchType: 'case-insensitive',
                         priority: 3
                     });
@@ -3082,6 +3198,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                                         start: actualStart,
                                         end: actualEnd,
                                         highlight: highlight,
+                                        highlightKey: highlightKey,
+                                        highlightIndex: highlightIndex,
                                         matchType: 'context-based',
                                         priority: 4
                                     });
@@ -3132,6 +3250,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                             start: originalPos,
                             end: endPos,
                             highlight: highlight,
+                            highlightKey: highlightKey,
+                            highlightIndex: highlightIndex,
                             matchType: 'flexible',
                             priority: 4
                         });
@@ -3153,6 +3273,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                             start: i,
                             end: i + candidate.length,
                             highlight: highlight,
+                            highlightKey: highlightKey,
+                            highlightIndex: highlightIndex,
                             matchType: 'fuzzy',
                             priority: 6,
                             similarity: similarity
@@ -3178,6 +3300,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                             start: expandStart,
                             end: expandEnd,
                             highlight: highlight,
+                            highlightKey: highlightKey,
+                            highlightIndex: highlightIndex,
                             matchType: 'keyword-expanded',
                             priority: 7
                         });
@@ -3229,8 +3353,13 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             const actualText = originalText.substring(pos.start, pos.end);
             const categoryClass = getCategoryClass(pos.highlight.category);
             const tooltip = escapeHtml(pos.highlight.explanation || pos.highlight.label || '');
+            const highlightKey = pos.highlightKey || pos.highlight?._key || pos.highlight?.id;
+            const highlightIndex = Number.isFinite(pos.highlightIndex) ? pos.highlightIndex : pos.highlight?._index;
+            const selectedClass = isFragmentKeySelected(highlightKey) ? ' selected' : '';
+            const keyAttr = highlightKey ? ` data-highlight-key="${escapeHtml(highlightKey)}"` : '';
+            const indexAttr = Number.isFinite(highlightIndex) ? ` data-highlight-index="${highlightIndex}"` : '';
             
-            result += `<span class="text-highlight ${categoryClass}" data-tooltip="${tooltip}" title="Match type: ${pos.matchType}">${escapeHtml(actualText)}</span>`;
+            result += `<span class="text-highlight ${categoryClass}${selectedClass}"${indexAttr}${keyAttr} data-tooltip="${tooltip}" title="Match type: ${pos.matchType}">${escapeHtml(actualText)}</span>`;
             
             lastPos = pos.end;
         }
@@ -3244,6 +3373,26 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         console.log('🔍 Highlighted', cleanPositions.length, 'out of', highlights.length, 'total highlights');
         
         return result;
+    }
+
+    function updateFullTextSelection() {
+        if (!elements.fulltextContent) return;
+        const spans = elements.fulltextContent.querySelectorAll('.text-highlight');
+        if (!spans.length) return;
+
+        spans.forEach(span => {
+            const key = span.dataset.highlightKey;
+            let selected = false;
+            if (key) {
+                selected = isFragmentKeySelected(key);
+            } else if (span.dataset.highlightIndex) {
+                const index = Number.parseInt(span.dataset.highlightIndex, 10);
+                if (!Number.isNaN(index) && state.currentAnalysis?.highlights?.[index]) {
+                    selected = isFragmentSelected(state.currentAnalysis.highlights[index]);
+                }
+            }
+            span.classList.toggle('selected', selected);
+        });
     }
     
     // Helper function to calculate text similarity
@@ -3346,6 +3495,8 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
     function updateFragmentsView(highlights) {
         if (!elements.fragmentsContent) return;
         
+        ensureHighlightsMeta(highlights);
+
         if (!highlights || highlights.length === 0) {
             elements.fragmentsContent.innerHTML = `
                 <div class="empty-state">
@@ -3379,9 +3530,14 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             const categoryClass = getCategoryClass(highlight.category);
             const categoryLabel = getCategoryLabel(highlight.category);
             const severityText = getSeverityText(highlight.severity);
+            const isSelected = isFragmentSelected(highlight);
+            const actionIcon = isSelected ? 'fa-check' : 'fa-plus';
+            const actionTitle = isSelected ? 'Видалити з робочої області' : 'Додати до робочої області';
+            const contextSnippet = buildContextSnippet(highlight);
+            const safeKey = escapeHtml(highlight._key || '');
             
             return `
-                <div class="fragment-item" data-category="${highlight.category}">
+                <div class="fragment-item ${isSelected ? 'selected' : ''}" data-category="${highlight.category}" data-highlight-index="${highlight._index}" data-highlight-key="${safeKey}" draggable="true">
                     <div class="fragment-header">
                         <div class="fragment-category ${categoryClass}">
                             <i class="fas ${getCategoryIcon(highlight.category)}"></i>
@@ -3392,14 +3548,18 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                     <div class="fragment-text">
                         "${escapeHtml(highlight.text)}"
                     </div>
+                    ${contextSnippet ? `<div class="fragment-context">${contextSnippet}</div>` : ''}
                     <div class="fragment-explanation">
                         <strong>${escapeHtml(highlight.label || highlight.title || 'Проблемний момент')}:</strong>
                         ${escapeHtml(highlight.explanation || 'Пояснення недоступне')}
                         ${highlight.suggestion ? `<br><br><strong>Рекомендація:</strong> ${escapeHtml(highlight.suggestion)}` : ''}
                     </div>
                     <div class="fragment-actions">
-                        <button class="btn-icon add-fragment-btn" data-fragment='${JSON.stringify(highlight).replace(/'/g, "&#39;")}' title="Додати до робочої області">
-                            <i class="fas fa-plus"></i>
+                        <button class="btn-icon toggle-workspace-btn" data-action="toggle-workspace" data-highlight-index="${highlight._index}" title="${actionTitle}">
+                            <i class="fas ${actionIcon}"></i>
+                        </button>
+                        <button class="btn-icon focus-highlight-btn" data-action="focus-highlight" data-highlight-index="${highlight._index}" data-highlight-key="${safeKey}" title="Показати у тексті">
+                            <i class="fas fa-crosshairs"></i>
                         </button>
                         <button class="btn-icon copy-fragment-btn" data-text="${escapeHtml(highlight.text)}" title="Скопіювати текст">
                             <i class="fas fa-copy"></i>
@@ -3408,15 +3568,6 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                 </div>
             `;
         }).join('');
-        
-        // Add event listeners
-        elements.fragmentsContent.querySelectorAll('.add-fragment-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const fragment = JSON.parse(e.target.closest('.add-fragment-btn').dataset.fragment);
-                addToSelectedFragments(fragment);
-            });
-        });
         
         elements.fragmentsContent.querySelectorAll('.copy-fragment-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -3430,6 +3581,49 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                 }
             });
         });
+
+        enableHighlightDrag();
+    }
+
+    function resolveHighlightIndexByKey(key) {
+        if (!key || !state.currentAnalysis?.highlights?.length) return null;
+        const index = state.currentAnalysis.highlights.findIndex(highlight => (highlight._key || highlight.id) === key);
+        return index >= 0 ? index : null;
+    }
+
+    function focusHighlightInText(highlightIndex, highlightKey) {
+        const index = Number.isFinite(highlightIndex) ? highlightIndex : resolveHighlightIndexByKey(highlightKey);
+        if (!Number.isFinite(index)) return;
+
+        switchHighlightsView('text');
+
+        const scrollToTarget = () => {
+            if (!elements.fulltextContent) return;
+            const target = elements.fulltextContent.querySelector(`.text-highlight[data-highlight-index="${index}"]`);
+            if (!target) return;
+            target.classList.add('focus');
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => target.classList.remove('focus'), 1200);
+        };
+
+        setTimeout(scrollToTarget, 60);
+    }
+
+    function handleFulltextClick(e) {
+        const target = e.target.closest('.text-highlight');
+        if (!target) return;
+        const index = Number.parseInt(target.dataset.highlightIndex, 10);
+        const key = target.dataset.highlightKey;
+
+        if (!Number.isNaN(index)) {
+            toggleWorkspaceSelection(index);
+            return;
+        }
+
+        const resolvedIndex = resolveHighlightIndexByKey(key);
+        if (resolvedIndex !== null) {
+            toggleWorkspaceSelection(resolvedIndex);
+        }
     }
     
     function getCategoryLabel(category) {
@@ -3495,6 +3689,9 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         // Apply filters to current highlights
         if (state.currentAnalysis?.highlights) {
             updateHighlightsDisplay(state.currentAnalysis.highlights);
+            if (state.ui.highlightsView === 'highlights') {
+                updateFragmentsView(state.currentAnalysis.highlights);
+            }
         }
         
         // Close filters panel
@@ -3679,15 +3876,15 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
 
     // ===== Drag & Drop Functions =====
     function enableHighlightDrag() {
-        $$('.highlight-item[draggable="true"]').forEach(item => {
+        $$('[data-highlight-index][draggable="true"]').forEach(item => {
             item.addEventListener('dragstart', (e) => {
-                const highlightId = e.target.dataset.highlightId;
-                e.dataTransfer.setData('text/plain', highlightId);
-                e.target.classList.add('dragging');
+                const highlightIndex = e.currentTarget.dataset.highlightIndex || e.currentTarget.dataset.highlightId;
+                e.dataTransfer.setData('text/plain', highlightIndex);
+                e.currentTarget.classList.add('dragging');
             });
 
             item.addEventListener('dragend', (e) => {
-                e.target.classList.remove('dragging');
+                e.currentTarget.classList.remove('dragging');
             });
         });
     }
@@ -3712,34 +3909,65 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             dropZone.classList.remove('dragover');
             
             const highlightId = e.dataTransfer.getData('text/plain');
-            if (highlightId !== '') {
-                addToWorkspace(parseInt(highlightId));
+            const index = Number.parseInt(highlightId, 10);
+            if (!Number.isNaN(index)) {
+                addToWorkspace(index);
             }
         });
+    }
+
+    function addHighlightToWorkspace(highlight, highlightIndex, options = {}) {
+        if (!highlight) return false;
+        const key = highlight._key || buildHighlightKey(highlight, highlightIndex);
+        const contextSnippet = buildContextSnippet(highlight);
+
+        const exists = state.selectedFragments.some(fragment => fragment.key === key);
+        if (exists) {
+            if (!options.silent) {
+                showNotification('Цей фрагмент вже додано до робочої області', 'warning');
+            }
+            return false;
+        }
+
+        state.selectedFragments.push({
+            key,
+            source_index: highlightIndex,
+            paragraph_index: highlight.paragraph_index ?? null,
+            char_start: highlight.char_start ?? null,
+            char_end: highlight.char_end ?? null,
+            text: highlight.text,
+            category: highlight.category,
+            label: highlight.label,
+            explanation: highlight.explanation,
+            severity: Number(highlight.severity) || 1,
+            context: contextSnippet || null,
+        });
+
+        return true;
+    }
+
+    function refreshWorkspaceSelectionViews() {
+        updateWorkspaceFragments();
+        updateWorkspaceActions();
+        if (state.currentAnalysis?.highlights) {
+            updateHighlightsDisplay(state.currentAnalysis.highlights);
+            if (state.ui.highlightsView === 'highlights') {
+                updateFragmentsView(state.currentAnalysis.highlights);
+            }
+        }
+        updateFullTextSelection();
     }
 
     function addToWorkspace(highlightIndex) {
         if (!state.currentAnalysis?.highlights?.[highlightIndex]) return;
         
         const highlight = state.currentAnalysis.highlights[highlightIndex];
-        
-        // Avoid duplicates
-        const exists = state.selectedFragments.some(f => f.id === highlight.id);
-        if (exists) {
-            showNotification('Цей фрагмент вже додано до робочої області', 'warning');
-            return;
-        }
-        
-        state.selectedFragments.push({
-            id: highlight.id,
-            text: highlight.text,
-            category: highlight.category,
-            label: highlight.label,
-            explanation: highlight.explanation
-        });
-        
-        updateWorkspaceFragments();
-        updateWorkspaceActions();
+        ensureHighlightMetaForItem(highlight, highlightIndex);
+
+        const added = addHighlightToWorkspace(highlight, highlightIndex);
+        if (!added) return;
+
+        refreshWorkspaceSelectionViews();
         showNotification('Фрагмент додано до робочої області', 'success');
         
         // Save state
@@ -3749,6 +3977,14 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
     function updateWorkspaceFragments() {
         const selectedFragments = elements.selectedFragments;
         if (!selectedFragments) return;
+
+        if (elements.fragmentsDropZone) {
+            elements.fragmentsDropZone.classList.toggle('has-items', state.selectedFragments.length > 0);
+            const icon = elements.fragmentsDropZone.querySelector('.drop-zone-icon');
+            const text = elements.fragmentsDropZone.querySelector('.drop-zone-text');
+            if (icon) icon.style.display = state.selectedFragments.length > 0 ? 'none' : 'block';
+            if (text) text.style.display = state.selectedFragments.length > 0 ? 'none' : 'block';
+        }
         
         if (elements.fragmentsCount) {
             elements.fragmentsCount.textContent = state.selectedFragments.length;
@@ -3759,25 +3995,131 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             return;
         }
         
-        selectedFragments.innerHTML = state.selectedFragments.map((fragment, index) => `
+        selectedFragments.innerHTML = state.selectedFragments.map((fragment, index) => {
+            const categoryClass = getCategoryClass(fragment.category);
+            const severityText = getSeverityText(fragment.severity);
+            const label = escapeHtml(fragment.label || 'Проблемний момент');
+            const explanation = escapeHtml(fragment.explanation || 'Пояснення недоступне');
+            const text = escapeHtml(fragment.text || '');
+            const contextSnippet = fragment.context || buildContextSnippet(fragment);
+            return `
             <div class="fragment-item">
-                <div class="highlight-type ${fragment.category}">${fragment.label}</div>
-                <div class="fragment-text">"${fragment.text}"</div>
-                <button class="fragment-remove" data-action="remove-from-workspace" data-fragment-index="${index}" title="Видалити">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div class="fragment-header">
+                    <div class="fragment-category ${categoryClass}">
+                        <i class="fas ${getCategoryIcon(fragment.category)}"></i>
+                        ${getCategoryLabel(fragment.category)}
+                    </div>
+                    <div class="fragment-severity">${severityText}</div>
+                    <button class="fragment-remove" data-action="remove-from-workspace" data-fragment-index="${index}" title="Видалити">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="fragment-text">"${text}"</div>
+                ${contextSnippet ? `<div class="fragment-context">${contextSnippet}</div>` : ''}
+                <div class="fragment-explanation">${label}: ${explanation}</div>
             </div>
-        `).join('');
+        `;
+        }).join('');
+    }
+
+    function toggleWorkspaceSelection(highlightIndex) {
+        if (!state.currentAnalysis?.highlights?.[highlightIndex]) return;
+        const highlight = state.currentAnalysis.highlights[highlightIndex];
+        ensureHighlightMetaForItem(highlight, highlightIndex);
+
+        const key = highlight._key;
+        const existingIndex = state.selectedFragments.findIndex(fragment => fragment.key === key);
+        if (existingIndex >= 0) {
+            state.selectedFragments.splice(existingIndex, 1);
+            refreshWorkspaceSelectionViews();
+            showNotification('Фрагмент видалено з робочої області', 'info');
+            scheduleStateSave();
+            return;
+        }
+
+        addHighlightToWorkspace(highlight, highlightIndex, { silent: true });
+        refreshWorkspaceSelectionViews();
+        showNotification('Фрагмент додано до робочої області', 'success');
+        scheduleStateSave();
+    }
+
+    function addAllFilteredHighlights() {
+        if (!state.currentAnalysis?.highlights?.length) {
+            showNotification('Немає фрагментів для додавання', 'warning');
+            return;
+        }
+
+        const source = state.filteredHighlights?.length
+            ? state.filteredHighlights
+            : state.currentAnalysis.highlights;
+
+        let addedCount = 0;
+        source.forEach((highlight) => {
+            const index = highlight._index ?? state.currentAnalysis.highlights.indexOf(highlight);
+            ensureHighlightMetaForItem(highlight, index);
+            const added = addHighlightToWorkspace(highlight, index, { silent: true });
+            if (added) addedCount++;
+        });
+
+        if (addedCount === 0) {
+            showNotification('Немає нових фрагментів для додавання', 'warning');
+            return;
+        }
+
+        refreshWorkspaceSelectionViews();
+        showNotification(`Додано фрагментів: ${addedCount}`, 'success');
+        scheduleStateSave();
+    }
+
+    function addTopCriticalHighlights() {
+        if (!state.currentAnalysis?.highlights?.length) {
+            showNotification('Немає фрагментів для додавання', 'warning');
+            return;
+        }
+
+        const source = state.filteredHighlights?.length
+            ? state.filteredHighlights
+            : state.currentAnalysis.highlights;
+
+        const withMeta = source.map((highlight) => {
+            const index = highlight._index ?? state.currentAnalysis.highlights.indexOf(highlight);
+            ensureHighlightMetaForItem(highlight, index);
+            return highlight;
+        });
+
+        const critical = withMeta.filter(highlight => Number(highlight.severity) >= 3);
+        const candidates = critical.length > 0
+            ? critical
+            : [...withMeta].sort((a, b) => (b.severity || 1) - (a.severity || 1));
+
+        const top = candidates.slice(0, 5);
+        let addedCount = 0;
+
+        top.forEach((highlight) => {
+            const index = highlight._index ?? state.currentAnalysis.highlights.indexOf(highlight);
+            const added = addHighlightToWorkspace(highlight, index, { silent: true });
+            if (added) addedCount++;
+        });
+
+        if (addedCount === 0) {
+            showNotification('Немає нових критичних фрагментів для додавання', 'warning');
+            return;
+        }
+
+        refreshWorkspaceSelectionViews();
+        showNotification(`Додано критичних фрагментів: ${addedCount}`, 'success');
+        scheduleStateSave();
     }
 
     function removeFromWorkspace(index) {
         state.selectedFragments.splice(index, 1);
-        updateWorkspaceFragments();
-        updateWorkspaceActions();
+        refreshWorkspaceSelectionViews();
+        scheduleStateSave();
     }
 
     function updateWorkspaceActions() {
         const hasFragments = state.selectedFragments.length > 0;
+        const hasHighlights = !!state.currentAnalysis?.highlights?.length;
         
         if (elements.getAdviceBtn) {
             elements.getAdviceBtn.disabled = !hasFragments;
@@ -3787,6 +4129,12 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         }
         if (elements.clearWorkspaceBtn) {
             elements.clearWorkspaceBtn.disabled = !hasFragments;
+        }
+        if (elements.addAllFragmentsBtn) {
+            elements.addAllFragmentsBtn.disabled = !hasHighlights;
+        }
+        if (elements.addTopFragmentsBtn) {
+            elements.addTopFragmentsBtn.disabled = !hasHighlights;
         }
     }
 
@@ -4184,9 +4532,9 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             'Очистити робочу область? Всі обрані фрагменти будуть видалені.',
             () => {
                 state.selectedFragments = [];
-                updateWorkspaceFragments();
-                updateWorkspaceActions();
+                refreshWorkspaceSelectionViews();
                 showNotification('Робочу область очищено', 'info');
+                scheduleStateSave();
             }
         );
     }
@@ -4354,6 +4702,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         elements.textView?.addEventListener('click', () => switchHighlightsView('text'));
         elements.highlightsView?.addEventListener('click', () => switchHighlightsView('highlights'));
         elements.filterView?.addEventListener('click', () => toggleFilters());
+        elements.fulltextContent?.addEventListener('click', handleFulltextClick);
 
         // Filter controls
         elements.clearFiltersBtn?.addEventListener('click', clearFilters);
@@ -4443,6 +4792,10 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
                 const highlightId = e.target.dataset.highlightId || e.target.closest('[data-highlight-id]')?.dataset.highlightId;
                 if (highlightId) addToWorkspace(parseInt(highlightId));
                 break;
+            case 'toggle-workspace':
+                const toggleId = e.target.dataset.highlightIndex || e.target.closest('[data-highlight-index]')?.dataset.highlightIndex;
+                if (toggleId !== undefined) toggleWorkspaceSelection(parseInt(toggleId));
+                break;
             case 'share-highlight':
                 const shareId = e.target.dataset.highlightId || e.target.closest('[data-highlight-id]')?.dataset.highlightId;
                 if (shareId && window.shareHighlight) window.shareHighlight(parseInt(shareId));
@@ -4450,6 +4803,18 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             case 'remove-from-workspace':
                 const fragmentIndex = e.target.dataset.fragmentIndex || e.target.closest('[data-fragment-index]')?.dataset.fragmentIndex;
                 if (fragmentIndex !== undefined) removeFromWorkspace(parseInt(fragmentIndex));
+                break;
+            case 'add-all-fragments':
+                addAllFilteredHighlights();
+                break;
+            case 'add-top-fragments':
+                addTopCriticalHighlights();
+                break;
+            case 'focus-highlight':
+                const focusIndex = e.target.dataset.highlightIndex || e.target.closest('[data-highlight-index]')?.dataset.highlightIndex;
+                const focusKey = e.target.dataset.highlightKey || e.target.closest('[data-highlight-key]')?.dataset.highlightKey;
+                const focusIndexNum = focusIndex !== undefined ? Number.parseInt(focusIndex, 10) : null;
+                focusHighlightInText(focusIndexNum, focusKey);
                 break;
             case 'create-first-analysis':
                 closeAnalysisHistoryModal();
@@ -4586,6 +4951,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         state.currentAnalysis = null;
         state.originalText = '';
         state.selectedFragments = [];
+        state.filteredHighlights = [];
         
         // Clear text input
         if (elements.negotiationText) {
@@ -4730,6 +5096,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             // Set the loaded analysis as current
             state.currentAnalysis = data.analysis;
             state.originalText = data.analysis.original_text || '';
+            ensureHighlightsMeta(state.currentAnalysis.highlights);
             
             // Clear current text and show the analysis text
             if (elements.negotiationText) {
@@ -4787,6 +5154,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         state.currentAnalysis = null;
         state.originalText = null;
         state.selectedFragments = [];
+        state.filteredHighlights = [];
         
         // Clear UI
         if (elements.negotiationText) {
@@ -5230,7 +5598,10 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
             
             // Restore selected fragments
             if (appState.selectedFragments && Array.isArray(appState.selectedFragments)) {
-                state.selectedFragments = appState.selectedFragments;
+                state.selectedFragments = appState.selectedFragments.map((fragment, index) => {
+                    const key = fragment.key || fragment.id || buildHighlightKey(fragment, index);
+                    return { ...fragment, key };
+                });
                 try {
                     updateWorkspaceFragments();
                     updateWorkspaceActions();
@@ -5590,7 +5961,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
 
     // ===== Initialization =====
     function init() {
-        console.log('🚀 TeamPulse Turbo Neon - Initializing...');
+        console.log('🚀 Teampulse Negotiations AI - Initializing...');
         
         // Load saved UI state
         const savedState = localStorage.getItem('teampulse-ui-state');
@@ -5659,7 +6030,7 @@ ${rec.comment ? `КОМЕНТАР: ${rec.comment}` : ''}`;
         // Save state on page unload
         window.addEventListener('beforeunload', saveAppState);
         
-        console.log('✨ TeamPulse Turbo Neon - Ready!');
+        console.log('✨ Teampulse Negotiations AI - Ready!');
     }
 
     // Start when authenticated

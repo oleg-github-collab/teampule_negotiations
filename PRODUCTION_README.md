@@ -1,4 +1,4 @@
-# 🚀 TeamPulse Turbo v3.1 - PostgreSQL Production Edition
+# 🚀 Teampulse Negotiations AI - PostgreSQL Production Edition
 
 ## ✨ Що було зроблено
 
@@ -379,4 +379,4 @@ curl https://your-app.railway.app/health
 **Version:** 3.1 PostgreSQL Production
 **Status:** ✅ Backend Ready | ⏳ Frontend 30min
 **Date:** 2025-12-05
-**Author:** Oleh Kaminskyi + Claude
+**Author:** Teampulse Negotiations AI

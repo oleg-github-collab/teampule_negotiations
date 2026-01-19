@@ -39,7 +39,7 @@ const consoleFormat = winston.format.combine(
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
-  defaultMeta: { service: 'teampulse-turbo' },
+  defaultMeta: { service: 'teampulse-negotiations-ai' },
   transports: [
     // Error logs
     new winston.transports.File({

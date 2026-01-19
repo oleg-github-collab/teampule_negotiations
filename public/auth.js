@@ -1,4 +1,4 @@
-// Authentication module for TeamPulse Turbo
+// Authentication module for Teampulse Negotiations AI
 (function() {
     'use strict';
     

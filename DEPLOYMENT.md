@@ -1,4 +1,4 @@
-# 🚀 TeamPulse Turbo - Production Deployment Guide
+# 🚀 Teampulse Negotiations AI - Production Deployment Guide
 
 ## Зміни в проекті ✅
 
@@ -54,7 +54,7 @@ Railway автоматично створить:
 railway variables set OPENAI_API_KEY="sk-..."
 railway variables set NODE_ENV="production"
 railway variables set DAILY_TOKEN_LIMIT="512000"
-railway variables set OPENAI_MODEL="gpt-4o"
+railway variables set OPENAI_MODEL="o4-mini"
 railway variables set MAX_HIGHLIGHTS_PER_1000_WORDS="50"
 railway variables set LOG_LEVEL="info"
 
@@ -133,7 +133,7 @@ Documentation:
 | NODE_ENV | ✅ | development | Середовище (production/development) |
 | PORT | ❌ | 3000 | Порт (автоматично від Railway) |
 | DAILY_TOKEN_LIMIT | ❌ | 512000 | Денний ліміт токенів |
-| OPENAI_MODEL | ❌ | gpt-4o | AI модель |
+| OPENAI_MODEL | ❌ | o4-mini | AI модель |
 | MAX_HIGHLIGHTS_PER_1000_WORDS | ❌ | 50 | Макс знахідок на 1000 слів |
 | LOG_LEVEL | ❌ | info | Рівень логування |
 
@@ -287,7 +287,7 @@ railway rollback <deployment-id>
 - PostgreSQL: включено
 
 ### OpenAI API
-- GPT-4o: ~$5-15/day (залежить від використання)
+- OpenAI модель: ~$5-15/day (залежить від використання)
 - Ліміт: 512K токенів/день
 
 ## Next Steps

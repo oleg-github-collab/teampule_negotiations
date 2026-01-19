@@ -1,4 +1,4 @@
-// server.js - Production TeamPulse Turbo Server
+// server.js - Production Teampulse Negotiations AI Server
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST
@@ -520,7 +520,7 @@ const gracefulShutdown = async (signal) => {
         logger.error('Error closing database pool:', dbErr);
       }
 
-      logger.info('✅ TeamPulse Turbo shutdown complete');
+      logger.info('✅ Teampulse Negotiations AI shutdown complete');
       process.exit(err ? 1 : 0);
     });
 
@@ -637,10 +637,10 @@ async function startServer() {
     // Start server with enhanced production features
     const server = app.listen(PORT, HOST, () => {
       const env = process.env.NODE_ENV || 'development';
-      logger.info(`🚀 TeamPulse Turbo v3.0 running on ${HOST}:${PORT} (${env})`);
+      logger.info(`🚀 Teampulse Negotiations AI running on ${HOST}:${PORT} (${env})`);
       logger.info(`💾 Database: PostgreSQL`);
       logger.info(`📊 Daily token limit: ${Number(process.env.DAILY_TOKEN_LIMIT || 512000).toLocaleString()}`);
-      logger.info(`🤖 AI Model: ${process.env.OPENAI_MODEL || 'gpt-4o'}`);
+      logger.info(`🤖 AI Model: ${process.env.OPENAI_MODEL || 'o4-mini'}`);
       logger.info(`🔒 Security features enabled: ${isProduction ? 'YES' : 'NO'}`);
       logger.info(`📝 Logging level: ${process.env.LOG_LEVEL || 'info'}`);
 

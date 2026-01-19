@@ -90,7 +90,7 @@ export const client = _client ? {
 export function estimateTokens(str) {
   if (!str) return 0;
   
-  // More accurate token estimation for GPT models
+  // More accurate token estimation for AI models
   // Based on OpenAI's tokenization patterns
   
   // Remove extra whitespace and normalize
